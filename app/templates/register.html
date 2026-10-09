@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}註冊 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+<section class="narrow">
+  <h1>建立帳號</h1>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <form method="post" action="/register" class="stack">
+    <label>帳號
+      <input name="username" value="{{ form.username or '' }}" required minlength="3" maxlength="20"
+             pattern="[a-z0-9_]+" autocomplete="username" autocapitalize="none">
+      <small class="muted">會出現在你的網址：/u/帳號（英文小寫、數字、底線）</small>
+    </label>
+    <label>顯示名稱
+      <input name="display_name" value="{{ form.display_name or '' }}" maxlength="30">
+    </label>
+    <label>密碼
+      <input name="password" type="password" required minlength="8" autocomplete="new-password">
+    </label>
+    <button type="submit" class="btn">註冊</button>
+  </form>
+  <p class="muted">已經有帳號？<a href="/login">登入</a></p>
+</section>
+{% endblock %}

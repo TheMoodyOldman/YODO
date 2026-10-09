@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}友多聞 YODO{% endblock %}</title>
+  {% block meta %}{% endblock %}
+  <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <nav class="container nav">
+      <a class="brand" href="/"><span class="brand-zh">友多聞</span> YODO</a>
+      <div class="nav-links">
+        {% if me %}
+          <a href="/me/collection">我的收藏</a>
+          <a href="/u/{{ me.username }}">我的頁面</a>
+          <a href="/me/card">Recap</a>
+          <a href="/me/settings">設定</a>
+          <form method="post" action="/logout" class="inline nav-logout">
+            <button type="submit" class="link">登出</button>
+          </form>
+        {% else %}
+          <a href="/login">登入</a>
+          <a href="/register" class="btn small">註冊</a>
+        {% endif %}
+      </div>
+    </nav>
+  </header>
+  <main class="container">
+    {% if flash %}<p class="flash">{{ flash }}</p>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

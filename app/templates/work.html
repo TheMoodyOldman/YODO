@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}{{ work.title }} · {{ owner.display_name }} · 友多聞 YODO{% endblock %}
+
+{% block meta %}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ work.title }} · {{ owner.display_name }} 的{{ CATEGORY_LABELS[work.category] }}">
+  {% if cover %}<meta property="og:image" content="{{ cover }}">{% endif %}
+{% endblock %}
+
+{% block content %}
+{% from "_verdict.html" import verdict_picker, verdict_badges %}
+{% from "_macros.html" import hours %}
+{% set is_game = work.category == Category.game %}
+{% set is_anime = work.category == Category.anime %}
+{% set is_music = work.category == Category.music %}
+
+<div class="work-backdrop" aria-hidden="true"
+     style="--work-color: {{ color }};{% if cover %} --work-cover: url('{{ cover }}');{% endif %}"></div>
+
+<div class="work-page" style="--work-color: {{ color }}">
+  <a class="back-btn" href="{{ back_href }}"><span class="arrow" aria-hidden="true">←</span> {{ owner.display_name }} 的{{ CATEGORY_LABELS[work.category] }}</a>
+
+  <header class="work-hero">
+    <div class="work-cover{% if is_music %} square{% endif %}">
+      {% if cover %}<img src="{{ cover }}" alt="" onerror="this.remove()">{% endif %}
+    </div>
+    <div class="work-head">
+      <p class="eyebrow">{{ CATEGORY_LABELS[work.category] }} · 第 {{ rank }} / {{ total }} {{ UNITS[work.category] }}</p>
+      <h1>{{ work.title }}</h1>
+      {% if work.original_title and work.original_title != work.title %}<p class="work-sub">{{ work.original_title }}</p>{% endif %}
+      {% if work.creator %}<p class="work-sub">{{ work.creator }}</p>{% endif %}
+      {% if is_anime %}<div data-hero-verdict>{{ verdict_badges(entry) }}</div>{% endif %}
+      {% if is_game and entry.playtime_minutes %}
+        <p class="big-stat">{{ hours(entry.playtime_minutes) }}</p>
+      {% elif is_music and entry.play_count %}
+        <p class="big-stat">{{ entry.play_count }} <small>次播放</small></p>
+      {% endif %}
+    </div>
+  </header>
+
+  {% if is_owner and is_anime %}
+    <section class="panel glass">
+      <form method="post" action="/me/collection/{{ entry.id }}/verdict" data-autosave>
+        <input type="hidden" name="next" value="{{ request.url.path }}">
+        {{ verdict_picker(entry.tier, entry.tag, "work") }}
+        <noscript><button type="submit" class="btn small">儲存</button></noscript>
+        <p class="save-status muted small" aria-live="polite"></p>
+      </form>
+    </section>
+  {% endif %}
+
+  <section class="panel glass">
+    <h2>{{ "你的紀錄" if is_owner else owner.display_name ~ " 的紀錄" }}</h2>
+    {% if entry.hidden %}<p><span class="badge">已隱藏，只有你看得到</span></p>{% endif %}
+    <dl class="stats">
+      {% if is_game %}
+        <div><dt>總遊玩</dt><dd>{{ hours(entry.playtime_minutes or 0) }}</dd></div>
+      {% elif is_music %}
+        <div><dt>總播放</dt><dd>{{ entry.play_count or 0 }} 次</dd></div>
+        <div><dt>來源</dt><dd>{{ "YouTube Music" if work.source == "youtube" else "Last.fm" }}</dd></div>
+      {% else %}
+        <div><dt>評價</dt><dd>{{ TIER_LABELS[entry.tier] if entry.tier else "未評價" }}</dd></div>
+        {% if entry.tag %}<div><dt>標籤</dt><dd>#{{ entry.tag }}</dd></div>{% endif %}
+      {% endif %}
+      <div><dt>排名</dt><dd>第 {{ rank }} / {{ total }}</dd></div>
+      <div><dt>加入收藏</dt><dd>{{ entry.added_at.strftime("%Y-%m-%d") }}</dd></div>
+    </dl>
+
+    {% if history %}
+      <h3>每月{{ "遊玩時數" if is_game else "播放次數" }}</h3>
+      <ul class="bars">
+        {% for month, value in history %}
+          <li>
+            <span class="bar-label">{{ month[:4] }}/{{ month[5:] }}</span>
+            <span class="bar-track"><span class="bar" style="width: {{ (value / history_max * 100) | round(1) if history_max else 0 }}%"></span></span>
+            <span class="bar-value">{{ hours(value) if is_game else value ~ " 次" }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% elif is_game %}
+      <p class="muted small">每月時數會在之後同步 Steam 時開始記錄。</p>
+    {% endif %}
+  </section>
+
+  {% if info.description or info.facts or info.genres or info.link %}
+    <section class="panel glass">
+      <h2>關於這{{ {"game": "款遊戲", "anime": "部動畫", "music": "首歌"}[work.category.value] }}</h2>
+      {% if info.facts %}
+        <dl class="facts">
+          {% for label, value in info.facts %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}
+        </dl>
+      {% endif %}
+      {% if info.genres %}
+        <p class="genres">{% for g in info.genres %}<span class="genre">{{ g }}</span>{% endfor %}</p>
+      {% endif %}
+      {% if info.description %}<p class="work-desc">{{ info.description }}</p>{% endif %}
+      {% if info.link %}
+        <p><a class="btn secondary small" href="{{ info.link[0] }}" target="_blank" rel="noopener">{{ info.link[1] }} ↗</a></p>
+      {% endif %}
+    </section>
+  {% endif %}
+</div>
+
+{% if prev_href %}<a class="work-nav prev" href="{{ prev_href }}" aria-label="上一個" data-nav="prev">‹</a>{% endif %}
+{% if next_href %}<a class="work-nav next" href="{{ next_href }}" aria-label="下一個" data-nav="next">›</a>{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ← / → switch items, unless the user is typing.
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest("input, textarea, select") && e.target.type !== "radio") return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const link = document.querySelector(`[data-nav="${e.key === "ArrowLeft" ? "prev" : e.key === "ArrowRight" ? "next" : ""}"]`);
+    if (link && !e.target.closest(".picker")) location.href = link.href;
+  });
+
+  // Owner's verdict picker saves as soon as a chip is tapped.
+  const form = document.querySelector("[data-autosave]");
+  if (form) {
+    const status = form.querySelector(".save-status");
+    const hero = document.querySelector("[data-hero-verdict]");
+    form.addEventListener("change", async () => {
+      status.textContent = "儲存中…";
+      try {
+        const r = await fetch(form.action, { method: "POST", body: new FormData(form), headers: { "X-Requested-With": "fetch" } });
+        if (!r.ok) throw new Error(r.status);
+        status.textContent = "已儲存";
+        const tier = form.querySelector('input[name="tier"]:checked');
+        const tag = form.querySelector('input[name="tag"]:checked');
+        hero.replaceChildren();
+        if ((tier && tier.value) || (tag && tag.value)) {
+          const box = document.createElement("div");
+          box.className = "verdict";
+          if (tier && tier.value) {
+            const b = document.createElement("span");
+            b.className = `tier tier-${tier.value}`;
+            b.textContent = tier.nextElementSibling.textContent;
+            box.append(b);
+          }
+          if (tag && tag.value) {
+            const c = document.createElement("span");
+            c.className = "tag-chip";
+            c.textContent = tag.nextElementSibling.textContent;
+            box.append(c);
+          }
+          hero.append(box);
+        }
+      } catch {
+        status.textContent = "儲存失敗，請再試一次";
+      }
+    });
+  }
+</script>
+{% endblock %}

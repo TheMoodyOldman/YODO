@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}設定 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+<section class="narrow">
+  <h1>設定</h1>
+  <form method="post" action="/me/settings" class="stack">
+    <h2>個人資料</h2>
+    <label>顯示名稱
+      <input name="display_name" value="{{ me.display_name }}" maxlength="30">
+    </label>
+    <label>自我介紹
+      <textarea name="bio" rows="3" maxlength="200" placeholder="例如：週末玩星露谷，通勤聽 city pop">{{ me.bio }}</textarea>
+    </label>
+
+    <h2>公開範圍</h2>
+    <p class="muted small">決定誰能在你的興趣頁看到各類收藏。好友功能推出前，「好友」等同「僅自己」。</p>
+    {% for category in Category %}
+      <label class="row">
+        <span>{{ CATEGORY_LABELS[category] }}</span>
+        <select name="visibility_{{ category.value }}">
+          {% for v in Visibility %}
+            <option value="{{ v.value }}" {% if privacy[category] == v %}selected{% endif %}>{{ VISIBILITY_LABELS[v] }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    {% endfor %}
+
+    <button type="submit" class="btn">儲存</button>
+  </form>
+
+  <h2>帳號</h2>
+  <form method="post" action="/logout">
+    <button type="submit" class="btn secondary">登出</button>
+  </form>
+</section>
+{% endblock %}

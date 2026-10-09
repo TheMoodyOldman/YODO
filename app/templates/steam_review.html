@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}確認 Steam 遊戲 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_macros.html" import cover_img, hours %}
+<h1>確認要公開的遊戲</h1>
+<p class="muted">從 Steam 匯入了 {{ rows | length }} 款玩超過 {{ min_hours }} 小時的遊戲。勾選的會出現在你的興趣頁，沒勾的會設為隱藏，之後隨時可以在收藏中改。</p>
+
+<form method="post" action="/me/steam/review">
+  <div class="actions">
+    <button type="button" class="link" data-check="all">全選</button>
+    <button type="button" class="link" data-check="none">全不選</button>
+  </div>
+  <ul class="entries">
+    {% for entry, work in rows %}
+      <li class="entry">
+        <label class="check review-row">
+          <input type="checkbox" name="publish" value="{{ entry.id }}" checked>
+          <span class="thumb">{{ cover_img(work) }}</span>
+          <span class="entry-info">
+            <span class="card-title">{{ work.title }}</span>
+            <span class="card-sub">{{ hours(entry.playtime_minutes) }}</span>
+          </span>
+        </label>
+      </li>
+    {% endfor %}
+  </ul>
+  <p><button type="submit" class="btn">確認</button></p>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll("[data-check]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const on = btn.dataset.check === "all";
+      document.querySelectorAll('input[name="publish"]').forEach((box) => (box.checked = on));
+    });
+  });
+</script>
+{% endblock %}

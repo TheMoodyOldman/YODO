@@ -1,0 +1,36 @@
+{% from "_macros.html" import cover_img %}
+
+{% macro music_rankings(section, n, base) -%}
+<div class="rankings">
+  <div>
+    <h3>最常聽的歌手</h3>
+    <ol class="rank-list">
+      {% for artist in section.top_artists[:n] %}
+        <li>
+          <span class="rank">{{ loop.index }}</span>
+          <span class="thumb square">{% if artist.cover_url %}<img src="{{ artist.cover_url }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}</span>
+          <span class="rank-info">
+            <span class="card-title">{{ artist.name }}</span>
+            <span class="card-sub">{% if artist.plays %}{{ artist.plays }} 次播放{% else %}{{ artist.songs }} 首歌{% endif %}</span>
+          </span>
+        </li>
+      {% endfor %}
+    </ol>
+  </div>
+  <div>
+    <h3>最常聽的歌曲</h3>
+    <ol class="rank-list">
+      {% for entry, work in section.top_songs[:n] %}
+        <li><a class="rank-link" href="{{ base }}{{ work.id }}">
+          <span class="rank">{{ loop.index }}</span>
+          <span class="thumb square">{{ cover_img(work) }}</span>
+          <span class="rank-info">
+            <span class="card-title">{{ work.title }}</span>
+            <span class="card-sub">{{ work.creator or '' }}{% if entry.play_count %} · {{ entry.play_count }} 次{% endif %}</span>
+          </span>
+        </a></li>
+      {% endfor %}
+    </ol>
+  </div>
+</div>
+{%- endmacro %}

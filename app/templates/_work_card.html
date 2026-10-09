@@ -1,0 +1,16 @@
+{# expects: work, entry (optional) #}
+{% from "_macros.html" import cover_img, hours %}
+{% from "_verdict.html" import verdict_badges %}
+<div class="cover">{{ cover_img(work) }}</div>
+<div class="card-body">
+  {% if entry %}{{ verdict_badges(entry) }}{% endif %}
+  <div class="card-title">{{ work.title }}</div>
+  {% if work.original_title and work.original_title != work.title %}
+    <div class="card-sub">{{ work.original_title }}</div>
+  {% endif %}
+  <div class="card-meta">
+    {% if work.year %}<span>{{ work.year }}</span>{% endif %}
+    {% if entry and entry.playtime_minutes %}<span>{{ hours(entry.playtime_minutes) }}</span>{% endif %}
+    {% if entry and entry.play_count %}<span>{{ entry.play_count }} 次播放</span>{% endif %}
+  </div>
+</div>

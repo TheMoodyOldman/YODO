@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}{{ owner.display_name }} 的興趣名片 · 友多聞 YODO{% endblock %}
+
+{% block meta %}
+  <meta property="og:type" content="profile">
+  <meta property="og:title" content="{{ owner.display_name }} 的興趣名片">
+  <meta property="og:description" content="{{ owner.bio or '看看我最近在玩、在看、在聽什麼' }}">
+  <meta property="og:url" content="{{ page_url }}">
+  <meta name="twitter:card" content="summary">
+{% endblock %}
+
+{% block content %}
+{% from "_profile_macros.html" import music_rankings %}
+<section class="profile-head">
+  <h1>{{ owner.display_name }}</h1>
+  <p class="muted">@{{ owner.username }}</p>
+  {% if owner.bio %}<p class="bio">{{ owner.bio }}</p>{% endif %}
+  <button type="button" class="btn secondary small" data-copy="{{ page_url }}">複製頁面連結</button>
+</section>
+
+{% if is_owner %}
+  <p class="notice">
+    這是你的興趣頁。隱藏的作品不會顯示；設為「好友」或「僅自己」的類別，其他人目前看不到。
+    <a href="/me/collection">管理收藏</a> · <a href="/me/settings">公開範圍</a>
+  </p>
+  <a class="btn recap-btn" href="/me/card">製作我的 Recap<span class="arrow" aria-hidden="true">→</span></a>
+{% endif %}
+
+{% if shown %}
+<nav class="tabs" role="tablist" aria-label="收藏分類">
+  <button type="button" role="tab" data-tab="overview" aria-selected="true">總覽</button>
+  {% for section in shown %}
+    <button type="button" role="tab" data-tab="{{ section.category.value }}" aria-selected="false">
+      {{ CATEGORY_LABELS[section.category] }}
+      {% if section.category != Category.music %}<span class="tab-count">{{ section['items'] | length }}</span>{% endif %}
+    </button>
+  {% endfor %}
+</nav>
+
+{# Overview: one short row per category #}
+<div role="tabpanel" data-panel="overview">
+  {% for section in shown %}
+    {% set n = section['items'] | length %}
+    <section class="category">
+      <div class="category-head">
+        <h2>
+          {{ CATEGORY_LABELS[section.category] }}
+          {% if is_owner %}<span class="badge">{{ VISIBILITY_LABELS[section.visibility] }}</span>{% endif %}
+        </h2>
+        {% if n %}
+          <button type="button" class="link see-all" data-goto="{{ section.category.value }}">
+            {% if section.category == Category.music %}完整排行{% else %}查看全部 {{ n }} {{ UNITS[section.category] }}{% endif %} →
+          </button>
+        {% endif %}
+      </div>
+      {% if not n %}
+        <p class="muted">還沒有{{ CATEGORY_LABELS[section.category] }}。</p>
+      {% elif section.category == Category.music %}
+        {{ music_rankings(section, 5, '/u/' ~ owner.username ~ '/w/') }}
+      {% else %}
+        <div class="row-scroll">
+          {% for entry, work in section['items'][:OVERVIEW_ITEMS] %}
+            <a class="card" href="/u/{{ owner.username }}/w/{{ work.id }}">{% include "_work_card.html" %}</a>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+  {% endfor %}
+</div>
+
+{# One full panel per category #}
+{% for section in shown %}
+  <div role="tabpanel" data-panel="{{ section.category.value }}">
+    <section class="category">
+      {% if not section['items'] %}
+        <p class="muted">還沒有{{ CATEGORY_LABELS[section.category] }}。</p>
+      {% elif section.category == Category.music %}
+        {{ music_rankings(section, 10, '/u/' ~ owner.username ~ '/w/') }}
+      {% elif section.category == Category.anime %}
+        {# Grouped by the owner's verdict, best first #}
+        {% for label, group in section.tier_groups if group %}
+          <h3 class="tier-heading">{{ label }} <span class="muted small">{{ group | length }}</span></h3>
+          <div class="grid compact">
+            {% for entry, work in group %}
+              <a class="card" href="/u/{{ owner.username }}/w/{{ work.id }}">{% include "_work_card.html" %}</a>
+            {% endfor %}
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="grid compact" data-paged="{{ PAGE_ITEMS }}">
+          {% for entry, work in section['items'] %}
+            <a class="card{% if loop.index > PAGE_ITEMS %} extra{% endif %}" href="/u/{{ owner.username }}/w/{{ work.id }}">{% include "_work_card.html" %}</a>
+          {% endfor %}
+        </div>
+        {% if section['items'] | length > PAGE_ITEMS %}
+          <p class="more"><button type="button" class="btn secondary small" data-more>顯示更多</button></p>
+        {% endif %}
+      {% endif %}
+    </section>
+  </div>
+{% endfor %}
+{% endif %}
+
+{% if not has_items and not is_owner %}
+  <p class="muted">{{ owner.display_name }} 還沒有公開任何收藏。</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll("[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy);
+        btn.textContent = "已複製！";
+      } catch {
+        prompt("複製這個連結：", btn.dataset.copy);
+      }
+    });
+  });
+</script>
+<script src="{{ url_for('static', path='js/tabs.js') }}"></script>
+{% endblock %}

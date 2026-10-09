@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block title %}我的收藏 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_macros.html" import cover_img, hours %}
+{% from "_verdict.html" import verdict_picker, verdict_badges %}
+<h1>我的收藏</h1>
+
+{% if pending[Category.game] %}
+  <p class="notice">有 {{ pending[Category.game] }} 款從 Steam 匯入的遊戲還沒公開。<a href="/me/steam/review">確認要公開哪些</a></p>
+{% endif %}
+{% if pending[Category.music] %}
+  <p class="notice">有 {{ pending[Category.music] }} 首新匯入的歌曲還沒公開。<a href="/me/music/review">確認要公開哪些</a></p>
+{% endif %}
+
+<nav class="tabs" role="tablist" aria-label="收藏分類" data-default="{{ default_tab }}">
+  {% for category in Category %}
+    <button type="button" role="tab" data-tab="{{ category.value }}" aria-selected="{{ 'true' if category == default_tab else 'false' }}">
+      {{ CATEGORY_LABELS[category] }} <span class="tab-count">{{ counts[category] }}</span>
+    </button>
+  {% endfor %}
+</nav>
+
+{% for category in Category %}
+<div role="tabpanel" data-panel="{{ category.value }}">
+
+  {% if category == Category.game %}
+    <section class="panel">
+      <h2>Steam</h2>
+      {% if me.steam_id %}
+        <p class="small">已連結 <a href="{{ steam_profile_url }}" target="_blank" rel="noopener">Steam 帳號</a>。同步會匯入玩超過 1 小時的遊戲並更新遊玩時數。</p>
+        <div class="actions">
+          <form method="post" action="/me/steam/sync" class="inline">
+            <button type="submit" class="btn small">立即同步</button>
+          </form>
+          <form method="post" action="/me/steam/unlink" class="inline" onsubmit="return confirm('解除 Steam 連結？已匯入的遊戲會保留。')">
+            <button type="submit" class="link danger">解除連結</button>
+          </form>
+        </div>
+      {% else %}
+        <p class="small muted">用 Steam 登入來連結帳號，自動匯入遊戲庫與遊玩時數。需要把 Steam 的「遊戲詳細資料」設為公開。</p>
+        <a class="btn small" href="/me/steam/connect">連結 Steam</a>
+      {% endif %}
+    </section>
+
+  {% elif category == Category.anime %}
+    <section class="panel">
+      <h2>加入動畫</h2>
+      <form method="get" action="/me/collection" class="search">
+        <input name="q" value="{{ q }}" placeholder="搜尋動畫名稱" aria-label="搜尋動畫名稱">
+        <button type="submit" class="btn">搜尋</button>
+      </form>
+      <p class="muted small">資料來自 AniList，支援英文、日文與羅馬拼音片名；中文片名可能搜尋不到。</p>
+
+      {% if search_error %}<p class="error">{{ search_error }}</p>{% endif %}
+      {% if q and not results and not search_error %}<p class="muted">找不到「{{ q }}」，試試英文或日文片名。</p>{% endif %}
+
+      {% if results %}
+        <div class="grid compact">
+          {% for anime in results %}
+            <article class="card">
+              {% set work = anime %}{% set entry = none %}
+              {% include "_work_card.html" %}
+              <div class="card-actions">
+                {% if anime.format_label %}<span class="muted small">{{ anime.format_label }}</span>{% endif %}
+                {% if anime.id | string in owned_anilist_ids %}
+                  <span class="badge">已加入</span>
+                {% else %}
+                  <form method="post" action="/me/collection/anime" class="inline">
+                    <input type="hidden" name="anilist_id" value="{{ anime.id }}">
+                    <input type="hidden" name="q" value="{{ q }}">
+                    <button type="submit" class="btn small">加入</button>
+                  </form>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+
+  {% else %}
+    <section class="panel">
+      <h2>Last.fm</h2>
+      {% if me.lastfm_username %}
+        <p class="small">
+          已連結 <a href="https://www.last.fm/user/{{ me.lastfm_username | urlencode }}" target="_blank" rel="noopener">{{ me.lastfm_username }}</a>。
+          {% if me.lastfm_synced_at %}上次同步：{{ me.lastfm_synced_at.strftime('%Y-%m-%d') }}。{% endif %}
+          同步會更新本月與之後的播放次數。
+        </p>
+        <div class="actions">
+          <form method="post" action="/me/lastfm/sync" class="inline">
+            <button type="submit" class="btn small">立即同步</button>
+          </form>
+          <form method="post" action="/me/lastfm/unlink" class="inline" onsubmit="return confirm('解除 Last.fm 連結？已匯入的歌曲會保留。')">
+            <button type="submit" class="link danger">解除連結</button>
+          </form>
+        </div>
+      {% else %}
+        <p class="small muted">Spotify、Apple Music 等平台可以把收聽紀錄同步（scrobble）到 Last.fm，再從這裡匯入。第一次會匯入最近 6 個月的紀錄。</p>
+        <a class="btn small" href="/me/lastfm/connect">連結 Last.fm</a>
+      {% endif %}
+      {% if has_lastfm %}
+        <form method="post" action="/me/lastfm/clear" class="inline"
+              onsubmit="return confirm('刪除所有從 Last.fm 匯入的歌曲與播放紀錄？')">
+          <button type="submit" class="link danger">刪除 Last.fm 匯入的資料</button>
+        </form>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>YouTube Music</h2>
+      <details class="small"{% if not has_youtube %} open{% endif %}>
+        <summary>{{ '上傳新的 Takeout 檔案' if has_youtube else '上傳 Takeout 檔案' }}</summary>
+        <details class="howto">
+          <summary>如何取得檔案</summary>
+          <ol>
+            <li>前往 <a href="https://takeout.google.com" target="_blank" rel="noopener">Google Takeout</a>，先「取消全選」，只勾「YouTube 和 YouTube Music」。</li>
+            <li>點「多種格式」，把「記錄」改成 <strong>JSON</strong>（預設是 HTML）。</li>
+            <li>在「包含所有 YouTube 資料」只留「記錄」和「音樂（媒體庫和上傳內容）」。</li>
+            <li>下載解壓縮後，上傳「觀看記錄」裡的 <code>watch-history.json</code> 和「music (library and uploads)」裡的 <code>music library songs.csv</code>。</li>
+          </ol>
+        </details>
+        <form method="post" action="/me/youtube/import" enctype="multipart/form-data" class="stack upload">
+          <label>觀看紀錄 <span class="muted">watch-history.json</span>
+            <input type="file" name="history" accept=".json,application/json">
+          </label>
+          <label>音樂收藏 <span class="muted">music library songs.csv</span>
+            <input type="file" name="library" accept=".csv,text/csv">
+          </label>
+          <p class="muted">只會保留 YouTube Music 與音樂頻道的播放紀錄，其他影片的觀看紀錄在上傳時就會丟棄，不會儲存。重複匯入新的檔案不會重複計算。</p>
+          <div class="actions">
+            <button type="submit" class="btn small">匯入</button>
+          </div>
+        </form>
+      </details>
+      {% if has_youtube %}
+        <form method="post" action="/me/youtube/clear" class="inline"
+              onsubmit="return confirm('刪除所有從 YouTube 匯入的歌曲與播放紀錄？')">
+          <button type="submit" class="link danger">刪除 YouTube 匯入的資料</button>
+        </form>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  {% set rows = by_category[category] %}
+  {% set is_music = category == Category.music %}
+  <section class="category">
+    {% if not rows %}
+      <p class="muted">{{ EMPTY_HINTS[category] }}</p>
+    {% else %}
+      {% if is_music and music_total > rows | length %}
+        <p class="muted small">依播放次數列出前 {{ rows | length }} 首。<a href="/me/collection?music=all#music">顯示全部 {{ music_total }} 首</a></p>
+      {% endif %}
+      <ul class="entries" data-paged="{{ PAGE_ITEMS }}">
+        {% for entry, work in rows %}
+          <li id="entry-{{ entry.id }}" class="entry{% if entry.hidden %} is-hidden{% endif %}{% if loop.index > PAGE_ITEMS %} extra{% endif %}">
+            <div class="thumb{% if is_music %} square{% endif %}">{{ cover_img(work) }}</div>
+            <div class="entry-info">
+              <a class="card-title" href="/u/{{ me.username }}/w/{{ work.id }}">{{ work.title }}</a>
+              {% if work.original_title and work.original_title != work.title %}<div class="card-sub">{{ work.original_title }}</div>{% endif %}
+              {% if work.creator %}<div class="card-sub">{{ work.creator }}</div>{% endif %}
+              {% if entry.playtime_minutes %}<div class="card-sub">{{ hours(entry.playtime_minutes) }}</div>{% endif %}
+              {% if entry.play_count %}<div class="card-sub">{{ entry.play_count }} 次播放</div>{% endif %}
+              {{ verdict_badges(entry) }}
+              {% if entry.hidden %}<span class="badge">已隱藏</span>{% endif %}
+            </div>
+            <form method="post" action="/me/collection/{{ entry.id }}" class="entry-form">
+              {% if category == Category.anime %}
+                <button type="button" class="btn small" data-rate data-id="{{ entry.id }}" data-title="{{ work.title }}"
+                        data-cover="{{ work.cover_url or '' }}" data-tier="{{ entry.tier or '' }}" data-tag="{{ entry.tag or '' }}">評價</button>
+              {% endif %}
+              <label class="check"><input type="checkbox" name="hidden" value="true" {% if entry.hidden %}checked{% endif %}> 隱藏</label>
+              <button type="submit" class="btn small secondary">儲存</button>
+            </form>
+            <form method="post" action="/me/collection/{{ entry.id }}/delete" class="inline"
+                  data-confirm="從收藏移除《{{ work.title }}》？" onsubmit="return confirm(this.dataset.confirm)">
+              <button type="submit" class="link danger">移除</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if rows | length > PAGE_ITEMS %}
+        <p class="more"><button type="button" class="btn secondary small" data-more>顯示更多</button></p>
+      {% endif %}
+    {% endif %}
+  </section>
+</div>
+{% endfor %}
+
+{# Rating dialog: opened by every 評價 button, and right after adding an anime. #}
+{% if rate_entry %}
+  {% set e, w = rate_entry %}
+  <button type="button" hidden data-rate data-autoopen data-id="{{ e.id }}" data-title="{{ w.title }}"
+          data-cover="{{ w.cover_url or '' }}" data-tier="{{ e.tier or '' }}" data-tag="{{ e.tag or '' }}"></button>
+{% endif %}
+<dialog class="rate-dialog" id="rate-dialog" aria-labelledby="rate-title">
+  <form method="post" id="rate-form">
+    <input type="hidden" name="next" value="{{ rate_next }}">
+    <div class="rate-head">
+      <div class="thumb"><img id="rate-cover" alt=""></div>
+      <div>
+        <p class="eyebrow">這部你覺得如何？</p>
+        <h2 id="rate-title"></h2>
+      </div>
+    </div>
+    {{ verdict_picker(none, none, "dlg") }}
+    <div class="actions">
+      <button type="submit" class="btn">儲存</button>
+      <button type="button" class="btn secondary" data-close>稍後再說</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='js/tabs.js') }}"></script>
+<script>
+  (() => {
+    const dialog = document.getElementById("rate-dialog");
+    const form = document.getElementById("rate-form");
+    const cover = document.getElementById("rate-cover");
+
+    function open(btn) {
+      const d = btn.dataset;
+      form.action = `/me/collection/${d.id}/verdict`;
+      document.getElementById("rate-title").textContent = d.title;
+      cover.hidden = !d.cover;
+      if (d.cover) cover.src = d.cover;
+      form.querySelectorAll('input[name="tier"]').forEach((r) => (r.checked = r.value === (d.tier || "")));
+      form.querySelectorAll('input[name="tag"]').forEach((r) => (r.checked = r.value === (d.tag || "")));
+      dialog.showModal();
+    }
+
+    document.querySelectorAll("[data-rate]").forEach((b) => b.addEventListener("click", () => open(b)));
+    dialog.querySelector("[data-close]").addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });  // backdrop click
+
+    const auto = document.querySelector("[data-rate][data-autoopen]");
+    if (auto) {
+      open(auto);
+      const url = new URL(location.href);
+      url.searchParams.delete("rate");  // don't reopen on refresh
+      history.replaceState(null, "", url);
+    }
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}確認音樂收藏 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_macros.html" import cover_img %}
+<h1>確認要公開的音樂</h1>
+<p class="muted">新匯入了 {{ total }} 首歌。你的興趣頁只會顯示最常聽的歌手與歌曲排行，下面就是會上榜的項目。取消勾選的會設為隱藏，之後隨時可以在收藏中改。</p>
+
+<form method="post" action="/me/music/review">
+  <div class="actions">
+    <button type="button" class="link" data-check="all">全選</button>
+    <button type="button" class="link" data-check="none">全不選</button>
+  </div>
+
+  <div class="rankings">
+    {% if artists %}
+    <div>
+      <h2>歌手</h2>
+      <p class="muted small">取消勾選會隱藏這位歌手的所有歌曲。</p>
+      <ul class="entries">
+        {% for artist in artists %}
+          <li class="entry">
+            <input type="hidden" name="listed_artist" value="{{ artist.key }}">
+            <label class="check review-row">
+              <input type="checkbox" name="artist" value="{{ artist.key }}" checked>
+              <span class="thumb square">{% if artist.cover_url %}<img src="{{ artist.cover_url }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}</span>
+              <span class="entry-info">
+                <span class="card-title">{{ artist.name }}</span>
+                <span class="card-sub">{% if artist.plays %}{{ artist.plays }} 次播放 · {% endif %}{{ artist.songs }} 首歌</span>
+              </span>
+            </label>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <div>
+      <h2>歌曲</h2>
+      <ul class="entries">
+        {% for entry, work in songs %}
+          <li class="entry">
+            <input type="hidden" name="listed_song" value="{{ entry.id }}">
+            <label class="check review-row">
+              <input type="checkbox" name="song" value="{{ entry.id }}" checked>
+              <span class="thumb square">{{ cover_img(work) }}</span>
+              <span class="entry-info">
+                <span class="card-title">{{ work.title }}</span>
+                <span class="card-sub">{{ work.creator or '' }}{% if entry.play_count %} · {{ entry.play_count }} 次{% endif %}</span>
+              </span>
+            </label>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <p><button type="submit" class="btn">確認</button></p>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll("[data-check]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const on = btn.dataset.check === "all";
+      document.querySelectorAll('input[type="checkbox"]').forEach((box) => (box.checked = on));
+    });
+  });
+</script>
+{% endblock %}

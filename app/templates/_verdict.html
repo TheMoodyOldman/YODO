@@ -1,0 +1,50 @@
+{# Button-style anime verdict picker (radio inputs styled as colored chips).
+   uid keeps ids unique when several pickers share a page. #}
+{% macro verdict_picker(tier, tag, uid) -%}
+<fieldset class="picker">
+  <legend>評價</legend>
+  <div class="chips">
+    {% for t, label in ANIME_TIERS %}
+      {% set h, s = TIER_COLORS[t] %}
+      <input type="radio" name="tier" value="{{ t.value }}" id="{{ uid }}-tier-{{ t.value }}" {% if tier == t %}checked{% endif %}>
+      <label for="{{ uid }}-tier-{{ t.value }}" class="chip" style="--h: {{ h }}; --s: {{ s }}%">{{ label }}</label>
+    {% endfor %}
+    <input type="radio" name="tier" value="" id="{{ uid }}-tier-none" {% if not tier %}checked{% endif %}>
+    <label for="{{ uid }}-tier-none" class="chip chip-none">未評價</label>
+  </div>
+</fieldset>
+
+<fieldset class="picker">
+  <legend>標籤 <span class="muted small">挑一個最貼切的，也可以不選</span></legend>
+  {% for group, tags in ANIME_TAG_GROUPS %}
+    {% set gi = loop.index %}
+    <div class="chip-row">
+      <span class="chip-group">{{ group }}</span>
+      <div class="chips">
+        {% for t in tags %}
+          {% set h, s = TAG_COLORS[t] %}
+          <input type="radio" name="tag" value="{{ t }}" id="{{ uid }}-tag-{{ gi }}-{{ loop.index }}" {% if tag == t %}checked{% endif %}>
+          <label for="{{ uid }}-tag-{{ gi }}-{{ loop.index }}" class="chip" style="--h: {{ h }}; --s: {{ s }}%">#{{ t }}</label>
+        {% endfor %}
+      </div>
+    </div>
+  {% endfor %}
+  <div class="chip-row">
+    <span class="chip-group"></span>
+    <div class="chips">
+      <input type="radio" name="tag" value="" id="{{ uid }}-tag-none" {% if not tag %}checked{% endif %}>
+      <label for="{{ uid }}-tag-none" class="chip chip-none">不加標籤</label>
+    </div>
+  </div>
+</fieldset>
+{%- endmacro %}
+
+{# Read-only badges for a saved verdict. #}
+{% macro verdict_badges(entry) -%}
+  {% if entry.tier or entry.tag %}
+    <div class="verdict">
+      {% if entry.tier %}<span class="tier tier-{{ entry.tier }}">{{ TIER_LABELS[entry.tier] }}</span>{% endif %}
+      {% if entry.tag %}<span class="tag-chip">#{{ entry.tag }}</span>{% endif %}
+    </div>
+  {% endif %}
+{%- endmacro %}

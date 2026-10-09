@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Recap 分享卡 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+<h1>Recap 分享卡</h1>
+
+{% if not avail.all_time %}
+  <p class="muted">還沒有可以做成 Recap 的資料。到<a href="/me/collection">我的收藏</a>同步 Steam、匯入音樂或加入動畫後再回來。</p>
+{% else %}
+<nav class="segmented" aria-label="時間範圍">
+  {% for kind, label, href in period_tabs %}
+    <a href="{{ href }}"{% if kind == period.kind %} aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+
+<div class="card-layout">
+  <form method="get" action="/me/card" class="stack card-options" id="card-form">
+    <input type="hidden" name="period" value="{{ period.kind }}">
+    {% if period.kind == "month" %}
+      <label>月份
+        <select name="month">
+          {% for m in avail.months %}
+            <option value="{{ m }}" {% if m == period.key %}selected{% endif %}>{{ m[:4] }} 年 {{ m[5:] | int }} 月</option>
+          {% endfor %}
+        </select>
+      </label>
+    {% elif period.kind == "year" %}
+      <label>年份
+        <select name="year">
+          {% for y in avail.years %}
+            <option value="{{ y }}" {% if y == period.key %}selected{% endif %}>{{ y }} 年</option>
+          {% endfor %}
+        </select>
+      </label>
+    {% endif %}
+
+    <fieldset>
+      <legend>放進卡片的類別</legend>
+      <input type="hidden" name="c" value="">
+      {% for cat in options %}
+        <label class="check">
+          <input type="checkbox" name="c" value="{{ cat.value }}" {% if cat in selected %}checked{% endif %}>
+          {{ CATEGORY_LABELS[cat] }}
+          {% if privacy[cat] != Visibility.public %}<span class="muted small">（個人頁設為{{ VISIBILITY_LABELS[privacy[cat]] }}）</span>{% endif %}
+        </label>
+      {% endfor %}
+      {% if not options %}<p class="muted small">這段期間沒有資料。</p>{% endif %}
+    </fieldset>
+    <noscript><button type="submit" class="btn small secondary">更新預覽</button></noscript>
+
+    <p class="muted small">
+      卡片使用你上次同步的資料，分享前可以先到<a href="/me/collection">我的收藏</a>同步 Steam 與 Last.fm。
+      {% if period.kind == "all" %}
+        遊戲是 Steam 的累計總時數；動畫是整個收藏。
+      {% elif has_steam %}
+        {{ PERIOD_NOUN[period.kind] }}的遊戲時數從連結 Steam 後才開始逐月記錄，更早的時間不會算進來。想看累計總時數請選「有史以來」。
+        動畫以「加入收藏的時間」計算。
+      {% else %}
+        動畫以「加入收藏的時間」計算。
+      {% endif %}
+    </p>
+  </form>
+
+  <div class="card-preview-wrap">
+    {% if image_url %}
+      <img class="card-preview" src="{{ image_url }}" width="1080" height="1920" alt="{{ period.label }} Recap 卡片預覽">
+      <div class="actions card-actions-row">
+        <button type="button" class="btn" data-share hidden>分享到 IG／Threads</button>
+        <a class="btn secondary" href="{{ image_url }}" download="yodo-recap-{{ period.key }}.jpg" data-download>下載圖片</a>
+      </div>
+      <p class="muted small" data-share-tip hidden>在手機上按「分享」，選 Instagram 的「限時動態」或 Threads。</p>
+      <p class="muted small" data-download-tip>下載後就能上傳到 IG 限時動態或 Threads。</p>
+    {% else %}
+      <p class="muted">至少選一個類別才能產生卡片。</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if avail.all_time %}
+<script>
+  (() => {
+    const form = document.getElementById("card-form");
+    form.addEventListener("change", () => form.submit());
+
+    const period = {{ period.kind | tojson }};
+    const key = {{ period.key | tojson }};
+    const imageUrl = {{ image_url | tojson }};
+    if (!imageUrl) return;
+    const log = (action) =>
+      fetch("/me/card/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ period, key, action }),
+        keepalive: true,
+      }).catch(() => {});
+
+    document.querySelector("[data-download]").addEventListener("click", () => log("download"));
+
+    // Web Share with files (mobile Safari/Chrome) opens the system sheet: Instagram Stories, Threads, ...
+    const shareBtn = document.querySelector("[data-share]");
+    const probe = new File([""], "card.jpg", { type: "image/jpeg" });
+    if (!(navigator.canShare && navigator.canShare({ files: [probe] }))) return;
+    shareBtn.hidden = false;
+    document.querySelector("[data-share-tip]").hidden = false;
+    document.querySelector("[data-download-tip]").hidden = true;
+    shareBtn.addEventListener("click", async () => {
+      shareBtn.disabled = true;
+      try {
+        const blob = await (await fetch(imageUrl)).blob();
+        const file = new File([blob], `yodo-recap-${key}.jpg`, { type: "image/jpeg" });
+        await navigator.share({ files: [file] });
+        log("share");
+      } catch (e) {
+        if (e.name !== "AbortError") alert("無法開啟分享，請改用「下載圖片」。");
+      } finally {
+        shareBtn.disabled = false;
+      }
+    });
+  })();
+</script>
+{% endif %}
+{% endblock %}
