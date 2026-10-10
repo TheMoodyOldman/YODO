@@ -1,6 +1,7 @@
 from datetime import date, datetime, timezone
 from enum import StrEnum
 
+from sqlalchemy import Column, LargeBinary
 from sqlmodel import Field, SQLModel, UniqueConstraint
 
 
@@ -41,6 +42,7 @@ class User(SQLModel, table=True):
     region: str | None = None  # app.matching.REGIONS
     looking_for: str | None = None  # comma-separated app.matching.LOOKING_FOR keys
     hide_from_match: bool | None = None  # opted out of 同好推薦 (None = shown)
+    avatar_photo_id: int | None = None  # first UserPhoto, kept in sync by app.photos
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -329,4 +331,14 @@ class PostReply(SQLModel, table=True):
     post_id: int = Field(foreign_key="post.id", index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     body: str
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class UserPhoto(SQLModel, table=True):
+    """Profile photo (up to app.photos.MAX_PHOTOS); the lowest position is the avatar."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    position: int = 0
+    data: bytes = Field(sa_column=Column(LargeBinary, nullable=False))  # processed JPEG
     created_at: datetime = Field(default_factory=utcnow)

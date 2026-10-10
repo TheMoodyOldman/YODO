@@ -1,56 +1,74 @@
 {% extends "base.html" %}
-{% block title %}同好推薦 · 友多聞 YODO{% endblock %}
+{% block title %}探索同好 · 友多聞 YODO{% endblock %}
 
 {% block content %}
-{% from "_social.html" import avatar, friend_actions, people_tabs %}
-<h1>同好推薦</h1>
-{{ people_tabs("match") }}
-
-<p class="muted small">依你們共同喜歡的作品排序，越冷門、投入越深的共同喜好分數越高。只會用到對方設為「所有人」的收藏。</p>
+{% from "_icons.html" import icon %}
+<header class="page-head">
+  <p class="eyebrow gradient-text">探索</p>
+  <h1>和你品味相近的人</h1>
+  <p class="muted small">依你們共同喜歡的作品排序，越冷門、投入越深的共同喜好分數越高。只會用到對方設為「所有人」的收藏。</p>
+</header>
 
 {% if needs_profile %}
   <a class="notice notice-link" href="/me/settings">填寫地區和想找的對象，推薦會更準 →</a>
 {% endif %}
 
 {% if not matches %}
-  <section class="panel empty-feed">
-    <p><strong>目前還沒有推薦。</strong></p>
+  <section class="panel empty-state">
+    <div class="empty-icon">{{ icon("compass", 36) }}</div>
+    <p><strong>目前還沒有推薦</strong></p>
     <p class="muted">至少要有 {{ MIN_ENTRIES }} 個收藏才能比對品味。多加幾部動畫、同步 Steam 或匯入音樂，或者等更多同好加入。</p>
+    <a class="btn" href="/me/collection">去加收藏</a>
   </section>
 {% endif %}
 
 <div class="matches">
 {% for m in matches %}
   {% set u = m.user %}
-  <article class="match-card">
-    <header class="match-head">
-      <a href="/u/{{ u.username }}">{{ avatar(u, "lg") }}</a>
-      <div class="match-who">
-        <a class="feed-name" href="/u/{{ u.username }}">{{ u.display_name }}</a>
-        <span class="muted small">@{{ u.username }}</span>
-        <p class="profile-meta">
-          <span class="meta-chip strong">{{ m.shared }} 項共同喜好</span>
-          {% if u.region %}<span class="meta-chip{% if m.same_region %} strong{% endif %}">📍 {{ u.region }}</span>{% endif %}
-          {% for label in m.common_looking %}<span class="meta-chip strong">都想{{ label }}</span>{% endfor %}
-        </p>
+  <article class="match-card" data-user="{{ u.username }}">
+    <a class="match-photo" href="/u/{{ u.username }}" style="--h: {{ avatar_hue(u.id) }}">
+      {% if u.avatar_photo_id %}
+        <img src="/photos/{{ u.avatar_photo_id }}" alt="" loading="lazy">
+      {% else %}
+        <span class="match-initial" aria-hidden="true">{{ u.display_name[:1] | upper }}</span>
+      {% endif %}
+      <span class="match-overlay">
+        <span class="match-name">{{ u.display_name }}</span>
+        <span class="match-sub">
+          {% if u.region %}{{ icon("pin", 14) }} {{ u.region }}{% else %}@{{ u.username }}{% endif %}
+        </span>
+      </span>
+      <span class="match-score">{{ m.shared }} 項共同喜好</span>
+    </a>
+
+    <div class="match-body">
+      <p class="profile-meta">
+        {% if m.same_region %}<span class="meta-chip strong">同地區</span>{% endif %}
+        {% for label in m.common_looking %}<span class="meta-chip strong">都想{{ label }}</span>{% endfor %}
+      </p>
+      {% if u.bio %}<p class="match-bio">{{ u.bio }}</p>{% endif %}
+      <ul class="reasons">
+        {% for r in m.reasons %}
+          <li class="reason cat-{{ r.category.value }}">
+            {% if r.rare %}<span class="rare">冷門</span>{% endif %}{{ r.text }}
+          </li>
+        {% endfor %}
+      </ul>
+
+      <div class="match-actions">
+        <form method="post" action="/match/{{ u.username }}/dismiss" class="inline">
+          <button type="submit" class="round-btn pass" title="不感興趣" aria-label="不感興趣">✕</button>
+        </form>
+        <form method="post" action="/friends/{{ u.username }}/request" class="inline">
+          <input type="hidden" name="next" value="/match">
+          <button type="submit" class="round-btn like" title="加好友" aria-label="送出好友邀請">{{ icon("heart", 28) }}</button>
+        </form>
+        <a class="round-btn compat" href="/games/compat/{{ u.username }}" title="測契合度" aria-label="測契合度">💞</a>
       </div>
-    </header>
-    {% if u.bio %}<p class="match-bio">{{ u.bio }}</p>{% endif %}
-    <ul class="reasons">
-      {% for r in m.reasons %}
-        <li class="reason cat-{{ r.category.value }}">
-          {% if r.rare %}<span class="rare">冷門</span>{% endif %}{{ r.text }}
-        </li>
-      {% endfor %}
-    </ul>
-    <div class="actions match-actions">
-      {{ friend_actions(u, Relation.none, "/match") }}
-      <a class="btn small secondary" href="/u/{{ u.username }}">看興趣頁</a>
-      <a class="btn small compat-btn" href="/games/compat/{{ u.username }}">💞 測契合度</a>
-      <form method="post" action="/match/{{ u.username }}/dismiss" class="inline">
-        <button type="submit" class="link small muted">不感興趣</button>
-      </form>
-      <a class="link danger small" href="/report/{{ u.username }}?next=/match">檢舉</a>
+      <p class="match-links small">
+        <a href="/u/{{ u.username }}">看興趣頁</a>
+        <a class="link muted" href="/report/{{ u.username }}?next=/match">檢舉</a>
+      </p>
     </div>
   </article>
 {% endfor %}

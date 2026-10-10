@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}我的照片 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_icons.html" import icon %}
+<header class="page-head">
+  <h1>我的照片</h1>
+  <p class="muted small">最多 {{ MAX_PHOTOS }} 張，第一張是大頭照，會顯示在你的興趣頁、同好推薦和動態。照片會裁成 4:5 並移除拍攝地點等資訊。</p>
+</header>
+
+<div class="photo-grid">
+  {% for id in photo_ids %}
+    <figure class="photo-slot">
+      <img src="/photos/{{ id }}" alt="照片 {{ loop.index }}">
+      {% if loop.first %}<span class="photo-badge">大頭照</span>{% endif %}
+      <figcaption>
+        {% if not loop.first %}
+          <form method="post" action="/me/photos/{{ id }}/first" class="inline">
+            <button type="submit" class="pill-btn">設為大頭照</button>
+          </form>
+        {% endif %}
+        <form method="post" action="/me/photos/{{ id }}/delete" class="inline" onsubmit="return confirm('刪除這張照片？')">
+          <button type="submit" class="pill-btn danger">刪除</button>
+        </form>
+      </figcaption>
+    </figure>
+  {% endfor %}
+  {% if photo_ids | length < MAX_PHOTOS %}
+    <form method="post" action="/me/photos" enctype="multipart/form-data" class="photo-slot add" data-upload>
+      <label>
+        <span class="add-icon">{{ icon("plus", 32) }}</span>
+        <span>新增照片</span>
+        <span class="muted small">JPG、PNG、WebP</span>
+        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required>
+      </label>
+      <noscript><button type="submit" class="btn small">上傳</button></noscript>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Upload as soon as a file is picked.
+  document.querySelectorAll("[data-upload]").forEach((form) => {
+    form.querySelector("input[type=file]").addEventListener("change", () => {
+      form.classList.add("busy");
+      form.querySelector("label span:nth-child(2)").textContent = "上傳中…";
+      form.submit();
+    });
+  });
+</script>
+{% endblock %}

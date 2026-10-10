@@ -1,14 +1,44 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="hero">
-  <h1>你的跨平台興趣名片</h1>
-  <p class="muted">把遊戲、動畫、音樂的喜好放在同一頁，貼在 IG 簡介，讓朋友一眼看懂你的品味。</p>
-  <p class="muted small">僅限 18 歲以上使用。</p>
-  {% if me %}
-    <p><a class="btn" href="/u/{{ me.username }}">查看我的頁面</a> <a class="btn secondary" href="/me/collection">管理收藏</a></p>
-  {% else %}
-    <p><a class="btn" href="/register">建立我的名片</a> <a class="btn secondary" href="/login">登入</a></p>
-  {% endif %}
+{% from "_icons.html" import icon %}
+<section class="landing">
+  <div class="landing-copy">
+    <p class="eyebrow gradient-text">遊戲 · 動畫 · 音樂 · 影視 · 書籍</p>
+    <h1>用品味<br><span class="gradient-text">認識新朋友</span></h1>
+    <p class="landing-lead">把 Steam 時數、追過的番、愛聽的歌放在同一張興趣名片，YODO 幫你找到品味相近的同好，還有現成的話題可以開聊。</p>
+    <div class="actions landing-cta">
+      {% if me %}
+        <a class="btn" href="/match">{{ icon("compass", 18) }} 開始探索</a>
+        <a class="btn secondary" href="/u/{{ me.username }}">我的名片</a>
+      {% else %}
+        <a class="btn" href="/register">建立我的名片</a>
+        <a class="btn secondary" href="/login">登入</a>
+      {% endif %}
+    </div>
+    <p class="muted small">僅限 18 歲以上使用。</p>
+  </div>
+
+  <div class="landing-demo" aria-hidden="true">
+    <div class="demo-card back"></div>
+    <div class="demo-card">
+      <div class="demo-photo">
+        <span class="demo-score">5 項共同喜好</span>
+        <span class="demo-name">Mika<small>{{ icon("pin", 13) }} 台北市</small></span>
+      </div>
+      <div class="demo-body">
+        <span class="demo-reason anime"><b>冷門</b>你們都把《迷宮飯》評為「此生必看」</span>
+        <span class="demo-reason game">你們都在《Hades》玩了超過 100 小時</span>
+        <div class="demo-actions"><span class="round-btn pass">✕</span><span class="round-btn like">{{ icon("heart", 26) }}</span><span class="round-btn compat">💞</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features">
+  <div class="feature"><span class="feature-icon">{{ icon("layers") }}</span><strong>一頁看懂你的品味</strong><span>同步 Steam、Last.fm、YouTube Music、Netflix，動畫和書用評價等級＋標籤記錄。</span></div>
+  <div class="feature"><span class="feature-icon">{{ icon("compass") }}</span><strong>同好推薦</strong><span>越冷門、投入越深的共同喜好分數越高，每個推薦都附上開場話題。</span></div>
+  <div class="feature"><span class="feature-icon">{{ icon("chat") }}</span><strong>短評與討論區</strong><span>看大家怎麼評、寫短評防雷，或在便利貼牆上開個話題。</span></div>
+  <div class="feature"><span class="feature-icon">{{ icon("game") }}</span><strong>和朋友玩小遊戲</strong><span>測契合度、猜歌對戰、誰是臥底、30 天挑戰，還能做 Recap 分享卡。</span></div>
 </section>
 {% endblock %}

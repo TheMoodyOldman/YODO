@@ -2,30 +2,33 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#6d5bff">
   <title>{% block title %}友多聞 YODO{% endblock %}</title>
   {% block meta %}{% endblock %}
   <link rel="stylesheet" href="{{ asset('css/style.css') }}">
 </head>
 <body>
+  {% from "_icons.html" import icon %}
+  {% set path = request.url.path %}
+  {% if me %}
+    {% set my_home = "/u/" ~ me.username %}
+    {% set in_mine = path.startswith("/me") or path == my_home or path.startswith(my_home ~ "/") %}
+  {% endif %}
   <header class="topbar">
     <nav class="container nav">
-      <a class="brand" href="/"><span class="brand-zh">友多聞</span> YODO</a>
+      <a class="brand" href="{{ '/feed' if me else '/' }}"><span class="brand-mark" aria-hidden="true">Y</span><span class="brand-zh">友多聞</span> <span class="brand-en">YODO</span></a>
       <div class="nav-links{% if me %} has-tabbar{% endif %}">
         {% if me %}
-          {% set path = request.url.path %}
-          {% macro cur(prefix) %}{% if path.startswith(prefix) %} aria-current="page"{% endif %}{% endmacro %}
-          <a href="/feed"{{ cur("/feed") }}>動態</a>
-          <a href="/me/collection"{{ cur("/me/collection") }}><span class="lbl-long">我的收藏</span><span class="lbl-short">收藏</span></a>
-          <a href="/u/{{ me.username }}"{{ cur("/u/" ~ me.username) }}><span class="lbl-long">我的頁面</span><span class="lbl-short">我的</span></a>
-          <a href="/me/card"{{ cur("/me/card") }}>Recap</a>
-          <a href="/discuss"{{ cur("/discuss") }}>討論</a>
-          <a href="/games"{{ cur("/games") }}>小遊戲</a>
-          <a href="/me/friends"{% if path.startswith("/me/friends") or path.startswith("/match") %} aria-current="page"{% endif %}>好友{% if friend_requests %}<span class="nav-badge" aria-label="{{ friend_requests }} 個好友邀請">{{ friend_requests }}</span>{% endif %}</a>
-          <a href="/me/settings"{{ cur("/me/settings") }}>設定</a>
-          <form method="post" action="/logout" class="inline nav-logout">
-            <button type="submit" class="link">登出</button>
-          </form>
+          {% macro cur() %}{% set ns = namespace(on=false) %}{% for p in varargs %}{% if path.startswith(p) %}{% set ns.on = true %}{% endif %}{% endfor %}{% if ns.on %} aria-current="page"{% endif %}{% endmacro %}
+          <a href="/match"{{ cur("/match") }}>{{ icon("compass") }}<span>探索</span></a>
+          <a href="/feed"{{ cur("/feed") }}>{{ icon("home") }}<span>動態</span></a>
+          <a href="/discuss"{{ cur("/discuss", "/w/") }}>{{ icon("chat") }}<span>討論</span></a>
+          <a href="/games"{{ cur("/games") }}>{{ icon("game") }}<span>小遊戲</span></a>
+          <a href="{{ my_home }}"{% if in_mine %} aria-current="page"{% endif %} class="nav-me">
+            {% if me.avatar_photo_id %}<img class="nav-avatar" src="/photos/{{ me.avatar_photo_id }}" alt="">{% else %}{{ icon("user") }}{% endif %}<span>我的</span>
+            {% if friend_requests %}<span class="nav-badge" aria-label="{{ friend_requests }} 個好友邀請">{{ friend_requests }}</span>{% endif %}
+          </a>
         {% else %}
           <a href="/login">登入</a>
           <a href="/register" class="btn small">註冊</a>
@@ -34,6 +37,19 @@
     </nav>
   </header>
   <main class="container">
+    {% if me and in_mine %}
+      {% macro sub(href, name, label, exact=false) %}
+        <a href="{{ href }}"{% if ((path == href) if exact else path.startswith(href)) %} aria-current="page"{% endif %}>{{ icon(name, 18) }}{{ label }}{{ caller() if caller }}</a>
+      {% endmacro %}
+      <nav class="my-nav" aria-label="我的">
+        {{ sub(my_home, "user", "我的頁面", true) }}
+        {{ sub("/me/collection", "layers", "收藏") }}
+        {{ sub("/me/card", "sparkles", "Recap") }}
+        {% call sub("/me/friends", "users", "好友") %}{% if friend_requests %}<span class="nav-badge">{{ friend_requests }}</span>{% endif %}{% endcall %}
+        {{ sub("/me/photos", "camera", "照片") }}
+        {{ sub("/me/settings", "settings", "設定") }}
+      </nav>
+    {% endif %}
     {% if flash %}<p class="flash">{{ flash }}</p>{% endif %}
     {% block content %}{% endblock %}
   </main>

@@ -12,45 +12,65 @@
 {% block content %}
 {% from "_profile_macros.html" import music_rankings, style_bars %}
 {% from "_social.html" import avatar, friend_actions %}
-<section class="profile-head">
-  <div class="profile-id">
-    {{ avatar(owner, "lg") }}
-    <div>
-      <h1>{{ owner.display_name }}</h1>
-      <p class="muted">@{{ owner.username }}</p>
-    </div>
-  </div>
-  {% if owner.bio %}<p class="bio">{{ owner.bio }}</p>{% endif %}
-  {% if owner.region or owner_looking %}
-    <p class="profile-meta">
-      {% if owner.region %}<span class="meta-chip">📍 {{ owner.region }}</span>{% endif %}
-      {% for label in owner_looking %}<span class="meta-chip">想找：{{ label }}</span>{% endfor %}
-    </p>
-  {% endif %}
-  <div class="actions profile-actions">
-    {% if relation is none %}
-      <a class="btn small" href="/login?next=/u/{{ owner.username }}">登入後加好友</a>
-    {% elif relation != Relation.self %}
-      {{ friend_actions(owner, relation, "/u/" ~ owner.username) }}
-      {% if relation != Relation.blocked %}<a class="btn small compat-btn" href="/games/compat/{{ owner.username }}">💞 測契合度</a>{% endif %}
+{% from "_icons.html" import icon %}
+<section class="profile-hero">
+  <div class="hero-photos{% if not photos %} empty{% endif %}" style="--h: {{ avatar_hue(owner.id) }}"{% if photos | length > 1 %} data-carousel{% endif %}>
+    {% if photos %}
+      <div class="hero-track">
+        {% for id in photos %}<img src="/photos/{{ id }}" alt="{{ owner.display_name }} 的照片 {{ loop.index }}"{% if not loop.first %} loading="lazy"{% endif %}>{% endfor %}
+      </div>
+      {% if photos | length > 1 %}
+        <div class="hero-dots" aria-hidden="true">{% for id in photos %}<span{% if loop.first %} class="on"{% endif %}></span>{% endfor %}</div>
+        <button type="button" class="hero-arrow prev" aria-label="上一張" data-dir="-1">‹</button>
+        <button type="button" class="hero-arrow next" aria-label="下一張" data-dir="1">›</button>
+      {% endif %}
+    {% else %}
+      <span class="hero-initial" aria-hidden="true">{{ owner.display_name[:1] | upper }}</span>
     {% endif %}
-    <button type="button" class="btn secondary small" data-copy="{{ page_url }}">複製頁面連結</button>
+    {% if is_owner %}
+      <a class="hero-edit" href="/me/photos">{{ icon("camera", 16) }} {{ "編輯照片" if photos else "新增照片" }}</a>
+    {% endif %}
+  </div>
+
+  <div class="hero-info">
+    <h1>{{ owner.display_name }}</h1>
+    <p class="muted handle">@{{ owner.username }}</p>
+    {% if owner.region or owner_looking %}
+      <p class="profile-meta">
+        {% if owner.region %}<span class="meta-chip">{{ icon("pin", 14) }} {{ owner.region }}</span>{% endif %}
+        {% for label in owner_looking %}<span class="meta-chip strong">想找：{{ label }}</span>{% endfor %}
+      </p>
+    {% endif %}
+    {% if owner.bio %}<p class="bio">{{ owner.bio }}</p>{% endif %}
+    <div class="actions profile-actions">
+      {% if relation is none %}
+        <a class="btn" href="/login?next=/u/{{ owner.username }}">登入後加好友</a>
+      {% elif relation != Relation.self %}
+        {{ friend_actions(owner, relation, "/u/" ~ owner.username) }}
+        {% if relation != Relation.blocked %}<a class="btn small compat-btn" href="/games/compat/{{ owner.username }}">💞 測契合度</a>{% endif %}
+      {% else %}
+        <a class="btn small secondary" href="/me/settings">編輯個人資料</a>
+      {% endif %}
+      <button type="button" class="btn secondary small" data-copy="{{ page_url }}">{{ icon("link", 16) }} 複製連結</button>
+    </div>
     {% if relation and relation not in (Relation.self, Relation.blocked) %}
-      <a class="link danger small" href="/report/{{ owner.username }}?next=/u/{{ owner.username }}">檢舉</a>
-      <form method="post" action="/friends/{{ owner.username }}/block" class="inline"
-            data-confirm="封鎖 {{ owner.display_name }}？你們會互相看不到對方的頁面，也會解除好友關係。" onsubmit="return confirm(this.dataset.confirm)">
-        <button type="submit" class="link danger small">封鎖</button>
-      </form>
+      <div class="profile-danger">
+        <a class="link muted small" href="/report/{{ owner.username }}?next=/u/{{ owner.username }}">檢舉</a>
+        <form method="post" action="/friends/{{ owner.username }}/block" class="inline"
+              data-confirm="封鎖 {{ owner.display_name }}？你們會互相看不到對方的頁面，也會解除好友關係。" onsubmit="return confirm(this.dataset.confirm)">
+          <button type="submit" class="link muted small">封鎖</button>
+        </form>
+      </div>
     {% endif %}
   </div>
 </section>
 
 {% if is_owner %}
-  <p class="notice">
+  <a class="btn recap-btn" href="/me/card">{{ icon("sparkles") }} 製作我的 Recap<span class="arrow" aria-hidden="true">→</span></a>
+  <p class="muted small owner-note">
     這是你的興趣頁。隱藏的作品不會顯示；設為「好友」的類別只有好友看得到，「僅自己」只有你看得到。
     <a href="/me/collection">管理收藏</a> · <a href="/me/settings">公開範圍</a>
   </p>
-  <a class="btn recap-btn" href="/me/card">製作我的 Recap<span class="arrow" aria-hidden="true">→</span></a>
 {% endif %}
 
 {% if shown %}
@@ -160,6 +180,18 @@
         prompt("複製這個連結：", btn.dataset.copy);
       }
     });
+  });
+
+  // Photo carousel: swipe (native scroll-snap), arrows, and dots that follow the scroll.
+  document.querySelectorAll("[data-carousel]").forEach((box) => {
+    const track = box.querySelector(".hero-track");
+    const dots = [...box.querySelectorAll(".hero-dots span")];
+    const go = (dir) => track.scrollBy({ left: dir * track.clientWidth, behavior: "smooth" });
+    box.querySelectorAll("[data-dir]").forEach((b) => b.addEventListener("click", () => go(Number(b.dataset.dir))));
+    track.addEventListener("scroll", () => {
+      const i = Math.round(track.scrollLeft / track.clientWidth);
+      dots.forEach((d, j) => d.classList.toggle("on", i === j));
+    }, { passive: true });
   });
 </script>
 <script src="{{ asset('js/tabs.js') }}"></script>

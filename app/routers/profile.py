@@ -7,6 +7,7 @@ from app.db import SessionDep
 from app.models import Category, CollectionEntry, User, Work
 from app.anime import BOOK_STATUSES, TIERED, TIERS, status_rank, tier_rank
 from app.genres import user_style
+from app.photos import photo_ids
 from app.matching import LOOKING_LABELS, looking_keys
 from app.music import top_artists, top_songs
 from app.privacy import can_view, get_privacy
@@ -81,4 +82,5 @@ def profile(request: Request, username: str, session: SessionDep, me: CurrentUse
         relation=rel,
         styles=user_style(session, owner, {s["category"] for s in sections if s["items"]}),
         owner_looking=[LOOKING_LABELS[k] for k in looking_keys(owner)],
+        photos=photo_ids(session, owner.id),
     )

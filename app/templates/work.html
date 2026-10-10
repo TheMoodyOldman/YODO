@@ -137,15 +137,15 @@
         status.textContent = "已儲存";
         const tier = form.querySelector('input[name="tier"]:checked');
         const tag = form.querySelector('input[name="tag"]:checked');
-        const status = form.querySelector('input[name="status"]:checked');
+        const reading = form.querySelector('input[name="status"]:checked');
         hero.replaceChildren();
-        if ((tier && tier.value) || (tag && tag.value) || (status && status.value)) {
+        if ((tier && tier.value) || (tag && tag.value) || (reading && reading.value)) {
           const box = document.createElement("div");
           box.className = "verdict";
-          if (status && status.value) {
+          if (reading && reading.value) {
             const st = document.createElement("span");
-            st.className = `status-chip status-${status.value}`;
-            st.textContent = status.nextElementSibling.textContent;
+            st.className = `status-chip status-${reading.value}`;
+            st.textContent = reading.nextElementSibling.textContent;
             box.append(st);
           }
           if (tier && tier.value) {
