@@ -10,6 +10,7 @@ from app.db import SessionDep
 from app.models import Activity, CollectionEntry, Comment, User, Visibility, Work
 from app.privacy import get_privacy
 from app.social import friend_ids
+from app import onboarding
 from app.templating import flash, render
 
 router = APIRouter()
@@ -92,6 +93,7 @@ def feed(request: Request, session: SessionDep, me: RequiredUser, page: int = 0)
         page=page,
         has_more=len(items) > (page + 1) * PAGE_SIZE,
         has_friends=len(ids) > 1,
+        guide=onboarding.card(session, me),
         friends=sorted(session.exec(select(User).where(col(User.id).in_(ids - {me.id}))).all(), key=lambda u: u.display_name.casefold()),
         MAX_COMMENT=MAX_COMMENT,
     )

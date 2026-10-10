@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}附近的人 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_social.html" import avatar %}
+{% from "_icons.html" import icon %}
+{% include "_explore_tabs.html" %}
+
+<header class="page-head">
+  <p class="eyebrow gradient-text">附近</p>
+  <h1>在附近，說聲嗨</h1>
+  <p class="muted small">留一句想聊的話，附近的人看得到你的名字、興趣和這句話。對方回應之後，你才會知道是誰，並且開始聊天。</p>
+</header>
+
+<section class="panel nearby-where">
+  <h2>{{ icon("pin", 20) }} 你的位置</h2>
+  {% if where %}
+    <p class="where-now"><strong>{{ place }}</strong></p>
+    <form method="post" action="/nearby/forget" class="inline"><button type="submit" class="link small muted">清除位置</button></form>
+  {% else %}
+    <p class="muted small">選一個方式就好。位置只會保存到約 1 公里的精度，而且只存在這次登入，不會存進資料庫、也不會讓任何人看到你在哪。</p>
+  {% endif %}
+  <div class="where-actions">
+    <button type="button" class="btn small" data-locate>{{ icon("nearby", 16) }} 使用目前位置</button>
+    <form method="post" action="/nearby/location" class="where-region">
+      <select name="region" aria-label="選擇地區" onchange="this.form.submit()">
+        <option value="">或選擇地區…</option>
+        {% for r in REGIONS %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+  <p class="error small" data-locate-error hidden></p>
+</section>
+
+{% if where %}
+  <section class="panel nearby-mine">
+    {% if mine %}
+      <h2>你的訊息</h2>
+      <p class="nearby-body">{{ mine.body }}</p>
+      <div class="muted small nearby-meta">{{ mine.radius_km }} 公里內的人看得到 · 還有 {{ hours_left }} 小時
+        <form method="post" action="/nearby/{{ mine.id }}/cancel" class="inline"><button type="submit" class="link small danger">收回</button></form></div>
+      <h3>回應你的人</h3>
+      {% if responders %}
+        <ul class="people">
+          {% for r, u in responders %}
+            <li>
+              <a class="person" href="/u/{{ u.username }}">{{ avatar(u) }}<span><strong>{{ u.display_name }}</strong><span class="muted small"> · {{ r.body }}</span></span></a>
+              <a class="btn small" href="/me/messages/{{ u.username }}">聊天</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted small">還沒有人回應。沒回應的人不會顯示，你也不會知道誰看過。</p>
+      {% endif %}
+    {% else %}
+      <h2>說點什麼</h2>
+      <form method="post" action="/nearby" class="stack">
+        <textarea name="body" rows="2" maxlength="{{ MAX_BODY }}" required placeholder="例如：今晚有人想一起打 Hades 嗎？／附近有喜歡迷宮飯的人嗎？"></textarea>
+        <fieldset class="picker">
+          <legend>讓多遠的人看到</legend>
+          <div class="chips">
+            {% for r in RADII %}
+              <input type="radio" name="radius" value="{{ r }}" id="radius-{{ r }}" {% if r == DEFAULT_RADIUS %}checked{% endif %}>
+              <label for="radius-{{ r }}" class="chip">{{ r }} 公里</label>
+            {% endfor %}
+          </div>
+        </fieldset>
+        <p class="muted small">{{ POST_HOURS }} 小時後自動消失，隨時可以收回；新的訊息會取代舊的。</p>
+        <div class="actions"><button type="submit" class="btn">發布</button></div>
+      </form>
+    {% endif %}
+  </section>
+
+  <h2>附近的人想說</h2>
+  {% if items %}
+    <div class="nearby-list">
+      {% for i in items %}
+        <article class="nearby-card">
+          <header>
+            {{ avatar(i.author, "lg") }}
+            <div>
+              <strong>{{ i.author.display_name }}</strong>
+              <p class="muted small">約 {{ i.km }} 公里內 · {{ i.post.created_at | ago }}</p>
+            </div>
+          </header>
+          <p class="nearby-body">{{ i.post.body }}</p>
+          {% if i.shared %}<p class="profile-meta">{% for t in i.shared %}<span class="meta-chip strong">都喜歡《{{ t }}》</span>{% endfor %}</p>{% endif %}
+          {% if i.replied %}
+            <a class="btn small secondary" href="/me/messages/{{ i.author.username }}">已回應 · 去聊天</a>
+          {% else %}
+            <form method="post" action="/nearby/{{ i.post.id }}/reply" class="comment-form wide">
+              <input name="body" maxlength="{{ MAX_REPLY }}" required placeholder="回應 {{ i.author.display_name }}…" autocomplete="off" aria-label="回應">
+              <button type="submit" class="btn small">回應</button>
+            </form>
+            <p class="muted small">回應後對方才會看到你，並開始私訊。</p>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <section class="panel empty-state">
+      <div class="empty-icon">{{ icon("nearby", 34) }}</div>
+      <p><strong>附近暫時沒有人發訊息</strong></p>
+      <p class="muted">先留一句話吧，附近的同好上線就看得到。</p>
+    </section>
+  {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Round in the browser too, so the exact position never leaves the device.
+  document.querySelector("[data-locate]").addEventListener("click", () => {
+    const err = document.querySelector("[data-locate-error]");
+    if (!navigator.geolocation) { err.textContent = "這個瀏覽器不支援定位，請改選地區。"; err.hidden = false; return; }
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const round = (v) => (Math.round(v * 100) / 100).toFixed(2);
+      const body = new URLSearchParams({ lat: round(pos.coords.latitude), lon: round(pos.coords.longitude) });
+      const r = await fetch("/nearby/location", { method: "POST", body, headers: { "X-Requested-With": "fetch" } });
+      if (r.ok) location.reload(); else { err.textContent = "位置設定失敗，請改選地區。"; err.hidden = false; }
+    }, () => { err.textContent = "沒有取得定位權限，請改選地區。"; err.hidden = false; },
+    { enableHighAccuracy: false, maximumAge: 600000, timeout: 10000 });
+  });
+</script>
+{% endblock %}

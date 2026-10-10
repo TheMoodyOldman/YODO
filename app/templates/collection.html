@@ -4,6 +4,8 @@
 {% block content %}
 {% from "_macros.html" import cover_img, hours %}
 {% from "_verdict.html" import verdict_picker, verdict_badges %}
+{% from "_onboarding.html" import onboarding_card %}
+{{ onboarding_card(guide) }}
 <h1>我的收藏</h1>
 
 {% if pending[Category.game] %}

@@ -1,6 +1,6 @@
 from collections import Counter
 from typing import Annotated
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -10,7 +10,7 @@ from app.auth import RequiredUser, safe_next
 from app.db import SessionDep
 from app.activity import has_today, record
 from app.models import ActivityKind, Category, CollectionEntry, User, Visibility, Work
-from app import anime_search
+from app import anime_search, contacts, onboarding
 from app.anime import TIERED, parse_status, parse_tag, parse_tier, status_rank, tier_rank
 from app.matching import LOOKING_FOR, REGIONS, looking_keys
 from app.music import LASTFM, YOUTUBE
@@ -135,6 +135,7 @@ async def collection(
         request,
         "collection.html",
         me=me,
+        guide=onboarding.card(session, me),
         q=q,
         searches=searches,
         owned=owned,
@@ -310,7 +311,26 @@ def settings_form(request: Request, session: SessionDep, me: RequiredUser):
         REGIONS=REGIONS,
         LOOKING_FOR=LOOKING_FOR,
         my_looking=looking_keys(me),
+        my_contacts=contacts.load(me),
+        onboarding_open=not me.onboarding_hidden,
+        CONTACT_KINDS=contacts.KINDS,
+        CONTACT_VISIBILITY=contacts.VISIBILITY,
     )
+
+
+@router.post("/onboarding/{action}")
+def toggle_onboarding(request: Request, session: SessionDep, me: RequiredUser, action: str):
+    if action not in ("hide", "show"):
+        raise HTTPException(status_code=404)
+    me.onboarding_hidden = action == "hide"
+    session.add(me)
+    session.commit()
+    if action == "show":
+        flash(request, "新手教學已重新打開")
+        return RedirectResponse("/feed", status_code=303)
+    flash(request, "已隱藏新手教學，之後可以在設定重新打開")
+    back = urlsplit(request.headers.get("referer", ""))
+    return RedirectResponse(safe_next(back.path + (f"?{back.query}" if back.query else ""), "/feed"), status_code=303)
 
 
 @router.post("/settings")
@@ -322,6 +342,7 @@ async def save_settings(request: Request, session: SessionDep, me: RequiredUser)
     me.region = region if region in REGIONS else None
     me.looking_for = ",".join(k for k, _ in LOOKING_FOR if k in form.getlist("looking_for")) or None
     me.hide_from_match = form.get("show_in_match") != "1"
+    rejected = contacts.update(me, form)
     session.add(me)
     for category in Category:
         try:
@@ -330,5 +351,8 @@ async def save_settings(request: Request, session: SessionDep, me: RequiredUser)
             continue
         set_privacy(session, me.id, category, visibility)
     session.commit()
-    flash(request, "設定已儲存")
+    if rejected:
+        flash(request, f"其他設定已儲存，但{'、'.join(rejected)} 的格式不正確，沒有更新")
+    else:
+        flash(request, "設定已儲存")
     return RedirectResponse("/me/settings", status_code=303)

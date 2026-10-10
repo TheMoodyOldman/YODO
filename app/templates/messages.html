@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}訊息 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_social.html" import avatar %}
+{% from "_icons.html" import icon %}
+<header class="page-head">
+  <h1>訊息</h1>
+  <p class="muted small">可以傳訊息給好友，以及在「附近」回應過你、或你回應過的人。</p>
+</header>
+
+{% if convos %}
+  <ul class="inbox">
+    {% for c in convos %}
+      <li>
+        <a class="inbox-row{% if c.unread %} unread{% endif %}" href="/me/messages/{{ c.other.username }}">
+          {{ avatar(c.other, "lg") }}
+          <span class="inbox-main">
+            <span class="inbox-top"><strong>{{ c.other.display_name }}</strong><span class="muted small">{{ c.last.created_at | ago }}</span></span>
+            <span class="inbox-preview">{% if c.last.sender_id == me.id %}你：{% endif %}{{ c.last.body }}</span>
+          </span>
+          {% if c.unread %}<span class="nav-badge">{{ c.unread }}</span>{% endif %}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% if friends %}
+  <h2>和好友開始聊天</h2>
+  <div class="friend-row">
+    {% for f in friends %}
+      <a class="friend-bubble" href="/me/messages/{{ f.username }}">
+        <span class="bubble-ring">{{ avatar(f, "lg") }}</span><span class="bubble-name">{{ f.display_name }}</span>
+      </a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if not convos and not friends %}
+  <section class="panel empty-state">
+    <div class="empty-icon">{{ icon("mail", 34) }}</div>
+    <p><strong>還沒有訊息</strong></p>
+    <p class="muted">加好友，或到「附近」跟附近的人打招呼，就能開始聊天。</p>
+    <div class="actions center-row"><a class="btn" href="/match">去探索</a><a class="btn secondary" href="/nearby">附近的人</a></div>
+  </section>
+{% endif %}
+{% endblock %}

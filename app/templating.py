@@ -22,6 +22,7 @@ from app.anime import (
 from app.db import engine
 from app.models import CATEGORY_LABELS, VISIBILITY_LABELS, Category, Visibility
 from app.social import Relation, incoming_request_count
+from app.messages import unread_count
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
@@ -108,6 +109,7 @@ def render(request: Request, name: str, status_code: int = 200, **context: Any):
     context.setdefault("flash", request.session.pop("flash", None))
     me = context.get("me")
     if me is not None and "friend_requests" not in context:
-        with Session(engine) as session:  # nav badge for pending friend requests
+        with Session(engine) as session:  # nav badges: pending friend requests, unread messages
             context["friend_requests"] = incoming_request_count(session, me.id)
+            context["unread_messages"] = unread_count(session, me.id)
     return templates.TemplateResponse(request, name, context, status_code=status_code)

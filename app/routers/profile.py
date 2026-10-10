@@ -8,6 +8,7 @@ from app.models import Category, CollectionEntry, User, Work
 from app.anime import BOOK_STATUSES, TIERED, TIERS, status_rank, tier_rank
 from app.genres import user_style
 from app.photos import photo_ids
+from app import contacts, messages, onboarding
 from app.matching import LOOKING_LABELS, looking_keys
 from app.music import top_artists, top_songs
 from app.privacy import can_view, get_privacy
@@ -83,4 +84,7 @@ def profile(request: Request, username: str, session: SessionDep, me: CurrentUse
         styles=user_style(session, owner, {s["category"] for s in sections if s["items"]}),
         owner_looking=[LOOKING_LABELS[k] for k in looking_keys(owner)],
         photos=photo_ids(session, owner.id),
+        guide=onboarding.card(session, me) if is_owner else None,
+        contacts=contacts.visible(owner, me, rel == Relation.friends),
+        can_message=bool(me) and not is_owner and messages.can_message(session, me, owner),
     )

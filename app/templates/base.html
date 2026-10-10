@@ -21,13 +21,14 @@
       <div class="nav-links{% if me %} has-tabbar{% endif %}">
         {% if me %}
           {% macro cur() %}{% set ns = namespace(on=false) %}{% for p in varargs %}{% if path.startswith(p) %}{% set ns.on = true %}{% endif %}{% endfor %}{% if ns.on %} aria-current="page"{% endif %}{% endmacro %}
-          <a href="/match"{{ cur("/match") }}>{{ icon("compass") }}<span>探索</span></a>
+          <a href="/match"{{ cur("/match", "/nearby") }}>{{ icon("compass") }}<span>探索</span></a>
           <a href="/feed"{{ cur("/feed") }}>{{ icon("home") }}<span>動態</span></a>
           <a href="/discuss"{{ cur("/discuss", "/w/") }}>{{ icon("chat") }}<span>討論</span></a>
           <a href="/games"{{ cur("/games") }}>{{ icon("game") }}<span>小遊戲</span></a>
           <a href="{{ my_home }}"{% if in_mine %} aria-current="page"{% endif %} class="nav-me">
             {% if me.avatar_photo_id %}<img class="nav-avatar" src="/photos/{{ me.avatar_photo_id }}" alt="">{% else %}{{ icon("user") }}{% endif %}<span>我的</span>
-            {% if friend_requests %}<span class="nav-badge" aria-label="{{ friend_requests }} 個好友邀請">{{ friend_requests }}</span>{% endif %}
+            {% set badge = (friend_requests or 0) + (unread_messages or 0) %}
+            {% if badge %}<span class="nav-badge" aria-label="{{ friend_requests or 0 }} 個好友邀請、{{ unread_messages or 0 }} 則未讀訊息">{{ badge }}</span>{% endif %}
           </a>
         {% else %}
           <a href="/login">登入</a>
@@ -37,12 +38,13 @@
     </nav>
   </header>
   <main class="container">
-    {% if me and (path == my_home or path.startswith("/me/")) %}
+    {% if me and (path == my_home or path.startswith("/me/")) and not path.startswith("/me/messages/") %}
       {% macro sub(href, name, label, exact=false) %}
         <a href="{{ href }}"{% if ((path == href) if exact else path.startswith(href)) %} aria-current="page"{% endif %}>{{ icon(name, 18) }}{{ label }}{{ caller() if caller }}</a>
       {% endmacro %}
       <nav class="my-nav" aria-label="我的">
         {{ sub(my_home, "user", "我的頁面", true) }}
+        {% call sub("/me/messages", "mail", "訊息") %}{% if unread_messages %}<span class="nav-badge">{{ unread_messages }}</span>{% endif %}{% endcall %}
         {{ sub("/me/collection", "layers", "收藏") }}
         {{ sub("/me/card", "sparkles", "Recap") }}
         {% call sub("/me/friends", "users", "好友") %}{% if friend_requests %}<span class="nav-badge">{{ friend_requests }}</span>{% endif %}{% endcall %}

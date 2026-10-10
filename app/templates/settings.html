@@ -32,6 +32,20 @@
     </label>
     <p class="muted small">推薦只會用到你設為「所有人」的類別。取消勾選後，你仍然可以瀏覽別人的推薦。</p>
 
+    <h2>聯絡方式</h2>
+    <p class="muted small">讓好友加你的 LINE、Discord 或 Instagram。這些資料永遠不會公開給所有人，只會給互相加好友的人看，也可以設成不公開。</p>
+    {% for kind in CONTACT_KINDS %}
+      {% set c = my_contacts.get(kind.key) %}
+      <div class="contact-row">
+        <label>{{ kind.label }}
+          <input name="contact_{{ kind.key }}" value="{{ c.value if c else '' }}" maxlength="40" placeholder="{{ kind.hint }}" autocomplete="off">
+        </label>
+        <select name="contact_{{ kind.key }}_vis" aria-label="{{ kind.label }} 誰看得到">
+          {% for v, label in CONTACT_VISIBILITY %}<option value="{{ v }}" {% if c and c.visibility == v %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+    {% endfor %}
+
     <h2>公開範圍</h2>
     <p class="muted small">決定誰能在你的興趣頁和好友動態看到各類收藏：「好友」是互相加好友的人，「僅自己」只有你看得到。</p>
     {% for category in Category %}
@@ -47,6 +61,15 @@
 
     <button type="submit" class="btn">儲存</button>
   </form>
+
+  <h2>新手教學</h2>
+  {% if onboarding_open %}
+    <p class="muted small">新手教學正在動態、收藏和你的頁面上顯示，全部完成後會自動收起。</p>
+  {% else %}
+    <form method="post" action="/me/onboarding/show">
+      <button type="submit" class="btn secondary small">重新顯示新手教學</button>
+    </form>
+  {% endif %}
 
   <h2>帳號</h2>
   <form method="post" action="/logout">

@@ -43,6 +43,8 @@ class User(SQLModel, table=True):
     looking_for: str | None = None  # comma-separated app.matching.LOOKING_FOR keys
     hide_from_match: bool | None = None  # opted out of 同好推薦 (None = shown)
     avatar_photo_id: int | None = None  # first UserPhoto, kept in sync by app.photos
+    contacts: str | None = None  # JSON, see app.contacts
+    onboarding_hidden: bool | None = None  # 新手教學 card dismissed
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -341,4 +343,48 @@ class UserPhoto(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", index=True)
     position: int = 0
     data: bytes = Field(sa_column=Column(LargeBinary, nullable=False))  # processed JPEG
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+# ---------- 私訊 ----------
+
+
+class Message(SQLModel, table=True):
+    """One-to-one message between friends (or people connected through 附近朋友)."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    sender_id: int = Field(foreign_key="user.id", index=True)
+    recipient_id: int = Field(foreign_key="user.id", index=True)
+    body: str
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    read_at: datetime | None = None
+
+
+# ---------- 附近朋友 ----------
+
+
+class NearbyPost(SQLModel, table=True):
+    """A "say hi nearby" message. Location is only a ~1 km grid point (app.nearby.coarse), never
+    the precise position, and the post stops showing after NearbyPost.expires_at."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    lat: float
+    lon: float
+    radius_km: int
+    body: str
+    created_at: datetime = Field(default_factory=utcnow)
+    expires_at: datetime = Field(index=True)
+    cancelled: bool = False
+
+
+class NearbyReply(SQLModel, table=True):
+    """Responding to a nearby post: only then does the poster learn who you are, and you two can chat."""
+
+    __table_args__ = (UniqueConstraint("post_id", "user_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="nearbypost.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    body: str
     created_at: datetime = Field(default_factory=utcnow)

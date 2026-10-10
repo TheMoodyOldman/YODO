@@ -51,7 +51,7 @@
       {% for user in friends %}
         <li>
           <a class="person" href="/u/{{ user.username }}">{{ avatar(user) }}<span><strong>{{ user.display_name }}</strong> <span class="muted small">@{{ user.username }}</span></span></a>
-          <div class="actions"><a class="btn small compat-btn" href="/games/compat/{{ user.username }}">💞 契合度</a>{{ friend_actions(user, Relation.friends, "/me/friends") }}</div>
+          <div class="actions"><a class="btn small" href="/me/messages/{{ user.username }}">傳訊息</a><a class="btn small compat-btn" href="/games/compat/{{ user.username }}">💞 契合度</a>{{ friend_actions(user, Relation.friends, "/me/friends") }}</div>
         </li>
       {% endfor %}
     </ul>

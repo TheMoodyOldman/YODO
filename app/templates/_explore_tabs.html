@@ -1,0 +1,6 @@
+{# 探索: 同好推薦 / 附近 switcher #}
+{% set _p = request.url.path %}
+<nav class="segmented explore-tabs" aria-label="探索">
+  <a href="/match"{% if _p.startswith("/match") %} aria-current="page"{% endif %}>同好推薦</a>
+  <a href="/nearby"{% if _p.startswith("/nearby") %} aria-current="page"{% endif %}>附近的人</a>
+</nav>

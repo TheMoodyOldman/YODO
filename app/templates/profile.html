@@ -42,10 +42,24 @@
       </p>
     {% endif %}
     {% if owner.bio %}<p class="bio">{{ owner.bio }}</p>{% endif %}
+    {% if contacts %}
+      <div class="contact-chips">
+        {% for c in contacts %}
+          {% if c.url %}
+            <a class="contact-chip contact-{{ c.kind.key }}" href="{{ c.url }}" target="_blank" rel="noopener">{{ c.kind.label }}<strong>{{ c.value }}</strong></a>
+          {% else %}
+            <button type="button" class="contact-chip contact-{{ c.kind.key }}" data-copy="{{ c.value }}" title="複製">{{ c.kind.label }}<strong>{{ c.value }}</strong></button>
+          {% endif %}
+          {% if is_owner and c.visibility == "hidden" %}<span class="muted small">（不公開）</span>{% endif %}
+        {% endfor %}
+      </div>
+      {% if is_owner %}<p class="muted small">只有好友看得到你的聯絡方式。<a href="/me/settings">修改</a></p>{% endif %}
+    {% endif %}
     <div class="actions profile-actions">
       {% if relation is none %}
         <a class="btn" href="/login?next=/u/{{ owner.username }}">登入後加好友</a>
       {% elif relation != Relation.self %}
+        {% if can_message %}<a class="btn small" href="/me/messages/{{ owner.username }}">{{ icon("mail", 16) }} 傳訊息</a>{% endif %}
         {{ friend_actions(owner, relation, "/u/" ~ owner.username) }}
         {% if relation != Relation.blocked %}<a class="btn small compat-btn" href="/games/compat/{{ owner.username }}">💞 測契合度</a>{% endif %}
       {% else %}
@@ -65,6 +79,8 @@
   </div>
 </section>
 
+{% from "_onboarding.html" import onboarding_card %}
+{{ onboarding_card(guide) }}
 {% if is_owner %}
   <a class="btn recap-btn" href="/me/card">{{ icon("sparkles") }} 製作我的 Recap<span class="arrow" aria-hidden="true">→</span></a>
   <p class="muted small owner-note">
@@ -175,9 +191,11 @@
     btn.addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(btn.dataset.copy);
+        const before = btn.innerHTML;
         btn.textContent = "已複製！";
+        setTimeout(() => { btn.innerHTML = before; }, 1500);
       } catch {
-        prompt("複製這個連結：", btn.dataset.copy);
+        prompt("複製：", btn.dataset.copy);
       }
     });
   });

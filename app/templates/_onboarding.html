@@ -1,0 +1,28 @@
+{# 新手教學 checklist; `guide` is a list of app.onboarding.Step or none. #}
+{% macro onboarding_card(guide) -%}
+{% if guide %}
+  {% set done = guide | selectattr("done") | list | length %}
+  {% set next = guide | rejectattr("done") | first %}
+  <section class="onboarding" aria-labelledby="onboarding-title">
+    <div class="onboarding-head">
+      <div>
+        <p class="eyebrow">新手教學 · {{ done }} / {{ guide | length }}</p>
+        <h2 id="onboarding-title">開始使用 YODO</h2>
+      </div>
+      <form method="post" action="/me/onboarding/hide" class="inline">
+        <button type="submit" class="link small" title="之後可以在設定重新打開">先隱藏</button>
+      </form>
+    </div>
+    <div class="progress-bar light" aria-hidden="true"><span style="width: {{ (done / guide | length * 100) | round(1) }}%"></span></div>
+    <ol class="onboarding-steps">
+      {% for s in guide %}
+        <li class="{{ 'done' if s.done }}{{ ' next' if s == next }}">
+          <span class="step-mark" aria-hidden="true">{{ "✓" if s.done else loop.index }}</span>
+          <span class="step-text"><strong>{{ s.title }}</strong>{% if not s.done %}<span>{{ s.text }}</span>{% endif %}</span>
+          {% if not s.done %}<a class="btn small{% if s != next %} secondary{% endif %}" href="{{ s.href }}">{{ s.action }}</a>{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  </section>
+{% endif %}
+{%- endmacro %}

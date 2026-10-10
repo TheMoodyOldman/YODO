@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ other.display_name }} · 訊息 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_social.html" import avatar %}
+{% from "_icons.html" import icon %}
+<div class="chat" data-chat="/me/messages/{{ other.username }}" data-last="{{ history[-1].id if history else 0 }}">
+  <header class="chat-head">
+    <a class="chat-back" href="/me/messages" aria-label="回到訊息">←</a>
+    <a class="chat-who" href="/u/{{ other.username }}">{{ avatar(other) }}<span><strong>{{ other.display_name }}</strong><span class="muted small">@{{ other.username }}</span></span></a>
+  </header>
+
+  <ol class="bubbles" aria-live="polite">
+    {% for m in history %}
+      <li class="bubble{% if m.sender_id == me.id %} mine{% endif %}" data-id="{{ m.id }}">
+        <span class="bubble-text">{{ m.body }}</span><time class="bubble-time" datetime="{{ m.created_at.isoformat() }}">{{ m.created_at | ago }}</time>
+      </li>
+    {% endfor %}
+  </ol>
+  {% if not history %}
+    <div class="chat-empty">
+      <p class="muted">打個招呼吧！{% if openers %}可以從你們都喜歡的作品聊起：{% endif %}</p>
+      {% if openers %}<div class="openers">{% for o in openers %}<button type="button" class="opener" data-opener="{{ o }}">{{ o }}</button>{% endfor %}</div>{% endif %}
+    </div>
+  {% endif %}
+
+  <form method="post" action="/me/messages/{{ other.username }}" class="chat-form" id="end">
+    <textarea name="body" rows="1" maxlength="{{ MAX_MESSAGE }}" placeholder="輸入訊息…" aria-label="訊息" required></textarea>
+    <button type="submit" class="round-btn like send" aria-label="送出">{{ icon("send", 22) }}</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (() => {
+    const chat = document.querySelector("[data-chat]");
+    const list = chat.querySelector(".bubbles");
+    const form = chat.querySelector(".chat-form");
+    const input = form.querySelector("textarea");
+    let last = Number(chat.dataset.last);
+
+    const add = (m) => {
+      if (list.querySelector(`[data-id="${m.id}"]`)) return;
+      const li = document.createElement("li");
+      li.className = "bubble" + (m.mine ? " mine" : "");
+      li.dataset.id = m.id;
+      const text = document.createElement("span");
+      text.className = "bubble-text";
+      text.textContent = m.body;
+      const time = document.createElement("time");
+      time.className = "bubble-time";
+      time.textContent = "剛剛";
+      li.append(text, time);
+      list.append(li);
+      last = Math.max(last, m.id);
+      chat.querySelector(".chat-empty")?.remove();
+    };
+    const scroll = () => window.scrollTo({ top: document.body.scrollHeight });
+    scroll();
+
+    // Enter sends, Shift+Enter is a new line; the box grows with its text.
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
+    });
+    input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 160) + "px"; });
+    chat.querySelectorAll("[data-opener]").forEach((b) => b.addEventListener("click", () => { input.value = b.dataset.opener; input.focus(); }));
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const body = input.value.trim();
+      if (!body) return;
+      input.value = "";
+      input.style.height = "auto";
+      try {
+        const r = await fetch(form.action, { method: "POST", body: new URLSearchParams({ body }), headers: { "X-Requested-With": "fetch" } });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error);
+        add(data);
+        scroll();
+      } catch (err) {
+        input.value = body;
+        alert(err.message || "傳送失敗，請再試一次");
+      }
+    });
+
+    // New messages arrive by polling (every 4 s while the page is visible).
+    setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const r = await fetch(`${chat.dataset.chat}/new?after=${last}`);
+        if (!r.ok) return;
+        const { messages } = await r.json();
+        const atBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 80;
+        messages.forEach(add);
+        if (messages.length && atBottom) scroll();
+      } catch {}
+    }, 4000);
+  })();
+</script>
+{% endblock %}
