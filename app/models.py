@@ -34,6 +34,9 @@ class User(SQLModel, table=True):
     lastfm_username: str | None = None
     lastfm_synced_at: datetime | None = None
     birth_date: date | None = None  # age check only (18+ service); never shown
+    region: str | None = None  # app.matching.REGIONS
+    looking_for: str | None = None  # comma-separated app.matching.LOOKING_FOR keys
+    hide_from_match: bool | None = None  # opted out of 同好推薦 (None = shown)
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -169,4 +172,25 @@ class Comment(SQLModel, table=True):
     activity_id: int = Field(foreign_key="activity.id", index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     body: str
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class Report(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    reporter_id: int = Field(foreign_key="user.id", index=True)
+    reported_id: int = Field(foreign_key="user.id", index=True)
+    reason: str
+    detail: str = ""
+    resolved: bool | None = None  # set by an admin after review
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class MatchDismiss(SQLModel, table=True):
+    """「不感興趣」: never recommend dismissed_id to user_id again."""
+
+    __table_args__ = (UniqueConstraint("user_id", "dismissed_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    dismissed_id: int = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=utcnow)

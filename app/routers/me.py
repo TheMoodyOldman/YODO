@@ -11,6 +11,7 @@ from app.db import SessionDep
 from app.activity import has_today, record
 from app.models import ActivityKind, Category, CollectionEntry, User, Visibility, Work
 from app.anime import parse_tag, parse_tier, tier_rank
+from app.matching import LOOKING_FOR, REGIONS, looking_keys
 from app.music import LASTFM, YOUTUBE
 from app.privacy import get_privacy, set_privacy
 from app.services import anilist, steam
@@ -207,7 +208,15 @@ def delete_entry(request: Request, session: SessionDep, me: RequiredUser, entry_
 
 @router.get("/settings", response_class=HTMLResponse)
 def settings_form(request: Request, session: SessionDep, me: RequiredUser):
-    return render(request, "settings.html", me=me, privacy=get_privacy(session, me.id))
+    return render(
+        request,
+        "settings.html",
+        me=me,
+        privacy=get_privacy(session, me.id),
+        REGIONS=REGIONS,
+        LOOKING_FOR=LOOKING_FOR,
+        my_looking=looking_keys(me),
+    )
 
 
 @router.post("/settings")
@@ -215,6 +224,10 @@ async def save_settings(request: Request, session: SessionDep, me: RequiredUser)
     form = await request.form()
     me.display_name = str(form.get("display_name", "")).strip()[:MAX_DISPLAY_NAME] or me.username
     me.bio = str(form.get("bio", "")).strip()[:MAX_BIO]
+    region = str(form.get("region", ""))
+    me.region = region if region in REGIONS else None
+    me.looking_for = ",".join(k for k, _ in LOOKING_FOR if k in form.getlist("looking_for")) or None
+    me.hide_from_match = form.get("show_in_match") != "1"
     session.add(me)
     for category in Category:
         try:

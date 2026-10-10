@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}檢舉 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+<section class="narrow">
+  <h1>檢舉 {{ target.display_name }}</h1>
+  <p class="muted small">檢舉內容只有管理員看得到，對方不會知道是誰檢舉的。多人檢舉的帳號會先從同好推薦中移除，等待審核。</p>
+  <form method="post" action="/report/{{ target.username }}" class="stack">
+    <input type="hidden" name="next" value="{{ next }}">
+    <fieldset class="checks">
+      <legend>原因</legend>
+      {% for key, label in reasons %}
+        <label class="check"><input type="radio" name="reason" value="{{ key }}" required> {{ label }}</label>
+      {% endfor %}
+    </fieldset>
+    <label>補充說明 <span class="muted small">選填</span>
+      <textarea name="detail" rows="3" maxlength="{{ MAX_DETAIL }}"></textarea>
+    </label>
+    <label class="check"><input type="checkbox" name="also_block" value="true"> 同時封鎖對方</label>
+    <div class="actions">
+      <button type="submit" class="btn danger-btn">送出檢舉</button>
+      <a class="btn secondary" href="{{ next or '/match' }}">取消</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

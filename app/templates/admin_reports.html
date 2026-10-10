@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}檢舉審核 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+<h1>檢舉審核</h1>
+<nav class="segmented">
+  <a href="/admin/reports"{% if show != "all" %} aria-current="page"{% endif %}>待處理</a>
+  <a href="/admin/reports?show=all"{% if show == "all" %} aria-current="page"{% endif %}>全部</a>
+</nav>
+{% if not reports %}<p class="muted">沒有檢舉。</p>{% endif %}
+<ul class="people">
+  {% for r in reports %}
+    {% set target, reporter = users[r.reported_id], users[r.reporter_id] %}
+    <li class="report-row">
+      <div>
+        <a class="feed-name" href="/u/{{ target.username }}">{{ target.display_name }} <span class="muted small">@{{ target.username }}</span></a>
+        <div class="small">{{ labels[r.reason] }}{% if r.detail %}：{{ r.detail }}{% endif %}</div>
+        <div class="muted small">檢舉人 @{{ reporter.username }} · {{ r.created_at | ago }}{% if r.resolved %} · 已處理{% endif %}</div>
+      </div>
+      {% if not r.resolved %}
+        <form method="post" action="/admin/reports/{{ r.id }}/resolve" class="inline">
+          <button type="submit" class="btn small secondary">標記已處理</button>
+        </form>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}

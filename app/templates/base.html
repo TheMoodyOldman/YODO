@@ -19,7 +19,7 @@
           <a href="/me/collection"{{ cur("/me/collection") }}>我的收藏</a>
           <a href="/u/{{ me.username }}"{{ cur("/u/" ~ me.username) }}>我的頁面</a>
           <a href="/me/card"{{ cur("/me/card") }}>Recap</a>
-          <a href="/me/friends"{{ cur("/me/friends") }}>好友{% if friend_requests %}<span class="nav-badge" aria-label="{{ friend_requests }} 個好友邀請">{{ friend_requests }}</span>{% endif %}</a>
+          <a href="/me/friends"{% if path.startswith("/me/friends") or path.startswith("/match") %} aria-current="page"{% endif %}>好友{% if friend_requests %}<span class="nav-badge" aria-label="{{ friend_requests }} 個好友邀請">{{ friend_requests }}</span>{% endif %}</a>
           <a href="/me/settings"{{ cur("/me/settings") }}>設定</a>
           <form method="post" action="/logout" class="inline nav-logout">
             <button type="submit" class="link">登出</button>

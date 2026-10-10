@@ -10,7 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.auth import BirthDateRequired, LoginRequired
 from app.config import settings
 from app.db import init_db
-from app.routers import auth, card, feed, friends, lastfm, me, music, pages, profile, steam, work, youtube
+from app.routers import auth, card, feed, friends, lastfm, match, me, music, pages, profile, steam, work, youtube
 
 BASE_DIR = Path(__file__).parent
 
@@ -36,6 +36,7 @@ app.include_router(profile.router)
 app.include_router(work.router)
 app.include_router(friends.router)
 app.include_router(feed.router)
+app.include_router(match.router)
 
 
 @app.middleware("http")

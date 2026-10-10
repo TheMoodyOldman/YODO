@@ -2,8 +2,9 @@
 {% block title %}好友 · 友多聞 YODO{% endblock %}
 
 {% block content %}
-{% from "_social.html" import avatar, friend_actions %}
+{% from "_social.html" import avatar, friend_actions, people_tabs %}
 <h1>好友</h1>
+{{ people_tabs("friends") }}
 
 <section class="panel">
   <h2>找朋友</h2>

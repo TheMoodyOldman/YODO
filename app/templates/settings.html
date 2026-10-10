@@ -12,6 +12,25 @@
     <label>自我介紹
       <textarea name="bio" rows="3" maxlength="200" placeholder="例如：週末玩星露谷，通勤聽 city pop">{{ me.bio }}</textarea>
     </label>
+    <label>地區
+      <select name="region">
+        <option value="">不公開</option>
+        {% for r in REGIONS %}<option value="{{ r }}" {% if me.region == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
+      </select>
+    </label>
+    <fieldset class="checks">
+      <legend>想找的對象 <span class="muted small">會顯示在你的興趣頁和同好推薦</span></legend>
+      {% for key, label in LOOKING_FOR %}
+        <label class="check"><input type="checkbox" name="looking_for" value="{{ key }}" {% if key in my_looking %}checked{% endif %}> {{ label }}</label>
+      {% endfor %}
+    </fieldset>
+
+    <h2>同好推薦</h2>
+    <label class="check">
+      <input type="checkbox" name="show_in_match" value="1" {% if not me.hide_from_match %}checked{% endif %}>
+      讓品味相近的人在「同好推薦」看到我
+    </label>
+    <p class="muted small">推薦只會用到你設為「所有人」的類別。取消勾選後，你仍然可以瀏覽別人的推薦。</p>
 
     <h2>公開範圍</h2>
     <p class="muted small">決定誰能在你的興趣頁和好友動態看到各類收藏：「好友」是互相加好友的人，「僅自己」只有你看得到。</p>

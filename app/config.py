@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     # Optional CJK font files for the monthly card; common system fonts are tried otherwise.
     card_font_regular: str = ""
     card_font_bold: str = ""
+    # Comma-separated usernames allowed to review reports at /admin/reports.
+    admin_usernames: str = ""
 
 
 settings = Settings()

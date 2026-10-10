@@ -33,3 +33,11 @@
     </form>
   {% endif %}
 {%- endmacro %}
+
+{# 好友 / 同好推薦 switcher shared by both pages. #}
+{% macro people_tabs(active) -%}
+  <nav class="segmented" aria-label="好友與同好">
+    <a href="/me/friends"{% if active == "friends" %} aria-current="page"{% endif %}>好友</a>
+    <a href="/match"{% if active == "match" %} aria-current="page"{% endif %}>同好推薦</a>
+  </nav>
+{%- endmacro %}

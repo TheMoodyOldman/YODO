@@ -21,6 +21,12 @@
     </div>
   </div>
   {% if owner.bio %}<p class="bio">{{ owner.bio }}</p>{% endif %}
+  {% if owner.region or owner_looking %}
+    <p class="profile-meta">
+      {% if owner.region %}<span class="meta-chip">📍 {{ owner.region }}</span>{% endif %}
+      {% for label in owner_looking %}<span class="meta-chip">想找：{{ label }}</span>{% endfor %}
+    </p>
+  {% endif %}
   <div class="actions profile-actions">
     {% if relation is none %}
       <a class="btn small" href="/login?next=/u/{{ owner.username }}">登入後加好友</a>
@@ -29,6 +35,7 @@
     {% endif %}
     <button type="button" class="btn secondary small" data-copy="{{ page_url }}">複製頁面連結</button>
     {% if relation and relation not in (Relation.self, Relation.blocked) %}
+      <a class="link danger small" href="/report/{{ owner.username }}?next=/u/{{ owner.username }}">檢舉</a>
       <form method="post" action="/friends/{{ owner.username }}/block" class="inline"
             data-confirm="封鎖 {{ owner.display_name }}？你們會互相看不到對方的頁面，也會解除好友關係。" onsubmit="return confirm(this.dataset.confirm)">
         <button type="submit" class="link danger small">封鎖</button>
