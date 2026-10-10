@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlmodel import select
 
 from app import messages, nearby
-from app.auth import RequiredUser, is_locked
+from app.auth import RequiredUser, VerifiedUser, is_locked
 from app.db import SessionDep
 from app.models import Message, NearbyPost, NearbyReply, User
 from app.social import is_blocked
@@ -69,7 +69,7 @@ def forget(request: Request, me: RequiredUser):
 
 
 @router.post("")
-def post(request: Request, session: SessionDep, me: RequiredUser,
+def post(request: Request, session: SessionDep, me: VerifiedUser,
          body: Annotated[str, Form()] = "", radius: Annotated[int, Form()] = nearby.DEFAULT_RADIUS):
     where = _where(request)
     text = body.strip()
@@ -96,7 +96,7 @@ def cancel(request: Request, session: SessionDep, me: RequiredUser, post_id: int
 
 
 @router.post("/{post_id}/reply")
-def reply(request: Request, session: SessionDep, me: RequiredUser, post_id: int, body: Annotated[str, Form()] = ""):
+def reply(request: Request, session: SessionDep, me: VerifiedUser, post_id: int, body: Annotated[str, Form()] = ""):
     where = _where(request)
     item = session.get(NearbyPost, post_id)
     author = session.get(User, item.user_id) if item else None

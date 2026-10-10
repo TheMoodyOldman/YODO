@@ -57,6 +57,12 @@
 - 便利貼只在牆上顯示 7 天，之後牆上看不到，但持有連結的人仍可打開、回覆
 - 封鎖的雙方互相看不到對方的短評、留言與便利貼
 
+**電子信箱驗證** `/me/verify`
+- 註冊要填電子信箱（不公開、不能重複），註冊後寄出驗證信；帳號或電子信箱都能登入，登入頁有「忘記密碼」
+- 設定好寄信服務後，沒驗證的帳號仍可瀏覽、管理收藏，但不能加好友、傳訊息、發文、開遊戲房間，避免批量開帳號
+- 驗證連結 48 小時內有效、重設密碼連結 60 分鐘內有效且只能用一次；更換信箱需要重新驗證
+- 還沒設定寄信服務時不會強制驗證，信件內容（含連結）會印在伺服器終端機，方便本機測試
+
 **私訊** `/me/messages`
 - 好友之間一對一聊天；在「附近」回應過彼此的人也能聊。新訊息每 4 秒自動更新，未讀數顯示在「我的」
 - 還沒聊過時，會用你們都收藏的作品當開場話題；封鎖後雙方都不能再傳
@@ -123,6 +129,8 @@ uvicorn app.main:app --reload
 | `LASTFM_SHARED_SECRET` | Last.fm 登入驗證 | 同上，建立應用程式後會一起拿到 |
 | `TMDB_API_KEY` | 搜尋電影與影集、比對 Netflix 紀錄 | [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)，v3 API Key 或 v4 Read Access Token 都可以 |
 | `GOOGLE_BOOKS_API_KEY` | 選填但建議：搜尋書籍（中文書較完整） | [Google Cloud Console](https://console.cloud.google.com/apis/library/books.googleapis.com) 啟用 Books API 後建立 API 金鑰；未設定時改用 Open Library |
+| `SMTP_HOST`／`SMTP_PORT`／`SMTP_USER`／`SMTP_PASSWORD`／`MAIL_FROM` | 寄驗證信與重設密碼信；設定後才會強制驗證電子信箱 | Gmail：開啟兩步驟驗證後到 [應用程式密碼](https://myaccount.google.com/apppasswords) 建立一組，`SMTP_HOST=smtp.gmail.com`、`SMTP_PORT=587`、`SMTP_USER` 與 `MAIL_FROM` 填你的 Gmail |
+| `PUBLIC_URL` | 選填：信件裡連結使用的網址（例如 trycloudflare 或正式網域） | 不填就用使用者當下開的網址 |
 | `ADMIN_USERNAMES` | 選填：可以審核檢舉的帳號，逗號分隔 | 例如 `domino` |
 | `BACKGROUND_JOBS` | 選填：設為 `false` 關閉背景類型查詢（測試用） | 預設開啟 |
 | `CARD_FONT_REGULAR`、`CARD_FONT_BOLD` | 選填：Recap 卡片用的中文字型檔路徑 | 見下方「部署注意事項」 |

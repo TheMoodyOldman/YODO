@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}忘記密碼 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+<section class="narrow">
+  <h1>忘記密碼</h1>
+  {% if mail_ready %}
+    <p class="muted">輸入註冊時驗證過的電子信箱，我們會寄一封重設密碼的連結給你（{{ 60 }} 分鐘內有效）。</p>
+    <form method="post" action="/forgot-password" class="stack">
+      <label>電子信箱 <input type="email" name="email" required autocomplete="email"></label>
+      <button type="submit" class="btn">寄送重設連結</button>
+    </form>
+  {% else %}
+    <p class="notice">管理員還沒設定寄信服務，暫時無法用信箱重設密碼。請聯絡管理員。</p>
+  {% endif %}
+  <p class="muted"><a href="/login">回到登入</a></p>
+</section>
+{% endblock %}

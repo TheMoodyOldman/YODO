@@ -8,7 +8,7 @@ from sqlmodel import Session, col, select
 
 from app import community
 from app.anime import TIERED
-from app.auth import CurrentUser, RequiredUser
+from app.auth import CurrentUser, RequiredUser, VerifiedUser
 from app.db import SessionDep
 from app.models import Category, CollectionEntry, Post, PostReply, Review, ReviewLike, User, Work, WorkComment, utcnow
 from app.routers.match import is_admin
@@ -82,7 +82,7 @@ def add_from_public(request: Request, session: SessionDep, me: RequiredUser, wor
 def save_review(
     request: Request,
     session: SessionDep,
-    me: RequiredUser,
+    me: VerifiedUser,
     work_id: int,
     body: Annotated[str, Form()] = "",
     spoiler: Annotated[bool, Form()] = False,
@@ -117,7 +117,7 @@ def delete_review(request: Request, session: SessionDep, me: RequiredUser, revie
 
 
 @router.post("/reviews/{review_id}/like")
-def like_review(request: Request, session: SessionDep, me: RequiredUser, review_id: int):
+def like_review(request: Request, session: SessionDep, me: VerifiedUser, review_id: int):
     review = session.get(Review, review_id)
     if review is None or review.user_id in community.hidden_authors(session, me):
         raise HTTPException(status_code=404)
@@ -134,7 +134,7 @@ def like_review(request: Request, session: SessionDep, me: RequiredUser, review_
 
 
 @router.post("/w/{work_id}/comments")
-def add_work_comment(request: Request, session: SessionDep, me: RequiredUser, work_id: int, body: Annotated[str, Form()] = ""):
+def add_work_comment(request: Request, session: SessionDep, me: VerifiedUser, work_id: int, body: Annotated[str, Form()] = ""):
     work = _work(session, work_id)
     text = _clean(body, community.MAX_COMMENT)
     if text is None:
@@ -185,7 +185,7 @@ def discuss(request: Request, session: SessionDep, me: CurrentUser, c: str = "",
 def new_note(
     request: Request,
     session: SessionDep,
-    me: RequiredUser,
+    me: VerifiedUser,
     category: Annotated[str, Form()] = "",
     body: Annotated[str, Form()] = "",
     color: Annotated[str, Form()] = "yellow",
@@ -236,7 +236,7 @@ def thread(request: Request, session: SessionDep, me: CurrentUser, post_id: int)
 
 
 @router.post("/discuss/{post_id}/replies")
-def reply(request: Request, session: SessionDep, me: RequiredUser, post_id: int, body: Annotated[str, Form()] = ""):
+def reply(request: Request, session: SessionDep, me: VerifiedUser, post_id: int, body: Annotated[str, Form()] = ""):
     post, _ = _visible_post(session, me, post_id)
     text = _clean(body, community.MAX_COMMENT)
     if text is None:

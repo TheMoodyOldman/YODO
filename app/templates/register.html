@@ -11,6 +11,10 @@
              pattern="[a-z0-9_]+" autocomplete="username" autocapitalize="none">
       <small class="muted">會出現在你的網址：/u/帳號（英文小寫、數字、底線）</small>
     </label>
+    <label>電子信箱
+      <input type="email" name="email" value="{{ form.email or '' }}" required maxlength="254" autocomplete="email" placeholder="you@example.com">
+      <small class="muted">會寄驗證信給你；之後忘記密碼也靠它找回。不會公開。</small>
+    </label>
     <label>顯示名稱
       <input name="display_name" value="{{ form.display_name or '' }}" maxlength="30">
     </label>

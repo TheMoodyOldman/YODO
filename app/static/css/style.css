@@ -1459,3 +1459,15 @@ body:has(.work-backdrop) { background: transparent; }
 body:has(.work-backdrop)::before { display: none; }
 /* sticky bars blend into the colored page instead of showing a flat strip */
 .tabs, .chat-head { background: color-mix(in srgb, var(--bg) 70%, transparent); }
+
+/* 電子信箱 */
+.email-banner {
+  display: block; margin: 0 0 14px; padding: 10px 14px; border-radius: 14px; font-size: 0.9rem; font-weight: 600; text-decoration: none;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.email-banner.required { color: #fff; background: var(--grad); border: 0; }
+.email-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; margin-bottom: 16px; color: inherit; text-decoration: none; }
+.email-row > span:first-child { display: flex; flex-direction: column; }
+.verify-status { margin-bottom: 16px; padding-top: 14px; }
+.verify-badge { display: inline-block; margin: 0 0 6px; padding: 3px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 800; color: #fff; background: #f59e0b; }
+.verify-status.ok .verify-badge { background: #16a34a; }

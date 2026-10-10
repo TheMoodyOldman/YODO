@@ -112,4 +112,8 @@ def render(request: Request, name: str, status_code: int = 200, **context: Any):
         with Session(engine) as session:  # nav badges: pending friend requests, unread messages
             context["friend_requests"] = incoming_request_count(session, me.id)
             context["unread_messages"] = unread_count(session, me.id)
+        from app import accounts  # late import: accounts imports mail and settings
+
+        if not accounts.is_verified(me):
+            context["email_state"] = "required" if accounts.enforced() else ("unverified" if me.email else "missing")
     return templates.TemplateResponse(request, name, context, status_code=status_code)

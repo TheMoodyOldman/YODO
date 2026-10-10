@@ -5,7 +5,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import Session, col, select
 
-from app.auth import RequiredUser
+from app.auth import RequiredUser, VerifiedUser
 from app.db import SessionDep
 from app.models import Activity, CollectionEntry, Comment, User, Visibility, Work
 from app.privacy import get_privacy
@@ -100,7 +100,7 @@ def feed(request: Request, session: SessionDep, me: RequiredUser, page: int = 0)
 
 
 @router.post("/feed/{activity_id}/comments")
-def add_comment(request: Request, session: SessionDep, me: RequiredUser, activity_id: int, body: Annotated[str, Form()] = ""):
+def add_comment(request: Request, session: SessionDep, me: VerifiedUser, activity_id: int, body: Annotated[str, Form()] = ""):
     activity = session.get(Activity, activity_id)
     if activity is None or not visible_items(session, me, [activity]):
         raise HTTPException(status_code=404)

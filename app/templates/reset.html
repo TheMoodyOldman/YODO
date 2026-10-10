@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}重設密碼 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+<section class="narrow">
+  <h1>重設密碼</h1>
+  {% if valid %}
+    <form method="post" action="/reset-password" class="stack">
+      <input type="hidden" name="token" value="{{ token }}">
+      <label>新密碼 <input type="password" name="password" required minlength="{{ MIN_PASSWORD }}" autocomplete="new-password"></label>
+      <button type="submit" class="btn">更新密碼</button>
+    </form>
+  {% else %}
+    <p class="error">這個連結無效、已過期，或已經用過了。</p>
+    <p><a class="btn secondary" href="/forgot-password">重新申請</a></p>
+  {% endif %}
+</section>
+{% endblock %}

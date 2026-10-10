@@ -4,7 +4,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import Session, col, func, or_, select
 
-from app.auth import RequiredUser, is_locked, safe_next
+from app.auth import RequiredUser, VerifiedUser, is_locked, safe_next
 from app.db import SessionDep
 from app.models import Block, FriendStatus, Friendship, User, utcnow
 from app.social import Relation, get_friendship, is_blocked, relation
@@ -68,7 +68,7 @@ def friends_page(request: Request, session: SessionDep, me: RequiredUser, q: str
 
 
 @router.post("/friends/{username}/request")
-def send_request(request: Request, session: SessionDep, me: RequiredUser, username: str, next: Annotated[str, Form()] = ""):
+def send_request(request: Request, session: SessionDep, me: VerifiedUser, username: str, next: Annotated[str, Form()] = ""):
     target = _target(session, me, username)
     if is_blocked(session, me.id, target.id):
         flash(request, "無法送出好友邀請")
@@ -87,7 +87,7 @@ def send_request(request: Request, session: SessionDep, me: RequiredUser, userna
 
 
 @router.post("/friends/{username}/accept")
-def accept(request: Request, session: SessionDep, me: RequiredUser, username: str, next: Annotated[str, Form()] = ""):
+def accept(request: Request, session: SessionDep, me: VerifiedUser, username: str, next: Annotated[str, Form()] = ""):
     target = _target(session, me, username)
     f = get_friendship(session, me.id, target.id)
     if f and f.status == FriendStatus.pending and f.addressee_id == me.id:

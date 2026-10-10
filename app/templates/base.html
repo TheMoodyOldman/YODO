@@ -52,6 +52,13 @@
         {{ sub("/me/settings", "settings", "設定") }}
       </nav>
     {% endif %}
+    {% if email_state and not path.startswith("/me/verify") %}
+      <a class="email-banner {{ email_state }}" href="/me/verify">
+        {% if email_state == "required" %}驗證電子信箱後才能加好友、傳訊息和發文 →
+        {% elif email_state == "unverified" %}還沒驗證電子信箱，忘記密碼時才找得回帳號 →
+        {% else %}補上電子信箱，忘記密碼時才找得回帳號 →{% endif %}
+      </a>
+    {% endif %}
     {% if flash %}<p class="flash">{{ flash }}</p>{% endif %}
     {% block content %}{% endblock %}
   </main>

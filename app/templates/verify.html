@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}電子信箱 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_icons.html" import icon %}
+<section class="narrow">
+  <header class="page-head">
+    <h1>電子信箱</h1>
+    <p class="muted small">驗證過的信箱可以防止有人大量開帳號，也能在忘記密碼時找回帳號。信箱不會公開給任何人。</p>
+  </header>
+
+  <section class="panel verify-status {{ 'ok' if verified else 'todo' }}">
+    {% if verified %}
+      <p class="verify-badge">✓ 已驗證</p>
+      <p><strong>{{ me.email }}</strong></p>
+    {% elif me.email %}
+      <p class="verify-badge">尚未驗證</p>
+      <p>驗證信已寄到 <strong>{{ me.email }}</strong>，請點信裡的連結。沒收到的話看看垃圾郵件匣。</p>
+      <form method="post" action="/me/verify/resend"><button type="submit" class="btn small">重新寄送驗證信</button></form>
+    {% else %}
+      <p class="verify-badge">還沒有電子信箱</p>
+      <p>補上電子信箱並完成驗證{% if enforced %}，才能加好友、傳訊息、發文和開遊戲房間{% else %}，忘記密碼時才能找回帳號{% endif %}。</p>
+    {% endif %}
+    {% if enforced and not verified %}
+      <p class="muted small">驗證前仍可以瀏覽、管理收藏、同步匯入資料。</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>{{ "更換電子信箱" if me.email else "設定電子信箱" }}</h2>
+    <form method="post" action="/me/email" class="stack">
+      <label>電子信箱
+        <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{ '' if me.email else '' }}" placeholder="you@example.com">
+      </label>
+      {% if me.email %}<p class="muted small">更換後需要重新驗證。</p>{% endif %}
+      <button type="submit" class="btn">{{ "更換並寄驗證信" if me.email else "寄驗證信" }}</button>
+    </form>
+  </section>
+
+  {% if not mail_ready %}
+    <p class="notice small">管理員還沒設定寄信服務，目前不會真的寄出信件（驗證連結會出現在伺服器的紀錄裡），驗證也暫時不是必要的。</p>
+  {% endif %}
+</section>
+{% endblock %}

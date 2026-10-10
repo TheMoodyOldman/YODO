@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlmodel import Session, col, select
 
 from app import messages
-from app.auth import RequiredUser
+from app.auth import RequiredUser, VerifiedUser
 from app.db import SessionDep
 from app.models import User
 from app.social import blocked_ids, friend_ids
@@ -46,7 +46,7 @@ def conversation(request: Request, session: SessionDep, me: RequiredUser, userna
 
 
 @router.post("/{username}")
-def send(request: Request, session: SessionDep, me: RequiredUser, username: str, body: Annotated[str, Form()] = ""):
+def send(request: Request, session: SessionDep, me: VerifiedUser, username: str, body: Annotated[str, Form()] = ""):
     other = _other(session, me, username)
     text = body.strip()
     fetch = request.headers.get("x-requested-with") == "fetch"

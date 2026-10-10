@@ -45,6 +45,8 @@ class User(SQLModel, table=True):
     avatar_photo_id: int | None = None  # first UserPhoto, kept in sync by app.photos
     contacts: str | None = None  # JSON, see app.contacts
     onboarding_hidden: bool | None = None  # 新手教學 card dismissed
+    email: str | None = Field(default=None, index=True)  # lowercase; unique (checked in app.accounts)
+    email_verified_at: datetime | None = None
     created_at: datetime = Field(default_factory=utcnow)
 
 

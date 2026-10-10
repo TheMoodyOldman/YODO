@@ -1,16 +1,19 @@
 import re
+import time
 from datetime import date, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlmodel import select
+from sqlmodel import func, select
+
+from app import accounts
 
 from app.auth import MIN_AGE, CurrentUser, SessionUser, age_on, hash_password, is_adult, safe_next, verify_password
 from app.db import SessionDep
 from app.importers.youtube import TAIPEI
 from app.models import User
-from app.templating import render
+from app.templating import flash, render
 
 router = APIRouter()
 
@@ -65,10 +68,13 @@ def register(
     session: SessionDep,
     username: Annotated[str, Form()],
     password: Annotated[str, Form()],
+    tasks: BackgroundTasks,
     display_name: Annotated[str, Form()] = "",
     birth_date: Annotated[str, Form()] = "",
+    email: Annotated[str, Form()] = "",
 ):
     username = username.strip().lower()
+    email = accounts.normalize(email)
     display_name = display_name.strip()[:30] or username
     birth, error = parse_birth_date(birth_date)
     if error is None:
@@ -78,18 +84,26 @@ def register(
             error = f"密碼至少 {MIN_PASSWORD} 個字元"
         elif session.exec(select(User).where(User.username == username)).first():
             error = "這個帳號已經有人使用"
+        elif not accounts.valid(email):
+            error = "請填寫正確的電子信箱"
+        elif accounts.taken(session, email):
+            error = "這個電子信箱已經註冊過了，可以直接登入或用「忘記密碼」找回"
     if error:
         # Under-18 sign-ups are refused without storing anything.
-        form = {"username": username, "display_name": display_name}
+        form = {"username": username, "display_name": display_name, "email": email}
         return render(
             request, "register.html", status_code=400, me=None, form=form, error=error, max_birth=_latest_birth_date()
         )
 
-    user = User(username=username, display_name=display_name, password_hash=hash_password(password), birth_date=birth)
+    user = User(username=username, display_name=display_name, password_hash=hash_password(password), birth_date=birth,
+                email=email)
     session.add(user)
     session.commit()
     session.refresh(user)
     _login(request, user)
+    accounts.send_verification(request, tasks, user)
+    request.session["verify_sent_at"] = time.time()  # the resend button waits RESEND_SECONDS
+    flash(request, f"歡迎加入！驗證信已寄到 {email}，點信裡的連結完成驗證。")
     return RedirectResponse("/me/collection", status_code=303)
 
 
@@ -109,7 +123,8 @@ def login(
     next: Annotated[str, Form()] = "",
 ):
     username = username.strip().lower()
-    user = session.exec(select(User).where(User.username == username)).first()
+    by = func.lower(User.email) if "@" in username else User.username  # 帳號或電子信箱都能登入
+    user = session.exec(select(User).where(by == username)).first()
     error = None
     if user is None or not verify_password(password, user.password_hash):
         error = "帳號或密碼錯誤"

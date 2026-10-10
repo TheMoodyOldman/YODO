@@ -4,14 +4,14 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.auth import BirthDateRequired, LoginRequired
+from app.auth import BirthDateRequired, EmailRequired, LoginRequired
 from app.config import settings
 from app.db import init_db
-from app.routers import auth, card, community, feed, film, messages, nearby, photos, friends, games, lastfm, match, me, music, pages, profile, rooms, steam, work, youtube
+from app.routers import account, auth, card, community, feed, film, messages, nearby, photos, friends, games, lastfm, match, me, music, pages, profile, rooms, steam, work, youtube
 
 BASE_DIR = Path(__file__).parent
 
@@ -37,6 +37,7 @@ app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, same_site=
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(pages.router)
 app.include_router(auth.router)
+app.include_router(account.router)
 app.include_router(me.router)
 app.include_router(film.router)
 app.include_router(steam.router)
@@ -70,6 +71,15 @@ async def no_stale_pages(request: Request, call_next):
 async def birth_date_required_handler(request: Request, exc: BirthDateRequired):
     nxt = request.url.path if request.method == "GET" else ""
     return RedirectResponse(f"/me/age?next={quote(nxt)}" if nxt else "/me/age", status_code=303)
+
+
+@app.exception_handler(EmailRequired)
+async def email_required_handler(request: Request, exc: EmailRequired):
+    message = "請先驗證電子信箱，才能加好友、傳訊息和發文"
+    if request.headers.get("x-requested-with") == "fetch":
+        return JSONResponse({"error": message}, status_code=403)
+    request.session["flash"] = message
+    return RedirectResponse("/me/verify", status_code=303)
 
 
 @app.exception_handler(LoginRequired)

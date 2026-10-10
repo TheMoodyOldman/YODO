@@ -4,6 +4,10 @@
 {% block content %}
 <section class="narrow">
   <h1>設定</h1>
+  <a class="panel email-row" href="/me/verify">
+    <span><strong>電子信箱</strong><span class="muted small">{{ me.email or "尚未設定" }}</span></span>
+    <span class="badge">{{ "已驗證" if me.email and me.email_verified_at else "未驗證" }}</span>
+  </a>
   <form method="post" action="/me/settings" class="stack">
     <h2>個人資料</h2>
     <label>顯示名稱

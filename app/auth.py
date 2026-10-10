@@ -85,6 +85,22 @@ def require_user(user: CurrentUser) -> User:
 RequiredUser = Annotated[User, Depends(require_user)]
 
 
+class EmailRequired(Exception):
+    """A social action by an account without a verified email; main.py sends them to /me/verify."""
+
+
+def require_verified(user: RequiredUser) -> User:
+    from app import accounts  # late import: accounts imports settings and mail
+
+    if accounts.enforced() and not accounts.is_verified(user):
+        raise EmailRequired
+    return user
+
+
+# For actions that reach other people: friend requests, messages, posts, rooms.
+VerifiedUser = Annotated[User, Depends(require_verified)]
+
+
 def safe_next(url: str | None, default: str = "/me/collection") -> str:
     """Only allow same-site relative redirects."""
     if url and url.startswith("/") and not url.startswith("//") and "\\" not in url:

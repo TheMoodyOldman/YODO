@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlmodel import Session
 
 from app import rooms, songquiz, undercover
-from app.auth import RequiredUser
+from app.auth import RequiredUser, VerifiedUser
 from app.db import SessionDep
 from app.models import GameRoom, User
 from app.social import are_friends, is_blocked
@@ -46,7 +46,7 @@ def undercover_home(request: Request, me: RequiredUser):
 
 
 @router.post("/undercover/new")
-def undercover_new(session: SessionDep, me: RequiredUser, theme: Annotated[str, Form()] = "characters"):
+def undercover_new(session: SessionDep, me: VerifiedUser, theme: Annotated[str, Form()] = "characters"):
     theme = theme if theme in undercover.THEMES else "characters"
     room = rooms.create_room(session, me, "undercover", {"theme": theme})
     return _back("undercover", room)
@@ -58,7 +58,7 @@ def undercover_join_code(request: Request, code: Annotated[str, Form()], me: Req
 
 
 @router.get("/undercover/{code}", response_class=HTMLResponse)
-def undercover_room(request: Request, session: SessionDep, me: RequiredUser, code: str):
+def undercover_room(request: Request, session: SessionDep, me: VerifiedUser, code: str):
     room = rooms.get_room(session, code, "undercover")
     if room is None:
         flash(request, "找不到這個房間，代碼可能打錯或已過期")
@@ -182,7 +182,7 @@ def song_home(request: Request, me: RequiredUser):
 
 
 @router.post("/song/new")
-def song_new(session: SessionDep, me: RequiredUser):
+def song_new(session: SessionDep, me: VerifiedUser):
     room = rooms.create_room(session, me, "song")
     return _back("song", room)
 
@@ -193,7 +193,7 @@ def song_join_code(code: Annotated[str, Form()], me: RequiredUser):
 
 
 @router.get("/song/{code}", response_class=HTMLResponse)
-def song_room(request: Request, session: SessionDep, me: RequiredUser, code: str):
+def song_room(request: Request, session: SessionDep, me: VerifiedUser, code: str):
     room, redirect = _song_room_page(request, session, me, code)
     if redirect:
         return redirect
