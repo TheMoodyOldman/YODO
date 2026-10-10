@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% block content %}
-{% from "_profile_macros.html" import music_rankings %}
+{% from "_profile_macros.html" import music_rankings, style_bars %}
 {% from "_social.html" import avatar, friend_actions %}
 <section class="profile-head">
   <div class="profile-id">
@@ -32,6 +32,7 @@
       <a class="btn small" href="/login?next=/u/{{ owner.username }}">登入後加好友</a>
     {% elif relation != Relation.self %}
       {{ friend_actions(owner, relation, "/u/" ~ owner.username) }}
+      {% if relation != Relation.blocked %}<a class="btn small compat-btn" href="/games/compat/{{ owner.username }}">💞 測契合度</a>{% endif %}
     {% endif %}
     <button type="button" class="btn secondary small" data-copy="{{ page_url }}">複製頁面連結</button>
     {% if relation and relation not in (Relation.self, Relation.blocked) %}
@@ -92,11 +93,27 @@
       {% endif %}
     </section>
   {% endfor %}
+  {% if styles %}
+    <section class="category">
+      <h2>風格偏好</h2>
+      <div class="style-grid">
+        {% for section in shown if styles.get(section.category) %}
+          <div><h3>{{ CATEGORY_LABELS[section.category] }}</h3>{{ style_bars(styles[section.category]) }}</div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
 </div>
 
 {# One full panel per category #}
 {% for section in shown %}
   <div role="tabpanel" data-panel="{{ section.category.value }}">
+    {% if styles.get(section.category) and styles[section.category].genres %}
+      <details class="style-details" open>
+        <summary>{{ owner.display_name }} 喜歡的{{ CATEGORY_LABELS[section.category] }}風格</summary>
+        {{ style_bars(styles[section.category]) }}
+      </details>
+    {% endif %}
     <section class="category">
       {% if not section['items'] %}
         <p class="muted">還沒有{{ CATEGORY_LABELS[section.category] }}。</p>

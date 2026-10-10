@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}猜誰是臥底 · {{ room.code }} · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_social.html" import avatar %}
+<div data-room-poll="/games/room/undercover/{{ room.code }}/v" data-room-version="{{ version }}">
+<p class="notice" data-room-stale hidden>房間有新動態，<a href="">按這裡更新</a>（你打的字會不見）</p>
+<h1>猜誰是臥底 <span class="muted small">房間 {{ room.code }} · {{ themes[state.theme] }}</span></h1>
+
+{% if room.status == "lobby" %}
+  <section class="panel">
+    <h2>邀請朋友</h2>
+    <p class="room-code">{{ room.code }}</p>
+    <button type="button" class="btn secondary small" data-copy="{{ request.url }}">複製邀請連結</button>
+    <h2>玩家 <span class="muted small">{{ people | length }} / {{ MAX }}</span></h2>
+    <ul class="room-players">
+      {% for p in people %}<li>{{ avatar(p, "sm") }} {{ p.display_name }}{% if p.id == room.host_id %} <span class="badge">房主</span>{% endif %}</li>{% endfor %}
+    </ul>
+    {% if is_host %}
+      <form method="post" action="/games/undercover/{{ room.code }}/theme" class="inline">
+        <label class="row">主題
+          <select name="theme" onchange="this.form.submit()">
+            {% for key, label in themes.items() %}<option value="{{ key }}"{% if key == state.theme %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </label>
+      </form>
+      <form method="post" action="/games/undercover/{{ room.code }}/start" class="actions">
+        <button type="submit" class="btn"{% if people | length < MIN %} disabled{% endif %}>開始遊戲</button>
+        {% if people | length < MIN %}<span class="muted small">還差 {{ MIN - people | length }} 人</span>{% endif %}
+      </form>
+    {% else %}
+      <p class="muted">等房主開始…</p>
+    {% endif %}
+  </section>
+
+{% else %}
+  {% set done = room.status == "done" %}
+  {% if done %}
+    {% set spy = by_id[state.spy] %}
+    <p class="uc-result result-{{ state.result }}">{{ results[state.result] }}！臥底是 <strong>{{ spy.display_name }}</strong></p>
+  {% endif %}
+
+  <p class="muted small">{% if not done %}圈起來的是你的格子，描述它但別說得太白；你不知道自己是不是臥底。{% else %}綠框是平民的詞，紅框是臥底的詞。{% endif %}</p>
+  <div class="uc-grid">
+    {% for cell in state.grid %}
+      {% set i = loop.index0 %}
+      <div class="uc-cell{% if not done and i == mine %} mine{% endif %}{% if done and i == state.a %} word-a{% endif %}{% if done and i == state.b %} word-b{% endif %}{% if done and state.guess == i %} guessed{% endif %}">
+        <span>{{ cell.t }}</span>{% if cell.s %}<small>{{ cell.s }}</small>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if room.status == "describe" %}
+    <section class="category">
+      <h2>輪流描述</h2>
+      <ol class="uc-turns">
+        {% for uid in state.order %}
+          {% set p = by_id[uid] %}
+          <li class="{{ 'now' if uid == speaker }}">{{ avatar(p, "sm") }} <strong>{{ p.display_name }}</strong>
+            {% if state.descs.get(uid | string) is not none %}：{{ state.descs[uid | string] or "（口頭說完了）" }}{% elif uid == speaker %} 正在描述…{% endif %}</li>
+        {% endfor %}
+      </ol>
+      {% if speaker == me.id %}
+        <form method="post" action="/games/undercover/{{ room.code }}/describe" class="stack">
+          <input type="text" name="text" maxlength="{{ MAX_DESC }}" placeholder="打一句描述（面對面玩可以留空直接按說完了）" autocomplete="off">
+          <button type="submit" class="btn">說完了</button>
+        </form>
+      {% endif %}
+    </section>
+
+  {% elif room.status == "vote" %}
+    <section class="category">
+      <h2>投票：誰是臥底？</h2>
+      <ol class="uc-turns">
+        {% for uid in state.order %}<li>{{ avatar(by_id[uid], "sm") }} <strong>{{ by_id[uid].display_name }}</strong>：{{ state.descs.get(uid | string) or "（口頭描述）" }}</li>{% endfor %}
+      </ol>
+      {% if voted %}
+        <p class="muted">已投票，等其他人（{{ state.votes | length }} / {{ state.order | length }}）</p>
+      {% else %}
+        <form method="post" action="/games/undercover/{{ room.code }}/vote" class="guess-options">
+          {% for uid in state.order if uid != me.id %}
+            <button type="submit" name="target" value="{{ uid }}" class="guess-option">{{ avatar(by_id[uid]) }}<span>{{ by_id[uid].display_name }}</span></button>
+          {% endfor %}
+        </form>
+      {% endif %}
+    </section>
+
+  {% elif room.status == "guess" %}
+    {% if me.id == state.spy %}
+      <section class="category">
+        <h2>你被抓到了，你是臥底！</h2>
+        <p>猜猜大家圈的是哪一格，猜中就平手：</p>
+        <form method="post" action="/games/undercover/{{ room.code }}/guess" class="uc-grid">
+          {% for cell in state.grid %}
+            <button type="submit" name="index" value="{{ loop.index0 }}" class="uc-cell pick"{% if loop.index0 == mine %} disabled{% endif %}>
+              <span>{{ cell.t }}</span>{% if cell.s %}<small>{{ cell.s }}</small>{% endif %}
+            </button>
+          {% endfor %}
+        </form>
+      </section>
+    {% else %}
+      <p class="uc-result">抓到了！<strong>{{ by_id[state.spy].display_name }}</strong> 是臥底，正在猜你們的詞…</p>
+    {% endif %}
+
+  {% else %}
+    <section class="category">
+      <h2>這局的描述與投票</h2>
+      <ol class="uc-turns">
+        {% for uid in state.order %}
+          <li>{{ avatar(by_id[uid], "sm") }} <strong>{{ by_id[uid].display_name }}</strong>{% if uid == state.spy %} <span class="badge">臥底</span>{% endif %}
+            ：{{ state.descs.get(uid | string) or "（口頭描述）" }} <span class="muted small">· {{ vote_counts[uid] }} 票</span></li>
+        {% endfor %}
+      </ol>
+      {% if state.accused is none %}<p class="muted">票數平手，沒有人被抓出來，臥底順利過關。</p>{% endif %}
+      {% if is_host %}
+        <form method="post" action="/games/undercover/{{ room.code }}/start" class="actions"><button type="submit" class="btn">再來一局</button></form>
+      {% else %}
+        <p class="muted">等房主開下一局…</p>
+      {% endif %}
+    </section>
+  {% endif %}
+{% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ asset('js/room.js') }}"></script>
+<script>
+  document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "已複製！"; } catch { prompt("複製邀請連結：", b.dataset.copy); }
+  }));
+</script>
+{% endblock %}

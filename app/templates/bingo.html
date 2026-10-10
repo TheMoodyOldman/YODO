@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}興趣賓果 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_share.html" import share_box %}
+<h1>興趣賓果 <span class="muted small">{{ month[:4] }} 年 {{ month[5:] | int }} 月</span></h1>
+<p class="muted small">虛線框、右上角有 <span class="auto-dot inline-dot"></span> 的格子會依你的收藏自動打勾，其他做過的就點一下。每個月換一張新的。</p>
+
+<p class="bingo-score"><strong data-lines>{{ lines }}</strong> 條線 · <span data-count>{{ marked_count }}</span> / 24 格</p>
+
+<div class="bingo" role="grid" aria-label="興趣賓果">
+  {% for cell in cells %}
+    {% if cell.auto %}
+      <div class="bingo-cell{% if cell.marked %} on{% endif %} auto" role="gridcell" aria-checked="{{ 'true' if cell.marked else 'false' }}">
+        <span>{{ cell.text }}</span>{% if cell.key != "free" %}<em class="auto-dot" title="依收藏自動判斷" aria-label="自動"></em>{% endif %}
+      </div>
+    {% else %}
+      <form method="post" action="/games/bingo/toggle" class="bingo-form" data-bingo>
+        <input type="hidden" name="key" value="{{ cell.key }}">
+        <button type="submit" class="bingo-cell{% if cell.marked %} on{% endif %}" role="gridcell" aria-pressed="{{ 'true' if cell.marked else 'false' }}">
+          <span>{{ cell.text }}</span>
+        </button>
+      </form>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<section class="category">
+  <h2>分享我的賓果</h2>
+  {{ share_box(card_url, "yodo-bingo-" ~ month ~ ".jpg", "bingo", month, "興趣賓果分享卡") }}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ asset('js/share.js') }}"></script>
+<script>
+  // Toggle without reloading; refresh the preview so the card matches the board.
+  document.querySelectorAll("[data-bingo]").forEach((form) => {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector("button");
+      btn.disabled = true;
+      try {
+        const r = await fetch(form.action, { method: "POST", body: new FormData(form), headers: { "X-Requested-With": "fetch" } });
+        if (!r.ok) throw new Error(r.status);
+        const data = await r.json();
+        btn.classList.toggle("on", data.marked);
+        btn.setAttribute("aria-pressed", String(data.marked));
+        document.querySelector("[data-lines]").textContent = data.lines;
+        document.querySelector("[data-count]").textContent = data.count;
+        const img = document.querySelector(".card-preview");
+        img.src = img.src.split("&t=")[0] + "&t=" + Date.now();
+      } catch {
+        form.submit();
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+</script>
+{% endblock %}

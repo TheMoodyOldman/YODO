@@ -39,6 +39,7 @@
           {% if a.kind == "anime_added" %}把這部動畫加進收藏
           {% elif a.kind == "anime_rated" %}更新了動畫評價
           {% elif a.kind == "played" %}玩了 <strong>{{ hours(a.minutes or 0) }}</strong>
+          {% elif a.kind == "challenge" %}{{ challenge_label(a.note) }}
           {% else %}這個月多聽了 <strong>{{ a.plays }} 次</strong>{% if a.songs and a.songs > 1 %}（{{ a.songs }} 首歌）{% endif %}，最常聽
           {% endif %}
         </p>

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}猜猜這是誰的收藏 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_social.html" import avatar %}
+{% from "_macros.html" import cover_img %}
+{% from "_share.html" import share_box %}
+<h1>猜猜這是誰的收藏</h1>
+
+{% if not_enough %}
+  <section class="panel empty-feed">
+    <p><strong>需要至少 2 位好友才能玩。</strong></p>
+    <p class="muted">好友要有 3 件以上你看得到的收藏。到<a href="/me/friends">好友</a>或<a href="/match">同好推薦</a>找人吧。</p>
+  </section>
+{% else %}
+  {% if feedback %}
+    {% set ans = users[feedback.a] %}
+    <p class="guess-feedback {{ 'ok' if feedback.ok else 'no' }}">
+      {% if feedback.ok %}答對了！是 {{ ans.display_name }} 的收藏。{% else %}可惜，是 {{ ans.display_name }} 的收藏。{% endif %}
+    </p>
+  {% endif %}
+
+  {% if not finished %}
+    <p class="muted">第 {{ state.i + 1 }} / {{ total }} 題 · 目前 {{ state.s }} 分</p>
+    <div class="guess-items">
+      {% for work in question.works %}
+        <div class="card"><div class="cover{% if work.category == Category.music %} square-cover{% endif %}">{{ cover_img(work) }}</div>
+          <div class="card-body"><div class="card-title">{{ work.title }}</div>
+            {% if work.creator %}<div class="card-sub">{{ work.creator }}</div>{% endif %}</div></div>
+      {% endfor %}
+    </div>
+    <h2>這是誰的收藏？</h2>
+    <form method="post" action="/games/guess/answer" class="guess-options">
+      {% for uid in question.options %}
+        {% set u = users[uid] %}
+        <button type="submit" name="choice" value="{{ uid }}" class="guess-option">{{ avatar(u) }}<span>{{ u.display_name }}</span></button>
+      {% endfor %}
+    </form>
+  {% else %}
+    <section class="compat-result">
+      <p class="compat-pct">{{ state.s }}<small> / {{ total }}</small></p>
+      <p class="compat-label">{{ label }}</p>
+    </section>
+    <form method="post" action="/games/guess/new" class="center"><button type="submit" class="btn">再玩一次</button></form>
+    <section class="category">
+      <h2>分享結果</h2>
+      {{ share_box("/games/guess/card.jpg?s=" ~ state.s, "yodo-guess.jpg", "guess", state.s ~ "/" ~ total, "猜猜這是誰的收藏分享卡") }}
+    </section>
+  {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}<script src="{{ asset('js/share.js') }}"></script>{% endblock %}

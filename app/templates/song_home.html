@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}猜歌 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+<h1>猜歌對戰</h1>
+<p class="muted">一對一即時對戰，共 5 首。每首歌依序放 {{ STAGES | join(" → ") }} 秒，每段每人可以猜一次，越早猜中分數越高（{{ POINTS | join(" / ") }} 分）。題目會從你們都有、或都可能聽過的歌挑。</p>
+<p class="muted small">試聽片段來自 Apple Music 官方 30 秒試聽；每首揭曉後可以用 YouTube 聽完整首。</p>
+
+<div class="share-pair">
+  <section class="panel">
+    <h2>開新房間</h2>
+    <form method="post" action="/games/song/new"><button type="submit" class="btn">建立房間</button></form>
+    <p class="muted small">建立後把邀請連結傳給對手。</p>
+  </section>
+  <section class="panel">
+    <h2>加入房間</h2>
+    <form method="post" action="/games/song/join" class="stack">
+      <label>房間代碼 <input name="code" required maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="例如 K7QX2M"></label>
+      <button type="submit" class="btn secondary">加入</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

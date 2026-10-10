@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}30 天挑戰 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+<h1>30 天挑戰</h1>
+<p class="muted">每天一個題目，從你的收藏挑一個作品回答，每天都能做成限動分享。</p>
+<div class="game-grid">
+  {% for run in runs %}
+    <a class="game-tile challenge-tile cat-{{ run.kind.value }}" href="/games/challenge/{{ run.kind.value }}">
+      <strong>{{ run.title }}</strong>
+      {% if run.challenge %}
+        <span>已完成 {{ run.done }} / {{ DAYS }} 天 · 已解鎖 {{ run.open }} 天</span>
+        <span class="tile-bar"><span style="width: {{ (run.done / DAYS * 100) | round(1) }}%"></span></span>
+      {% else %}
+        <span>還沒開始，按下去開始第 1 天。</span>
+      {% endif %}
+    </a>
+  {% endfor %}
+</div>
+{% endblock %}

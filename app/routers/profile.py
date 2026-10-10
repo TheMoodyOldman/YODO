@@ -6,6 +6,7 @@ from app.auth import CurrentUser, is_locked
 from app.db import SessionDep
 from app.models import Category, CollectionEntry, User, Work
 from app.anime import TIERS, tier_rank
+from app.genres import user_style
 from app.matching import LOOKING_LABELS, looking_keys
 from app.music import top_artists, top_songs
 from app.privacy import can_view, get_privacy
@@ -72,5 +73,6 @@ def profile(request: Request, username: str, session: SessionDep, me: CurrentUse
         PAGE_ITEMS=PAGE_ITEMS,
         page_url=str(request.url),
         relation=rel,
+        styles=user_style(session, owner, {s["category"] for s in sections if s["items"]}),
         owner_looking=[LOOKING_LABELS[k] for k in looking_keys(owner)],
     )

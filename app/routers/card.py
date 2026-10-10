@@ -16,6 +16,7 @@ from app.templating import render
 router = APIRouter(prefix="/me/card")
 
 ACTIONS = {"share", "download"}
+GAME_KINDS = {"compat", "guess", "bingo", "challenge"}
 PERIOD_LABELS = {"month": "當月", "year": "當年", "all": "有史以來"}
 
 
@@ -123,9 +124,14 @@ class CardEventIn(BaseModel):
 
 @router.post("/events", status_code=204)
 def card_event(event: CardEventIn, session: SessionDep, me: RequiredUser):
-    chosen = Period.parse(event.period, event.key)
-    if event.action not in ACTIONS or chosen is None:
+    if event.action not in ACTIONS:
         raise HTTPException(status_code=422)
-    session.add(CardEvent(user_id=me.id, period=chosen.kind, month=chosen.key, action=event.action))
+    if event.period in GAME_KINDS and 0 < len(event.key) <= 40:  # 小遊戲 share cards
+        kind, key = event.period, event.key
+    elif chosen := Period.parse(event.period, event.key):
+        kind, key = chosen.kind, chosen.key
+    else:
+        raise HTTPException(status_code=422)
+    session.add(CardEvent(user_id=me.id, period=kind, month=key, action=event.action))
     session.commit()
     return Response(status_code=204)

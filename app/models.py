@@ -63,6 +63,9 @@ class Work(SQLModel, table=True):
     creator: str | None = None  # artist for music
     cover_url: str | None = None
     year: int | None = None
+    genres_checked_at: datetime | None = None  # genre/tag lookup done (even if it found nothing)
+    preview_url: str | None = None  # 30 s Apple preview for 猜歌
+    preview_checked_at: datetime | None = None
 
 
 class CollectionEntry(SQLModel, table=True):
@@ -150,6 +153,7 @@ class ActivityKind(StrEnum):
     anime_rated = "anime_rated"
     played = "played"  # Steam playtime gained (minutes)
     listened = "listened"  # plays this month gained (plays, songs; work = top song)
+    challenge = "challenge"  # 30 天挑戰 pick; note = "<kind>:<day>"
 
 
 class Activity(SQLModel, table=True):
@@ -163,6 +167,7 @@ class Activity(SQLModel, table=True):
     minutes: int | None = None
     plays: int | None = None
     songs: int | None = None
+    note: str | None = None
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow, index=True)
 
@@ -194,3 +199,71 @@ class MatchDismiss(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", index=True)
     dismissed_id: int = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=utcnow)
+
+
+class BingoMark(SQLModel, table=True):
+    """A manually ticked 興趣賓果 square (auto squares are computed from data, not stored)."""
+
+    __table_args__ = (UniqueConstraint("user_id", "month", "key"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    month: str  # boards change monthly
+    key: str
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class WorkGenre(SQLModel, table=True):
+    """Style tags for a work: Steam genres, AniList genres, Last.fm tags (via the artist)."""
+
+    __table_args__ = (UniqueConstraint("work_id", "genre"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    work_id: int = Field(foreign_key="work.id", index=True)
+    genre: str
+    weight: float = 1.0  # Last.fm tags are weighted by tag strength; others are 1
+
+
+class Challenge(SQLModel, table=True):
+    """A user's 30 天挑戰 run for one category (music / anime / game)."""
+
+    __table_args__ = (UniqueConstraint("user_id", "kind"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    kind: str  # a Category value
+    started_on: date
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class ChallengePick(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("challenge_id", "day"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    challenge_id: int = Field(foreign_key="challenge.id", index=True)
+    day: int  # 1..30
+    work_id: int = Field(foreign_key="work.id")
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class GameRoom(SQLModel, table=True):
+    """A live multiplayer game (猜誰是臥底, 猜歌). Players poll it; `state` is game-specific JSON."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    code: str = Field(unique=True, index=True)
+    kind: str  # "undercover" | "song"
+    host_id: int = Field(foreign_key="user.id")
+    status: str = "lobby"
+    state: str = "{}"
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
+class RoomPlayer(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("room_id", "user_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    room_id: int = Field(foreign_key="gameroom.id", index=True)
+    user_id: int = Field(foreign_key="user.id")
+    seat: int
+    joined_at: datetime = Field(default_factory=utcnow)

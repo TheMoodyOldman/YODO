@@ -1,0 +1,12 @@
+{# Share-card preview with share/download buttons; needs share.js on the page. #}
+{% macro share_box(image, filename, period, key, alt) -%}
+<div class="card-preview-wrap" data-share-box data-image="{{ image }}" data-filename="{{ filename }}" data-period="{{ period }}" data-key="{{ key }}">
+  <img class="card-preview" src="{{ image }}" width="1080" height="1920" alt="{{ alt }}" loading="lazy">
+  <div class="actions card-actions-row">
+    <button type="button" class="btn" data-share hidden>分享到 IG／Threads</button>
+    <a class="btn secondary" href="{{ image }}" download="{{ filename }}" data-download>下載圖片</a>
+  </div>
+  <p class="muted small" data-share-tip hidden>在手機上按「分享」，選 Instagram 的「限時動態」或 Threads。</p>
+  <p class="muted small" data-download-tip>下載後就能上傳到 IG 限時動態或 Threads。</p>
+</div>
+{%- endmacro %}

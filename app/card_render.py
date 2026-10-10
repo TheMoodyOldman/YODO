@@ -104,6 +104,41 @@ def _panel(canvas: Image.Image, top: int, height: int) -> None:
     canvas.alpha_composite(overlay)
 
 
+def new_canvas(height: int = H) -> Image.Image:
+    """Brand background shared by every share card: vertical gradient plus a soft glow."""
+    canvas = Image.new("RGBA", (W, height))
+    gradient = Image.linear_gradient("L").resize((W, height))
+    canvas.paste(Image.composite(Image.new("RGB", (W, height), BG_BOTTOM), Image.new("RGB", (W, height), BG_TOP), gradient))
+    glow = Image.new("RGBA", (W, height))
+    ImageDraw.Draw(glow).ellipse((W - 380, -320, W + 220, 280), fill=(139, 130, 255, 50))
+    canvas.alpha_composite(glow)
+    return canvas
+
+
+def to_jpeg(canvas: Image.Image) -> bytes:
+    out = io.BytesIO()
+    canvas.convert("RGB").save(out, "JPEG", quality=92, optimize=True)
+    return out.getvalue()
+
+
+def wrap(text: str, f: ImageFont.FreeTypeFont, max_width: float, max_lines: int) -> list[str]:
+    """Greedy character wrap (works for CJK, which has no spaces); last line gets an ellipsis."""
+    lines, current = [], ""
+    for ch in text:
+        if f.getlength(current + ch) <= max_width:
+            current += ch
+            continue
+        lines.append(current)
+        current = ch
+        if len(lines) == max_lines:
+            break
+    if len(lines) < max_lines and current:
+        lines.append(current)
+    elif current and len(lines) == max_lines:
+        lines[-1] = _fit(lines[-1] + current, f, max_width)
+    return lines
+
+
 def _hours(minutes: int) -> str:
     h = minutes / 60
     return f"{h:.1f} 小時" if h < 10 else f"{round(h)} 小時"
@@ -306,14 +341,7 @@ def render_card(
     categories: set[Category],
     images: dict[str, Image.Image],
 ) -> bytes:
-    canvas = Image.new("RGBA", (W, H))
-    # Vertical gradient background.
-    gradient = Image.linear_gradient("L").resize((W, H))
-    canvas.paste(Image.composite(Image.new("RGB", (W, H), BG_BOTTOM), Image.new("RGB", (W, H), BG_TOP), gradient))
-    glow = Image.new("RGBA", (W, H))
-    ImageDraw.Draw(glow).ellipse((W - 380, -320, W + 220, 280), fill=(139, 130, 255, 50))
-    canvas.alpha_composite(glow)
-
+    canvas = new_canvas()
     draw = ImageDraw.Draw(canvas)
     draw.text((MARGIN, 110), "友多聞 YODO Recap", font=font("regular", 34), fill=MUTED)
     draw.text((MARGIN, 158), stats.label, font=font("bold", 92), fill=WHITE)
@@ -332,6 +360,4 @@ def render_card(
     f = font("regular", 32)
     draw.text(((W - f.getlength(footer)) / 2, FOOTER_TOP + 36), footer, font=f, fill=MUTED)
 
-    out = io.BytesIO()
-    canvas.convert("RGB").save(out, "JPEG", quality=92, optimize=True)
-    return out.getvalue()
+    return to_jpeg(canvas)

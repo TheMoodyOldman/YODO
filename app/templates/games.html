@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}小遊戲 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+<h1>小遊戲</h1>
+<p class="muted">用你的收藏和朋友比一比，玩完都能做成分享卡。</p>
+
+<div class="game-grid">
+  <a class="game-tile game-compat" href="/me/friends">
+    <span class="game-emoji" aria-hidden="true">💞</span>
+    <strong>品味契合度挑戰</strong>
+    <span>先猜你和朋友有多合，再看真實的契合度、你們都愛的作品，和對方推薦你的。到朋友的興趣頁按「測契合度」開始。</span>
+  </a>
+  <a class="game-tile game-guess" href="/games/guess">
+    <span class="game-emoji" aria-hidden="true">🕵️</span>
+    <strong>猜猜這是誰的收藏</strong>
+    <span>看三件作品，猜是哪位好友的收藏。五題，看你有多懂朋友的品味。</span>
+  </a>
+  <a class="game-tile game-bingo" href="/games/bingo">
+    <span class="game-emoji" aria-hidden="true">🎯</span>
+    <strong>興趣賓果</strong>
+    <span>每月一張 5×5 賓果，有些格子會依你的收藏自動打勾，其他自己點。連成幾條線？</span>
+  </a>
+  <a class="game-tile game-undercover" href="/games/undercover">
+    <span class="game-emoji" aria-hidden="true">🕶️</span>
+    <strong>猜誰是臥底</strong>
+    <span>3–8 人一起玩。描述你圈到的動畫角色，投票抓出拿到不同詞的臥底。</span>
+  </a>
+  <a class="game-tile game-song" href="/games/song">
+    <span class="game-emoji" aria-hidden="true">🎧</span>
+    <strong>猜歌對戰</strong>
+    <span>一對一即時對戰，聽 3、5、10、25、30 秒猜歌名，越早猜中分數越高。題目挑你們都聽過的歌。</span>
+  </a>
+  <a class="game-tile game-challenge" href="/games/challenge">
+    <span class="game-emoji" aria-hidden="true">📅</span>
+    <strong>30 天挑戰</strong>
+    <span>每天一個題目（「讓你想起夏天的歌」「哭最慘的一部」），從收藏挑一個作品回答，每天都能發限動。</span>
+  </a>
+</div>
+{% endblock %}

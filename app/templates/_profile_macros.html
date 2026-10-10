@@ -34,3 +34,18 @@
   </div>
 </div>
 {%- endmacro %}
+
+
+{# Genre mix for one category: bars, strongest first. #}
+{% macro style_bars(profile) -%}
+  {% if profile and profile.genres %}
+    <ul class="style-bars cat-{{ profile.category.value }}">
+      {% for g in profile.genres %}
+        <li><span class="style-name">{{ g.genre }}</span><span class="style-track"><span class="style-fill" style="width: {{ g.pct }}%"></span></span><span class="style-pct">{{ g.pct }}%</span></li>
+      {% endfor %}
+    </ul>
+    {% if profile.analysed < profile.total %}<p class="muted small">已分析 {{ profile.analysed }} / {{ profile.total }} {{ UNITS[profile.category] }}，其餘正在背景查詢類型。</p>{% endif %}
+  {% elif profile %}
+    <p class="muted small">正在查詢作品類型，稍後就會出現風格統計。</p>
+  {% endif %}
+{%- endmacro %}

@@ -16,9 +16,10 @@
           {% set path = request.url.path %}
           {% macro cur(prefix) %}{% if path.startswith(prefix) %} aria-current="page"{% endif %}{% endmacro %}
           <a href="/feed"{{ cur("/feed") }}>動態</a>
-          <a href="/me/collection"{{ cur("/me/collection") }}>我的收藏</a>
-          <a href="/u/{{ me.username }}"{{ cur("/u/" ~ me.username) }}>我的頁面</a>
+          <a href="/me/collection"{{ cur("/me/collection") }}><span class="lbl-long">我的收藏</span><span class="lbl-short">收藏</span></a>
+          <a href="/u/{{ me.username }}"{{ cur("/u/" ~ me.username) }}><span class="lbl-long">我的頁面</span><span class="lbl-short">我的</span></a>
           <a href="/me/card"{{ cur("/me/card") }}>Recap</a>
+          <a href="/games"{{ cur("/games") }}>小遊戲</a>
           <a href="/me/friends"{% if path.startswith("/me/friends") or path.startswith("/match") %} aria-current="page"{% endif %}>好友{% if friend_requests %}<span class="nav-badge" aria-label="{{ friend_requests }} 個好友邀請">{{ friend_requests }}</span>{% endif %}</a>
           <a href="/me/settings"{{ cur("/me/settings") }}>設定</a>
           <form method="post" action="/logout" class="inline nav-logout">

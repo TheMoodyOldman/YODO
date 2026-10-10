@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}品味契合度 · {{ other.display_name }} · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_social.html" import avatar %}
+{% from "_macros.html" import cover_img, hours %}
+{% from "_share.html" import share_box %}
+
+<div class="compat-head">
+  {{ avatar(me, "lg") }}<span class="compat-x" aria-hidden="true">×</span>{{ avatar(other, "lg") }}
+</div>
+<h1 class="center">你和 {{ other.display_name }} 的品味契合度</h1>
+
+{% if result is none %}
+  <section class="panel compat-guess">
+    <form method="get" action="/games/compat/{{ other.username }}" class="stack">
+      <label for="guess"><strong>先猜猜看，你們有多合？</strong></label>
+      <output class="guess-out" id="guess-out">50%</output>
+      <input type="range" id="guess" name="guess" min="0" max="100" value="50"
+             oninput="document.getElementById('guess-out').textContent = this.value + '%'">
+      <button type="submit" class="btn">揭曉答案</button>
+    </form>
+    <p class="center"><a class="small muted" href="?guess=skip">不猜了，直接看</a></p>
+  </section>
+{% else %}
+  <section class="compat-result">
+    <p class="compat-pct">{{ result.pct }}<small>%</small></p>
+    <p class="compat-label">{{ result.label }}</p>
+    {% if guessed is not none %}
+      <p class="muted">你猜 {{ guessed }}%，
+        {% if off_by <= 5 %}幾乎命中，太懂了！{% elif off_by <= 15 %}差了 {{ off_by }}%，很接近。{% else %}差了 {{ off_by }}%，{{ "你們比你以為的更合" if result.pct > guessed else "還有很多可以聊的" }}。{% endif %}
+      </p>
+    {% endif %}
+    {% if result.per_category %}
+      <p class="profile-meta center-row">
+        {% for c, v in result.per_category.items() %}<span class="meta-chip strong">{{ CATEGORY_LABELS[c] }} {{ v }}%</span>{% endfor %}
+      </p>
+    {% elif not result.common_categories %}
+      <p class="muted">你們目前沒有都公開的類別，等對方多分享一點再來測吧。</p>
+    {% endif %}
+  </section>
+
+  {% if result.shared %}
+    <section class="category">
+      <h2>你們都愛</h2>
+      <div class="row-scroll">
+        {% for work, mine, theirs in result.shared %}
+          <a class="card" href="/u/{{ other.username }}/w/{{ work.id }}">
+            <div class="cover">{{ cover_img(work) }}</div>
+            <div class="card-body"><div class="card-title">{{ work.title }}</div>
+              {% if work.category == Category.game %}<div class="card-meta"><span>你 {{ hours(mine.playtime_minutes or 0) }}</span><span>對方 {{ hours(theirs.playtime_minutes or 0) }}</span></div>{% endif %}
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% for title, picks, owner in [(other.display_name ~ " 推薦你", result.their_picks, other), ("你可以推薦給 " ~ other.display_name, result.my_picks, me)] if picks %}
+    <section class="category">
+      <h2>{{ title }}</h2>
+      <div class="row-scroll">
+        {% for entry, work in picks %}
+          <a class="card" href="/u/{{ owner.username }}/w/{{ work.id }}">{% include "_work_card.html" %}</a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endfor %}
+
+  <section class="category">
+    <h2>分享結果</h2>
+    {{ share_box(card_url, "yodo-compat-" ~ other.username ~ ".jpg", "compat", other.username, "品味契合度分享卡") }}
+  </section>
+  <p class="center"><a class="btn secondary small" href="/u/{{ other.username }}">回 {{ other.display_name }} 的興趣頁</a></p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}<script src="{{ asset('js/share.js') }}"></script>{% endblock %}

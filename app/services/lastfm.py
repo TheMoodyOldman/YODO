@@ -148,3 +148,31 @@ async def get_track_info(artist: str, title: str) -> dict[str, Any] | None:
     except LastfmError:
         return None
     return data.get("track")
+
+
+async def get_artist_tags(artist: str) -> list[tuple[str, int]] | None:
+    """artist.getTopTags as (tag, strength 0-100), or None if unknown / unreachable."""
+    if not settings.lastfm_api_key or not artist:
+        return None
+    params = {"method": "artist.gettoptags", "artist": artist, "api_key": settings.lastfm_api_key, "autocorrect": "1"}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            data = await _call(client, params)
+    except LastfmError:
+        return None
+    tags = _as_list((data.get("toptags") or {}).get("tag"))
+    return [(t["name"], int(t.get("count") or 0)) for t in tags if isinstance(t, dict) and t.get("name")]
+
+
+async def get_track_tags(artist: str, title: str) -> list[tuple[str, int]] | None:
+    """track.getTopTags: the title disambiguates artists that share a name."""
+    if not settings.lastfm_api_key or not artist or not title:
+        return None
+    params = {"method": "track.gettoptags", "artist": artist, "track": title, "api_key": settings.lastfm_api_key, "autocorrect": "1"}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            data = await _call(client, params)
+    except LastfmError:
+        return None
+    tags = _as_list((data.get("toptags") or {}).get("tag"))
+    return [(t["name"], int(t.get("count") or 0)) for t in tags if isinstance(t, dict) and t.get("name")]

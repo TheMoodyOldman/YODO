@@ -46,6 +46,7 @@
     <div class="actions match-actions">
       {{ friend_actions(u, Relation.none, "/match") }}
       <a class="btn small secondary" href="/u/{{ u.username }}">看興趣頁</a>
+      <a class="btn small compat-btn" href="/games/compat/{{ u.username }}">💞 測契合度</a>
       <form method="post" action="/match/{{ u.username }}/dismiss" class="inline">
         <button type="submit" class="link small muted">不感興趣</button>
       </form>

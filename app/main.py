@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote
@@ -10,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.auth import BirthDateRequired, LoginRequired
 from app.config import settings
 from app.db import init_db
-from app.routers import auth, card, feed, friends, lastfm, match, me, music, pages, profile, steam, work, youtube
+from app.routers import auth, card, feed, friends, games, lastfm, match, me, music, pages, profile, rooms, steam, work, youtube
 
 BASE_DIR = Path(__file__).parent
 
@@ -18,7 +19,17 @@ BASE_DIR = Path(__file__).parent
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    task = None
+    if settings.background_jobs:
+        from sqlmodel import Session
+
+        from app.db import engine
+        from app.genres import background_loop
+
+        task = asyncio.create_task(background_loop(lambda: Session(engine)))
     yield
+    if task:
+        task.cancel()
 
 
 app = FastAPI(title="友多聞 YODO", lifespan=lifespan)
@@ -37,6 +48,8 @@ app.include_router(work.router)
 app.include_router(friends.router)
 app.include_router(feed.router)
 app.include_router(match.router)
+app.include_router(games.router)
+app.include_router(rooms.router)
 
 
 @app.middleware("http")

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}猜歌 · {{ room.code }} · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_social.html" import avatar %}
+<div data-room-poll="/games/room/song/{{ room.code }}/v" data-room-version="{{ version }}">
+<h1>猜歌對戰 <span class="muted small">房間 {{ room.code }}</span></h1>
+
+{% if room.status == "lobby" %}
+  <section class="panel">
+    <h2>邀請對手</h2>
+    <p class="room-code">{{ room.code }}</p>
+    <button type="button" class="btn secondary small" data-copy="{{ request.url }}">複製邀請連結</button>
+    <ul class="room-players">
+      {% for p in people %}<li>{{ avatar(p, "sm") }} {{ p.display_name }}{% if p.id == room.host_id %} <span class="badge">房主</span>{% endif %}</li>{% endfor %}
+    </ul>
+    {% if is_host %}
+      <form method="post" action="/games/song/{{ room.code }}/start" class="actions">
+        <button type="submit" class="btn"{% if people | length != 2 %} disabled{% endif %}>開始對戰</button>
+        {% if people | length < 2 %}<span class="muted small">等對手加入…</span>{% endif %}
+      </form>
+    {% else %}
+      <p class="muted">等房主開始…</p>
+    {% endif %}
+  </section>
+
+{% else %}
+  {% set scores = state.scores %}
+  <div class="song-score">
+    {% for p in people %}
+      <div class="song-player{% if p.id == me.id %} me{% endif %}">{{ avatar(p, "sm") }} <span>{{ p.display_name }}</span> <strong>{{ scores[p.id | string] }}</strong></div>
+    {% endfor %}
+  </div>
+
+  {% if room.status == "done" %}
+    {% set a, b = people[0], people[1] %}
+    {% set sa, sb = scores[a.id | string], scores[b.id | string] %}
+    <p class="uc-result">{% if sa == sb %}平手！{% else %}{{ (a if sa > sb else b).display_name }} 獲勝！{% endif %}</p>
+    <ol class="uc-turns">
+      {% for r in state.rounds %}<li><strong>{{ r.t }}</strong> <span class="muted small">— {{ r.a }}</span> <a class="small" href="{{ r.link }}" target="_blank" rel="noopener">完整聆聽 ↗</a></li>{% endfor %}
+    </ol>
+    {% if is_host %}<form method="post" action="/games/song/{{ room.code }}/start"><button type="submit" class="btn">再來一場</button></form>{% endif %}
+
+  {% elif state.phase == "play" %}
+    {% set stage = state.stage %}
+    {% set solved = mine in state.solved %}
+    {% set acted = mine in state.acted %}
+    <p class="muted">第 {{ state.i + 1 }} / {{ ROUNDS }} 首 · 第 {{ stage + 1 }} 段（{{ STAGES[stage] }} 秒，猜中 {{ POINTS[stage] }} 分）</p>
+    <div class="song-player-box">
+      <button type="button" class="btn song-play" data-clip="{{ rnd.p }}" data-seconds="{{ STAGES[stage] }}">▶ 播放 {{ STAGES[stage] }} 秒</button>
+      <div class="song-stages">{% for s in STAGES %}<span class="{{ 'on' if loop.index0 <= stage }}">{{ s }}s</span>{% endfor %}</div>
+    </div>
+    <p class="muted small">
+      {% if solved %}你猜中了！等對手…{% elif acted %}這段你已經作答，等對手…{% else %}聽完再猜，沒把握可以「聽長一點」。{% endif %}
+      {% if opponent %}· {{ opponent.display_name }}：{% if theirs in state.solved %}已猜中{% elif theirs in state.acted %}已作答{% else %}思考中{% endif %}{% endif %}
+    </p>
+    <form method="post" action="/games/song/{{ room.code }}/guess" class="song-options">
+      {% for o in rnd.o %}
+        {% set wrong = o.id in state.wrong[mine] %}
+        <button type="submit" name="choice" value="{{ o.id }}" class="song-option{% if wrong %} wrong{% endif %}"{% if solved or acted or wrong %} disabled{% endif %}>
+          <span>{{ o.t }}</span><small>{{ o.a }}</small>
+        </button>
+      {% endfor %}
+    </form>
+    {% if not solved and not acted and stage + 1 < STAGES | length %}
+      <form method="post" action="/games/song/{{ room.code }}/pass"><button type="submit" class="link small">聽長一點 →</button></form>
+    {% endif %}
+
+  {% elif state.phase == "reveal" %}
+    <section class="song-reveal">
+      <p class="eyebrow">第 {{ state.i + 1 }} 首答案</p>
+      <h2>{{ rnd.t }}</h2>
+      <p class="muted">{{ rnd.a }}</p>
+      <ul class="profile-meta center-row">
+        {% for p in people %}
+          {% set k = p.id | string %}
+          <li class="meta-chip strong">{{ p.display_name }}：{% if k in state.solved %}第 {{ state.solved[k] + 1 }} 段猜中 +{{ POINTS[state.solved[k]] }}{% else %}沒猜中{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% if rnd.yt %}
+        <div class="yt-wrap"><iframe src="https://www.youtube-nocookie.com/embed/{{ rnd.yt }}" title="{{ rnd.t }}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>
+      {% else %}
+        <p><a class="btn secondary small" href="{{ rnd.link }}" target="_blank" rel="noopener">在 YouTube 聽完整首 ↗</a></p>
+      {% endif %}
+      {% if mine in state.ready %}
+        <p class="muted">等對手準備好…</p>
+      {% else %}
+        <form method="post" action="/games/song/{{ room.code }}/next"><button type="submit" class="btn">{{ "看結果" if state.i + 1 == ROUNDS else "下一首" }}</button></form>
+      {% endif %}
+    </section>
+  {% endif %}
+{% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ asset('js/room.js') }}"></script>
+<script>
+  document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "已複製！"; } catch { prompt("複製邀請連結：", b.dataset.copy); }
+  }));
+  // Play only the current stage's length of the preview; don't let polling reload mid-clip.
+  const btn = document.querySelector("[data-clip]");
+  if (btn) {
+    const audio = new Audio(btn.dataset.clip);
+    const limit = Number(btn.dataset.seconds);
+    const label = btn.textContent;
+    const stop = () => { audio.pause(); window.roomBusy = false; btn.textContent = label; };
+    audio.addEventListener("timeupdate", () => { if (audio.currentTime >= limit) stop(); });
+    audio.addEventListener("ended", stop);
+    btn.addEventListener("click", () => {
+      if (!audio.paused) return stop();
+      audio.currentTime = 0;
+      window.roomBusy = true;
+      btn.textContent = "■ 播放中…";
+      audio.play().catch(stop);
+    });
+  }
+</script>
+{% endblock %}

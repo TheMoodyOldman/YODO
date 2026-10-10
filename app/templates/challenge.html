@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_share.html" import share_box %}
+{% from "_macros.html" import cover_img %}
+<p><a class="back-btn" href="/games/challenge"><span class="arrow" aria-hidden="true">←</span> 30 天挑戰</a></p>
+<h1>{{ title }}</h1>
+
+{% if not challenge %}
+  <section class="panel empty-feed">
+    <p>每天解鎖一題，從你的{{ CATEGORY_LABELS[kind] }}收藏挑一個作品回答。漏掉的天數可以之後補，未來的題目要等到那天。</p>
+    <form method="post" action="/games/challenge/{{ kind.value }}/start"><button type="submit" class="btn">開始第 1 天</button></form>
+  </section>
+{% else %}
+  <p class="bingo-score"><strong>{{ picks | length }}</strong> / {{ DAYS }} 天 · 已解鎖 {{ open_days }} 天</p>
+
+  <div class="challenge-grid">
+    {% for prompt in prompts %}
+      {% set day = loop.index %}
+      {% set work = picks.get(day) %}
+      {% set locked = day > open_days %}
+      <button type="button" class="challenge-cell{% if work %} filled{% endif %}{% if locked %} locked{% endif %}{% if day == open_days %} today{% endif %}"
+              id="day-{{ day }}" data-day="{{ day }}" data-prompt="{{ prompt }}" {% if locked %}disabled aria-disabled="true"{% endif %}>
+        <span class="cday">Day {{ day }}</span>
+        {% if work %}
+          <span class="ccover{% if kind == Category.music %} square{% endif %}">{{ cover_img(work) }}</span>
+          <span class="ctitle">{{ work.title }}</span>
+        {% else %}
+          <span class="cprompt">{{ "🔒 " if locked }}{{ prompt }}</span>
+        {% endif %}
+      </button>
+    {% endfor %}
+  </div>
+
+  <div class="share-pair">
+    {% if latest %}
+      <section>
+        <h2>Day {{ latest }} 限動</h2>
+        {{ share_box("/games/challenge/" ~ kind.value ~ "/day/" ~ latest ~ ".jpg", "yodo-30days-" ~ kind.value ~ "-day" ~ latest ~ ".jpg", "challenge", kind.value ~ "-" ~ latest, "Day " ~ latest ~ " 分享卡") }}
+      </section>
+    {% endif %}
+    <section>
+      <h2>30 天總覽</h2>
+      {{ share_box("/games/challenge/" ~ kind.value ~ "/card.jpg?n=" ~ (picks | length), "yodo-30days-" ~ kind.value ~ ".jpg", "challenge", kind.value, "30 天挑戰分享卡") }}
+    </section>
+  </div>
+
+  <form method="post" action="/games/challenge/{{ kind.value }}/start" class="center"
+        onsubmit="return confirm('重新開始會清空所有天數，從今天的第 1 天開始。確定嗎？')">
+    <input type="hidden" name="restart" value="true">
+    <button type="submit" class="link small muted">重新開始</button>
+  </form>
+
+  <dialog class="rate-dialog" id="pick-dialog" aria-labelledby="pick-prompt">
+    <form method="dialog" class="pick-form">
+      <div class="rate-head">
+        <div>
+          <p class="eyebrow" id="pick-day"></p>
+          <h2 id="pick-prompt"></h2>
+        </div>
+      </div>
+      <input type="search" id="pick-q" placeholder="搜尋你的{{ CATEGORY_LABELS[kind] }}收藏" autocomplete="off">
+      <ul class="pick-list" id="pick-list" aria-live="polite"></ul>
+      <div class="actions">
+        <button type="button" class="link small danger" id="pick-clear">清除這一天</button>
+        <button type="submit" class="btn secondary">關閉</button>
+      </div>
+    </form>
+  </dialog>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ asset('js/share.js') }}"></script>
+{% if challenge %}
+<script>
+  (() => {
+    const kind = {{ kind.value | tojson }};
+    const dialog = document.getElementById("pick-dialog");
+    const list = document.getElementById("pick-list");
+    const q = document.getElementById("pick-q");
+    let day = 0, timer;
+
+    async function load() {
+      const r = await fetch(`/games/challenge/${kind}/options?q=${encodeURIComponent(q.value)}`);
+      const items = await r.json();
+      list.replaceChildren(...items.map((it) => {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "pick-item";
+        if (it.cover) { const img = document.createElement("img"); img.src = it.cover; img.alt = ""; img.loading = "lazy"; b.append(img); }
+        const t = document.createElement("span");
+        t.innerHTML = "";
+        const strong = document.createElement("strong"); strong.textContent = it.title;
+        const sub = document.createElement("small"); sub.textContent = it.sub;
+        t.append(strong, sub);
+        b.append(t);
+        b.addEventListener("click", () => save(it.id));
+        li.append(b);
+        return li;
+      }));
+      if (!items.length) list.innerHTML = '<li class="muted small">找不到，換個關鍵字試試。</li>';
+    }
+
+    async function save(workId) {
+      const body = new FormData();
+      body.set("day", day);
+      body.set("work_id", workId);
+      const r = await fetch(`/games/challenge/${kind}/pick`, { method: "POST", body, headers: { "X-Requested-With": "fetch" } });
+      if (r.ok) location.reload();
+    }
+
+    document.querySelectorAll(".challenge-cell:not([disabled])").forEach((cell) => {
+      cell.addEventListener("click", () => {
+        day = Number(cell.dataset.day);
+        document.getElementById("pick-day").textContent = `Day ${day}`;
+        document.getElementById("pick-prompt").textContent = cell.dataset.prompt;
+        q.value = "";
+        load();
+        dialog.showModal();
+        q.focus();
+      });
+    });
+    q.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(load, 200); });
+    document.getElementById("pick-clear").addEventListener("click", () => save(0));
+    dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+  })();
+</script>
+{% endif %}
+{% endblock %}

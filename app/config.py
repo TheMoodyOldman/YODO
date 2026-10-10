@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     card_font_bold: str = ""
     # Comma-separated usernames allowed to review reports at /admin/reports.
     admin_usernames: str = ""
+    # Background genre lookups (Steam / AniList / Last.fm); tests turn this off.
+    background_jobs: bool = True
 
 
 settings = Settings()

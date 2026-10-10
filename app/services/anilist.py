@@ -95,3 +95,29 @@ async def get_details(anilist_id: int) -> dict[str, Any] | None:
     """Full AniList record for an anime page, or None."""
     data = await _query(_DETAILS, {"id": anilist_id})
     return data.get("Media") if data else None
+
+
+async def get_genres(anilist_id: int) -> list[str] | None:
+    data = await _query("query ($id: Int) { Media(id: $id, type: ANIME) { genres } }", {"id": anilist_id})
+    return (data.get("Media") or {}).get("genres") if data else None
+
+
+_CHARACTERS = """
+query ($id: Int) {
+  Media(id: $id, type: ANIME) {
+    characters(sort: [ROLE, FAVOURITES_DESC], perPage: 12) { nodes { name { full native } } }
+  }
+}"""
+
+
+async def get_characters(anilist_id: int) -> list[tuple[str, str]]:
+    """(native or full name, full name) for the main cast, most important first."""
+    data = await _query(_CHARACTERS, {"id": anilist_id})
+    nodes = ((((data or {}).get("Media") or {}).get("characters") or {}).get("nodes")) or []
+    out = []
+    for n in nodes:
+        name = n.get("name") or {}
+        full, native = name.get("full") or "", name.get("native") or ""
+        if full or native:
+            out.append((native or full, full if native else ""))
+    return out

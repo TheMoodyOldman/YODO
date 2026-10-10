@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}猜誰是臥底 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+<h1>猜誰是臥底</h1>
+<p class="muted">3–8 人一起玩。大家拿到同一張 4×4 表，平民的格子圈著 A，臥底圈著很像的 B（臥底自己不知道）。輪流描述自己的格子，再投票抓出臥底；被抓到的臥底猜中 A 就算平手。</p>
+
+<div class="share-pair">
+  <section class="panel">
+    <h2>開新房間</h2>
+    <form method="post" action="/games/undercover/new" class="stack">
+      <label>主題
+        <select name="theme">
+          {% for key, label in themes.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+        </select>
+      </label>
+      <p class="muted small">題目會從大家的收藏裡挑，「動畫角色」會用你們看過的動畫的角色。</p>
+      <button type="submit" class="btn">建立房間</button>
+    </form>
+  </section>
+  <section class="panel">
+    <h2>加入房間</h2>
+    <form method="post" action="/games/undercover/join" class="stack">
+      <label>房間代碼
+        <input name="code" required maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="例如 K7QX2M">
+      </label>
+      <button type="submit" class="btn secondary">加入</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

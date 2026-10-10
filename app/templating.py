@@ -42,6 +42,17 @@ def asset(path: str) -> str:
     return f"/static/{path}?v={version}"
 
 
+def challenge_label(note: str | None) -> str:
+    """Feed text for a 30 天挑戰 pick, from its "<kind>:<day>" note."""
+    from app.challenge import PROMPTS, TITLES, parse_kind
+
+    kind, _, day = (note or "").partition(":")
+    category = parse_kind(kind)
+    if category is None or not day.isdigit() or not 1 <= int(day) <= len(PROMPTS[category]):
+        return "參加了 30 天挑戰"
+    return f"{TITLES[category]} Day {day}：{PROMPTS[category][int(day) - 1]}"
+
+
 def avatar_hue(user_id: int) -> int:
     return (user_id * 67) % 360  # stable, well-spread color per user
 
@@ -61,6 +72,7 @@ templates.env.globals.update(
     TAG_COLORS=TAG_COLORS,
     avatar_hue=avatar_hue,
     asset=asset,
+    challenge_label=challenge_label,
 )
 
 
