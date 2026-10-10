@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
@@ -64,12 +65,18 @@ def challenge_label(note: str | None) -> str:
     return f"{TITLES[category]} Day {day}：{PROMPTS[category][int(day) - 1]}"
 
 
+def report_url(username: str, about: str, back: str) -> str:
+    """Report form for a user, about one of their posts ("短評 #12"), returning to `back`."""
+    return f"/report/{username}?about={quote(about)}&next={quote(back)}"
+
+
 def avatar_hue(user_id: int) -> int:
     return (user_id * 67) % 360  # stable, well-spread color per user
 
 
 templates.env.filters["ago"] = ago
 templates.env.globals.update(
+    report_url=report_url,
     Category=Category,
     Visibility=Visibility,
     Relation=Relation,

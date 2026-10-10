@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 from sqlmodel import col, select
 
 from app.anime import status_rank, tier_rank
+from app.community import community_counts
 from app.auth import CurrentUser, is_locked
 from app.db import SessionDep
 from app.models import Category, CollectionEntry, MonthlyPlays, MonthlyPlaytime, User, Work
@@ -105,4 +106,5 @@ async def work_page(request: Request, username: str, work_id: int, session: Sess
         color=info.color or CATEGORY_COLORS[work.category],
         cover=info.image or work.cover_url,
         back_href=f"/u/{owner.username}#{work.category.value}",
+        community=community_counts(session, work.id),
     )

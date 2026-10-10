@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ CATEGORY_LABELS[post.category] }}討論 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_social.html" import avatar %}
+{% from "_community.html" import post_body, post_actions with context %}
+{% set here = "/discuss/" ~ post.id %}
+
+<a class="back-btn plain" href="/discuss?c={{ post.category.value }}"><span class="arrow" aria-hidden="true">←</span> {{ CATEGORY_LABELS[post.category] }}討論區</a>
+
+<article class="note note-{{ post.color }} note-big">
+  <span class="note-cat">{{ CATEGORY_LABELS[post.category] }}</span>
+  <div class="note-text">{{ post_body(post.body, post.spoiler) }}</div>
+  <div class="note-foot">
+    <a href="/u/{{ author.username }}">{{ avatar(author, "sm") }}</a>
+    <a class="note-author" href="/u/{{ author.username }}">{{ author.display_name }}</a>
+    <span class="note-meta">{{ post.created_at | ago }}</span>
+    {{ post_actions(author, here ~ "/delete", "便利貼 #" ~ post.id, here, me and (me.id == author.id or admin)) }}
+  </div>
+</article>
+
+<section class="panel" id="replies">
+  <h2>回覆 <span class="muted small">{{ replies | length }}</span></h2>
+  {% if replies %}
+    <ul class="posts compact">
+      {% for r, u in replies %}
+        <li class="post" id="reply-{{ r.id }}">
+          {{ avatar(u, "sm") }}
+          <div class="post-main">
+            <div class="post-head">
+              <a class="feed-name" href="/u/{{ u.username }}">{{ u.display_name }}</a>
+              {% if u.id == author.id %}<span class="badge">樓主</span>{% endif %}
+              <span class="muted small">{{ r.created_at | ago }}</span>
+              {{ post_actions(u, "/discuss/replies/" ~ r.id ~ "/delete", "回覆 #" ~ r.id ~ " " ~ here, here ~ "#replies",
+                              me and (me.id in (u.id, author.id) or admin)) }}
+            </div>
+            <p class="post-text">{{ r.body }}</p>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">還沒有人回覆。</p>
+  {% endif %}
+  {% if me %}
+    <form method="post" action="{{ here }}/replies" class="comment-form wide">
+      <input name="body" maxlength="{{ MAX_COMMENT }}" placeholder="回覆…" aria-label="回覆" required autocomplete="off">
+      <button type="submit" class="btn small">送出</button>
+    </form>
+  {% else %}
+    <p class="muted small"><a href="/login?next={{ here | urlencode }}">登入</a>後就能回覆。</p>
+  {% endif %}
+</section>
+{% endblock %}

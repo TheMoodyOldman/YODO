@@ -65,9 +65,10 @@ def dismiss(request: Request, session: SessionDep, me: RequiredUser, username: s
 
 
 @router.get("/report/{username}", response_class=HTMLResponse)
-def report_form(request: Request, session: SessionDep, me: RequiredUser, username: str, next: str = ""):
+def report_form(request: Request, session: SessionDep, me: RequiredUser, username: str, next: str = "", about: str = ""):
     target = _target(session, me, username)
-    return render(request, "report.html", me=me, target=target, reasons=REPORT_REASONS, next=next, MAX_DETAIL=MAX_DETAIL)
+    return render(request, "report.html", me=me, target=target, reasons=REPORT_REASONS, next=next, about=about[:80],
+                  MAX_DETAIL=MAX_DETAIL)
 
 
 @router.post("/report/{username}")
@@ -80,12 +81,16 @@ def report_submit(
     detail: Annotated[str, Form()] = "",
     also_block: Annotated[bool, Form()] = False,
     next: Annotated[str, Form()] = "",
+    about: Annotated[str, Form()] = "",
 ):
     target = _target(session, me, username)
     if reason not in REPORT_LABELS:
         flash(request, "請選擇檢舉原因")
         return RedirectResponse(f"/report/{target.username}", status_code=303)
-    session.add(Report(reporter_id=me.id, reported_id=target.id, reason=reason, detail=detail.strip()[:MAX_DETAIL]))
+    detail = detail.strip()[:MAX_DETAIL]
+    if about.strip():  # a specific post, e.g. "短評 #12 /w/34"
+        detail = f"[{about.strip()[:80]}] {detail}".strip()
+    session.add(Report(reporter_id=me.id, reported_id=target.id, reason=reason, detail=detail))
     if also_block:
         if f := get_friendship(session, me.id, target.id):
             session.delete(f)

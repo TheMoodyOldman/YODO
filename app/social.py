@@ -79,3 +79,13 @@ def incoming_request_count(session: Session, user_id: int) -> int:
             Friendship.addressee_id == user_id, Friendship.status == FriendStatus.pending
         )
     ).one()
+
+
+def blocked_ids(session: Session, user_id: int) -> set[int]:
+    """Everyone this user blocked or was blocked by: their posts are hidden both ways."""
+    rows = session.exec(
+        select(Block.blocker_id, Block.blocked_id).where(
+            or_(col(Block.blocker_id) == user_id, col(Block.blocked_id) == user_id)
+        )
+    ).all()
+    return {b if a == user_id else a for a, b in rows}

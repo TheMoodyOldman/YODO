@@ -1,0 +1,28 @@
+{# Shared bits for 短評, 留言 and 討論區. #}
+
+{# Post body; spoilers stay folded until tapped. #}
+{% macro post_body(body, spoiler) -%}
+  {% if spoiler %}
+    <details class="spoiler">
+      <summary>⚠ 有雷，點一下顯示</summary>
+      <p class="post-text">{{ body }}</p>
+    </details>
+  {% else %}
+    <p class="post-text">{{ body }}</p>
+  {% endif %}
+{%- endmacro %}
+
+{# Delete (author or admin) and report (anyone else) links for a post. #}
+{% macro post_actions(author, delete_url, about, back, can_delete) -%}
+  {% if can_delete %}
+    <form method="post" action="{{ delete_url }}" class="inline" onsubmit="return confirm('確定要刪除嗎？')">
+      <button type="submit" class="link small muted">刪除</button>
+    </form>
+  {% endif %}
+  {% if me and me.id != author.id %}
+    <a class="link small muted" href="{{ report_url(author.username, about, back) }}">檢舉</a>
+  {% endif %}
+{%- endmacro %}
+
+{# Category hue for chips and notes. #}
+{% set CATEGORY_HUES = {"game": 217, "anime": 330, "music": 160, "film": 25, "book": 263} %}

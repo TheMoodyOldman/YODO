@@ -273,3 +273,60 @@ class RoomPlayer(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id")
     seat: int
     joined_at: datetime = Field(default_factory=utcnow)
+
+
+# ---------- 作品討論與評分 ----------
+
+
+class Review(SQLModel, table=True):
+    """短評: one per user per work, shown on the public work page."""
+
+    __table_args__ = (UniqueConstraint("user_id", "work_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    work_id: int = Field(foreign_key="work.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    body: str
+    spoiler: bool = False
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
+class ReviewLike(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("review_id", "user_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    review_id: int = Field(foreign_key="review.id", index=True)
+    user_id: int = Field(foreign_key="user.id")
+
+
+class WorkComment(SQLModel, table=True):
+    """留言區 under a work's public page."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    work_id: int = Field(foreign_key="work.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    body: str
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class Post(SQLModel, table=True):
+    """討論區 sticky note: a thread starter filed under a category, not tied to a work."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    category: Category = Field(index=True)
+    body: str
+    color: str = "yellow"
+    spoiler: bool = False
+    reply_count: int = 0
+    created_at: datetime = Field(default_factory=utcnow)
+    last_activity_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class PostReply(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="post.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    body: str
+    created_at: datetime = Field(default_factory=utcnow)

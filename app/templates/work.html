@@ -85,6 +85,12 @@
     {% endif %}
   </section>
 
+  <a class="panel glass community-link" href="/w/{{ work.id }}">
+    <span><strong>大家怎麼看</strong>
+      <span class="muted small">{{ community[0] }} 則短評 · {{ community[1] }} 則留言</span></span>
+    <span class="arrow" aria-hidden="true">→</span>
+  </a>
+
   {% if info.description or info.facts or info.genres or info.link %}
     <section class="panel glass">
       <h2>關於這{{ {"game": "款遊戲", "anime": "部動畫", "music": "首歌", "film": "部作品", "book": "本書"}[work.category.value] }}</h2>

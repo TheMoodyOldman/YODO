@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ CATEGORY_LABELS[category] ~ " · " if category else "" }}討論區 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_social.html" import avatar %}
+{% from "_community.html" import CATEGORY_HUES with context %}
+{% set here = "/discuss" ~ ("?c=" ~ category.value if category else "") %}
+
+<h1>討論區</h1>
+<p class="muted">想聊什麼就貼一張便利貼，點開便利貼就能回覆。</p>
+
+<nav class="tabs discuss-tabs" aria-label="分類">
+  <a class="tab" href="/discuss"{% if not category %} aria-current="page"{% endif %}>全部</a>
+  {% for c in Category %}
+    <a class="tab" href="/discuss?c={{ c.value }}"{% if category == c %} aria-current="page"{% endif %}>{{ CATEGORY_LABELS[c] }}</a>
+  {% endfor %}
+</nav>
+
+{% if me %}
+  <details class="panel new-note"{% if not notes %} open{% endif %}>
+    <summary>＋ 貼一張便利貼</summary>
+    <form method="post" action="/discuss" class="stack">
+      <fieldset class="picker">
+        <legend>分類</legend>
+        <div class="chips">
+          {% for c in Category %}
+            <input type="radio" name="category" value="{{ c.value }}" id="note-cat-{{ c.value }}" required {% if category == c %}checked{% endif %}>
+            <label for="note-cat-{{ c.value }}" class="chip" style="--h: {{ CATEGORY_HUES[c.value] }}">{{ CATEGORY_LABELS[c] }}</label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <textarea name="body" rows="3" maxlength="{{ MAX_NOTE }}" required placeholder="最近在玩、在看、在聽什麼？想問大家什麼？（最多 {{ MAX_NOTE }} 字）" aria-label="便利貼內容"></textarea>
+      <fieldset class="picker">
+        <legend>顏色</legend>
+        <div class="note-colors">
+          {% for key, label in NOTE_COLORS %}
+            <input type="radio" name="color" value="{{ key }}" id="note-color-{{ key }}" {% if loop.first %}checked{% endif %}>
+            <label for="note-color-{{ key }}" class="swatch note-{{ key }}" title="{{ label }}"><span class="visually-hidden">{{ label }}</span></label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <div class="actions">
+        <label class="check small"><input type="checkbox" name="spoiler" value="true"> 有雷（內容先遮住）</label>
+        <button type="submit" class="btn small">貼上</button>
+      </div>
+    </form>
+  </details>
+{% else %}
+  <p class="notice"><a href="/login?next={{ here | urlencode }}">登入</a>後就能貼便利貼、回覆。</p>
+{% endif %}
+
+{% if notes %}
+  <div class="note-wall">
+    {% for post, u in notes %}
+      <a class="note note-{{ post.color }}" href="/discuss/{{ post.id }}">
+        <span class="note-cat">{{ CATEGORY_LABELS[post.category] }}</span>
+        {% if post.spoiler %}
+          <span class="note-text note-spoiler">⚠ 有雷，點開看</span>
+        {% else %}
+          <span class="note-text">{{ post.body }}</span>
+        {% endif %}
+        <span class="note-foot">
+          {{ avatar(u, "sm") }}<span class="note-author">{{ u.display_name }}</span>
+          <span class="note-meta">💬 {{ post.reply_count }} · {{ post.last_activity_at | ago }}</span>
+        </span>
+      </a>
+    {% endfor %}
+  </div>
+  {% if page or has_more %}
+    <p class="actions pager">
+      {% if page %}<a class="btn secondary small" href="/discuss?{{ 'c=' ~ category.value ~ '&' if category else '' }}page={{ page - 1 }}">← 較新的</a>{% endif %}
+      {% if has_more %}<a class="btn secondary small" href="/discuss?{{ 'c=' ~ category.value ~ '&' if category else '' }}page={{ page + 1 }}">較舊的 →</a>{% endif %}
+    </p>
+  {% endif %}
+{% else %}
+  <p class="muted">{{ CATEGORY_LABELS[category] if category else "這裡" }}還沒有便利貼{% if me %}，來貼第一張吧{% endif %}。</p>
+{% endif %}
+{% endblock %}

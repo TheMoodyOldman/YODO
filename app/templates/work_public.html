@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}{{ work.title }} · 大家的評價 · 友多聞 YODO{% endblock %}
+
+{% block meta %}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ work.title }} · 友多聞 YODO 上大家的評價">
+  {% if cover %}<meta property="og:image" content="{{ cover }}">{% endif %}
+{% endblock %}
+
+{% block content %}
+{% from "_verdict.html" import verdict_badges %}
+{% from "_macros.html" import hours %}
+{% from "_social.html" import avatar %}
+{% from "_community.html" import post_body, post_actions with context %}
+{% set is_music = work.category == Category.music %}
+{% set here = "/w/" ~ work.id %}
+
+<div class="work-backdrop" aria-hidden="true"
+     style="--work-color: {{ color }};{% if cover %} --work-cover: url('{{ cover }}');{% endif %}"></div>
+
+<div class="work-page" style="--work-color: {{ color }}">
+  <header class="work-hero">
+    <div class="work-cover{% if is_music %} square{% endif %}">
+      {% if cover %}<img src="{{ cover }}" alt="" onerror="this.remove()">{% endif %}
+    </div>
+    <div class="work-head">
+      <p class="eyebrow">{{ CATEGORY_LABELS[work.category] }}{% if work.year %} · {{ work.year }}{% endif %}</p>
+      <h1>{{ work.title }}</h1>
+      {% if work.original_title and work.original_title != work.title %}<p class="work-sub">{{ work.original_title }}</p>{% endif %}
+      {% if work.creator %}<p class="work-sub">{{ work.creator }}</p>{% endif %}
+      <div class="hero-actions">
+        {% if my_entry %}
+          <a class="btn small" href="/u/{{ me.username }}/w/{{ work.id }}">在我的收藏中 →</a>
+        {% elif me and can_add %}
+          <form method="post" action="/w/{{ work.id }}/add" class="inline">
+            <button type="submit" class="btn small">＋ 加入收藏並評價</button>
+          </form>
+        {% elif not me %}
+          <a class="btn small" href="/login?next={{ here | urlencode }}">登入後加入收藏、寫短評</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <section class="panel glass">
+    <h2>大家的評價</h2>
+    {% if not stats.collectors %}
+      <p class="muted">還沒有人收藏這{{ UNITS[work.category] }}。</p>
+    {% else %}
+      <dl class="stats">
+        <div><dt>收藏</dt><dd>{{ stats.collectors }} 人</dd></div>
+        {% if work.category in TIERED %}<div><dt>評價</dt><dd>{{ stats.rated }} 人</dd></div>{% endif %}
+        {% if stats.avg_minutes %}<div><dt>平均遊玩</dt><dd>{{ hours(stats.avg_minutes) }}</dd></div>{% endif %}
+        {% if stats.total_plays %}<div><dt>{{ "總播放" if is_music else "總觀看" }}</dt><dd>{{ stats.total_plays }} 次</dd></div>{% endif %}
+      </dl>
+
+      {% if stats.statuses and stats.statuses | sum(attribute="count") %}
+        <h3>閱讀狀態</h3>
+        <p class="verdict">
+          {% for s in stats.statuses if s.count %}<span class="status-chip status-{{ s.key.value }}">{{ s.label }} {{ s.count }}</span>{% endfor %}
+        </p>
+      {% endif %}
+
+      {% if stats.rated %}
+        <h3>等級分布</h3>
+        <ul class="bars tier-bars">
+          {% for s in stats.tiers %}
+            <li>
+              <span class="bar-label">{{ s.label }}</span>
+              <span class="bar-track"><span class="bar tier-{{ s.key.value }}" style="width: {{ s.pct }}%"></span></span>
+              <span class="bar-value">{{ s.pct }}%<span class="muted small"> · {{ s.count }}</span></span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      {% if stats.tags %}
+        <h3>熱門標籤</h3>
+        <p class="verdict">
+          {% for tag, n in stats.tags %}<span class="tag-chip big">#{{ tag }} <span class="muted">{{ n }}</span></span>{% endfor %}
+        </p>
+      {% endif %}
+      <p class="muted small">統計包含所有人的收藏；設為「僅自己」或「好友」的收藏以匿名方式計入，不會顯示是誰。</p>
+    {% endif %}
+  </section>
+
+  <section class="panel glass" id="reviews">
+    <div class="section-head">
+      <h2>短評 <span class="muted small">{{ reviews | length }}</span></h2>
+      {% if reviews | length > 1 %}
+        <p class="sort-links small">
+          <a href="{{ here }}#reviews"{% if not sort %} aria-current="true"{% endif %}>最多同感</a>
+          <a href="{{ here }}?sort=new#reviews"{% if sort %} aria-current="true"{% endif %}>最新</a>
+        </p>
+      {% endif %}
+    </div>
+
+    {% if me %}
+      <form method="post" action="{{ here }}/review" class="stack review-form">
+        <textarea name="body" rows="3" maxlength="{{ MAX_REVIEW }}" required
+                  placeholder="用幾句話說說你覺得如何（最多 {{ MAX_REVIEW }} 字）" aria-label="短評">{{ my_review.body if my_review else "" }}</textarea>
+        <div class="actions">
+          <label class="check small"><input type="checkbox" name="spoiler" value="true" {% if my_review and my_review.spoiler %}checked{% endif %}> 有雷（內容先遮住）</label>
+          <button type="submit" class="btn small">{{ "更新短評" if my_review else "發布短評" }}</button>
+        </div>
+        {% if my_review %}<p class="muted small">每人一則短評，再送出會覆蓋原本的內容。</p>{% endif %}
+      </form>
+    {% endif %}
+
+    {% if reviews %}
+      <ul class="posts" data-paged="10">
+        {% for v in reviews %}
+          {% set r, u = v.review, v.author %}
+          <li class="post{% if loop.index > 10 %} extra{% endif %}" id="review-{{ r.id }}">
+            <a href="/u/{{ u.username }}">{{ avatar(u) }}</a>
+            <div class="post-main">
+              <div class="post-head">
+                <a class="feed-name" href="/u/{{ u.username }}">{{ u.display_name }}</a>
+                <span class="muted small">{{ r.updated_at | ago }}</span>
+              </div>
+              {% if v.entry %}{{ verdict_badges(v.entry) }}{% endif %}
+              {{ post_body(r.body, r.spoiler) }}
+              <div class="post-foot">
+                {% if me and me.id != u.id %}
+                  <form method="post" action="/reviews/{{ r.id }}/like" class="inline" data-like>
+                    <button type="submit" class="like-btn{% if v.liked %} on{% endif %}" aria-pressed="{{ 'true' if v.liked else 'false' }}">
+                      👍 有同感 <span data-count>{{ v.likes }}</span></button>
+                  </form>
+                {% elif v.likes %}
+                  <span class="muted small">👍 {{ v.likes }} 人有同感</span>
+                {% endif %}
+                {{ post_actions(u, "/reviews/" ~ r.id ~ "/delete", "短評 #" ~ r.id ~ " " ~ here, here ~ "#review-" ~ r.id,
+                                me and (me.id == u.id or admin)) }}
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if reviews | length > 10 %}<p><button type="button" class="btn secondary small" data-more>顯示更多短評</button></p>{% endif %}
+    {% else %}
+      <p class="muted">還沒有短評{% if me %}，寫下第一則吧{% endif %}。</p>
+    {% endif %}
+  </section>
+
+  <section class="panel glass" id="comments">
+    <h2>留言區 <span class="muted small">{{ comments | length }}</span></h2>
+    {% if me %}
+      <form method="post" action="{{ here }}/comments" class="comment-form wide">
+        <input name="body" maxlength="{{ MAX_COMMENT }}" placeholder="聊聊這{{ UNITS[work.category] }}…" aria-label="留言" required autocomplete="off">
+        <button type="submit" class="btn small">送出</button>
+      </form>
+    {% endif %}
+    {% if comments %}
+      <ul class="posts compact" data-paged="20">
+        {% for c, u in comments %}
+          <li class="post{% if loop.index > 20 %} extra{% endif %}" id="comment-{{ c.id }}">
+            {{ avatar(u, "sm") }}
+            <div class="post-main">
+              <div class="post-head">
+                <a class="feed-name" href="/u/{{ u.username }}">{{ u.display_name }}</a>
+                <span class="muted small">{{ c.created_at | ago }}</span>
+                {{ post_actions(u, "/work-comments/" ~ c.id ~ "/delete", "留言 #" ~ c.id ~ " " ~ here, here ~ "#comments",
+                                me and (me.id == u.id or admin)) }}
+              </div>
+              <p class="post-text">{{ c.body }}</p>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if comments | length > 20 %}<p><button type="button" class="btn secondary small" data-more>顯示更早的留言</button></p>{% endif %}
+    {% else %}
+      <p class="muted">還沒有留言。</p>
+    {% endif %}
+  </section>
+
+  {% if info.description or info.facts or info.genres or info.link %}
+    <section class="panel glass">
+      <h2>作品資訊</h2>
+      {% if info.facts %}
+        <dl class="facts">
+          {% for label, value in info.facts %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}
+        </dl>
+      {% endif %}
+      {% if info.genres %}
+        <p class="genres">{% for g in info.genres %}<span class="genre">{{ g }}</span>{% endfor %}</p>
+      {% endif %}
+      {% if info.description %}<p class="work-desc">{{ info.description }}</p>{% endif %}
+      {% if info.link %}
+        <p><a class="btn secondary small" href="{{ info.link[0] }}" target="_blank" rel="noopener">{{ info.link[1] }} ↗</a></p>
+      {% endif %}
+    </section>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ asset('js/tabs.js') }}"></script>
+<script>
+  // 有同感 toggles in place.
+  document.querySelectorAll("form[data-like]").forEach((form) => form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector("button");
+    try {
+      const r = await fetch(form.action, { method: "POST", headers: { "X-Requested-With": "fetch" } });
+      if (!r.ok) throw new Error(r.status);
+      const data = await r.json();
+      btn.classList.toggle("on", data.liked);
+      btn.setAttribute("aria-pressed", String(data.liked));
+      btn.querySelector("[data-count]").textContent = data.likes;
+    } catch {
+      form.submit();
+    }
+  }));
+</script>
+{% endblock %}
