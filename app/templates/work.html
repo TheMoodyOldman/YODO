@@ -11,7 +11,8 @@
 {% from "_verdict.html" import verdict_picker, verdict_badges %}
 {% from "_macros.html" import hours %}
 {% set is_game = work.category == Category.game %}
-{% set is_anime = work.category == Category.anime %}
+{% set is_rated = work.category in TIERED %}
+{% set is_book = work.category == Category.book %}
 {% set is_music = work.category == Category.music %}
 
 <div class="work-backdrop" aria-hidden="true"
@@ -29,7 +30,7 @@
       <h1>{{ work.title }}</h1>
       {% if work.original_title and work.original_title != work.title %}<p class="work-sub">{{ work.original_title }}</p>{% endif %}
       {% if work.creator %}<p class="work-sub">{{ work.creator }}</p>{% endif %}
-      {% if is_anime %}<div data-hero-verdict>{{ verdict_badges(entry) }}</div>{% endif %}
+      {% if is_rated %}<div data-hero-verdict>{{ verdict_badges(entry) }}</div>{% endif %}
       {% if is_game and entry.playtime_minutes %}
         <p class="big-stat">{{ hours(entry.playtime_minutes) }}</p>
       {% elif is_music and entry.play_count %}
@@ -38,11 +39,11 @@
     </div>
   </header>
 
-  {% if is_owner and is_anime %}
+  {% if is_owner and is_rated %}
     <section class="panel glass">
       <form method="post" action="/me/collection/{{ entry.id }}/verdict" data-autosave>
         <input type="hidden" name="next" value="{{ request.url.path }}">
-        {{ verdict_picker(entry.tier, entry.tag, "work") }}
+        {{ verdict_picker(entry.tier, entry.tag, "work", work.category, entry.status) }}
         <noscript><button type="submit" class="btn small">儲存</button></noscript>
         <p class="save-status muted small" aria-live="polite"></p>
       </form>
@@ -59,6 +60,8 @@
         <div><dt>總播放</dt><dd>{{ entry.play_count or 0 }} 次</dd></div>
         <div><dt>來源</dt><dd>{{ "YouTube Music" if work.source == "youtube" else "Last.fm" }}</dd></div>
       {% else %}
+        {% if is_book %}<div><dt>狀態</dt><dd>{{ STATUS_LABELS[entry.status] if entry.status else "未分類" }}</dd></div>{% endif %}
+        {% if work.category == Category.film and entry.play_count %}<div><dt>Netflix</dt><dd>看了 {{ entry.play_count }} 次</dd></div>{% endif %}
         <div><dt>評價</dt><dd>{{ TIER_LABELS[entry.tier] if entry.tier else "未評價" }}</dd></div>
         {% if entry.tag %}<div><dt>標籤</dt><dd>#{{ entry.tag }}</dd></div>{% endif %}
       {% endif %}
@@ -67,7 +70,7 @@
     </dl>
 
     {% if history %}
-      <h3>每月{{ "遊玩時數" if is_game else "播放次數" }}</h3>
+      <h3>每月{{ "遊玩時數" if is_game else ("觀看次數" if work.category == Category.film else "播放次數") }}</h3>
       <ul class="bars">
         {% for month, value in history %}
           <li>
@@ -84,7 +87,7 @@
 
   {% if info.description or info.facts or info.genres or info.link %}
     <section class="panel glass">
-      <h2>關於這{{ {"game": "款遊戲", "anime": "部動畫", "music": "首歌"}[work.category.value] }}</h2>
+      <h2>關於這{{ {"game": "款遊戲", "anime": "部動畫", "music": "首歌", "film": "部作品", "book": "本書"}[work.category.value] }}</h2>
       {% if info.facts %}
         <dl class="facts">
           {% for label, value in info.facts %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}
@@ -128,10 +131,17 @@
         status.textContent = "已儲存";
         const tier = form.querySelector('input[name="tier"]:checked');
         const tag = form.querySelector('input[name="tag"]:checked');
+        const status = form.querySelector('input[name="status"]:checked');
         hero.replaceChildren();
-        if ((tier && tier.value) || (tag && tag.value)) {
+        if ((tier && tier.value) || (tag && tag.value) || (status && status.value)) {
           const box = document.createElement("div");
           box.className = "verdict";
+          if (status && status.value) {
+            const st = document.createElement("span");
+            st.className = `status-chip status-${status.value}`;
+            st.textContent = status.nextElementSibling.textContent;
+            box.append(st);
+          }
           if (tier && tier.value) {
             const b = document.createElement("span");
             b.className = `tier tier-${tier.value}`;

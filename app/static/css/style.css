@@ -642,3 +642,17 @@ button.bingo-cell:hover { transform: scale(1.03); }
 .yt-wrap { position: relative; max-width: 560px; margin: 12px auto; aspect-ratio: 16 / 9; }
 .yt-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 14px; }
 @media (max-width: 480px) { .song-options { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* book status + film/book accents */
+.status-chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.72rem; line-height: 1.6; font-weight: 600; color: #fff; }
+.status-read { background: #16a34a; }
+.status-reading { background: #2563eb; }
+.status-want { background: #d97706; }
+.rate-head.rate-film { background: linear-gradient(135deg, #f97316, #ef4444); }
+.rate-head.rate-book { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+.feed-work.cat-film { background: color-mix(in srgb, #f97316 9%, var(--surface)); }
+.feed-work.cat-book { background: color-mix(in srgb, #8b5cf6 9%, var(--surface)); }
+.reason.cat-film { border-left-color: #f97316; background: color-mix(in srgb, #f97316 7%, var(--surface)); }
+.reason.cat-book { border-left-color: #8b5cf6; background: color-mix(in srgb, #8b5cf6 7%, var(--surface)); }
+.style-bars.cat-film .style-fill { background: linear-gradient(90deg, #fdba74, #f97316); }
+.style-bars.cat-book .style-fill { background: linear-gradient(90deg, #c4b5fd, #8b5cf6); }

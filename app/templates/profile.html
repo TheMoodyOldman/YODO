@@ -119,9 +119,9 @@
         <p class="muted">還沒有{{ CATEGORY_LABELS[section.category] }}。</p>
       {% elif section.category == Category.music %}
         {{ music_rankings(section, 10, '/u/' ~ owner.username ~ '/w/') }}
-      {% elif section.category == Category.anime %}
+      {% elif section.category in TIERED %}
         {# Grouped by the owner's verdict, best first #}
-        {% for label, group in section.tier_groups if group %}
+        {% for label, group in section["groups"] if group %}
           <h3 class="tier-heading">{{ label }} <span class="muted small">{{ group | length }}</span></h3>
           <div class="grid compact">
             {% for entry, work in group %}

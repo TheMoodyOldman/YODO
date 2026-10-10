@@ -7,24 +7,26 @@
 ## 功能
 
 **個人興趣頁** `/u/帳號`
-- 分成總覽、遊戲、動畫、音樂四個分頁，可直接用 `#game` 這類連結打開指定分頁
+- 分成總覽、遊戲、動畫、音樂、影視、書籍分頁，可直接用 `#game` 這類連結打開指定分頁
 - 每個類別可設定公開範圍：所有人／好友／僅自己（好友功能推出前，「好友」等同僅自己）
 - 單一作品可以隱藏；從外部匯入的資料要先確認才會公開
 
 **作品頁** `/u/帳號/w/作品`
 - 你的紀錄：總時數或播放次數、排名、加入日期、每月長條圖
-- 作品資訊：遊戲取自 Steam 商店頁，動畫取自 AniList，音樂取自 Last.fm（查不到就不顯示）
+- 作品資訊：遊戲取自 Steam 商店頁，動畫取自 AniList，音樂取自 Last.fm，影視取自 TMDB，書籍取自 Google Books／Open Library（查不到就不顯示）
 - 背景用封面模糊加漸層，左右箭頭或鍵盤 ← → 切換作品
 
-**三種類別的資料來源**
+**各類別的資料來源**
 
 | 類別 | 來源 | 怎麼排序 |
 |---|---|---|
 | 遊戲 | 用 Steam 登入連結帳號，自動匯入遊戲庫與遊玩時數（只匯入玩超過 1 小時的） | 遊玩時數 |
 | 動畫 | 用 AniList 搜尋後手動加入，加入時會跳出評價視窗 | 評價等級 |
 | 音樂 | 用 Last.fm 登入同步收聽紀錄，或上傳 Google Takeout 的 YouTube Music 紀錄 | 播放次數 |
+| 影視 | 用 TMDB 搜尋電影、影集後加入，或上傳 Netflix 觀看紀錄 | 評價等級 |
+| 書籍 | 用 Google Books（未設定金鑰時改用 Open Library）搜尋後加入 | 閱讀狀態，再依評價等級 |
 
-動畫評價分為「此生必看／大推／還不錯／普通／雷／已棄坑」，另可加一個 ACG 用語標籤（例如 #神作、#胃痛、#我看了什麼）。等級與標籤定義在 `app/anime.py`。
+動畫評價分為「此生必看／大推／還不錯／普通／雷／已棄坑」，另可加一個 ACG 用語標籤（例如 #神作、#胃痛、#我看了什麼）。影視與書籍用同一組等級，標籤換成各自的用語（例如影視的 #後勁很強、#值得二刷，書籍的 #一口氣讀完、#難啃）；書籍另有「想讀／在讀／讀完」狀態。等級、標籤與狀態定義在 `app/anime.py`。
 
 **好友與動態** `/me/friends`、`/feed`
 - 雙向好友邀請；興趣頁可加好友、解除好友、封鎖
@@ -50,7 +52,7 @@
 - 結果都能產生分享卡，分享與下載次數會記錄
 
 **風格統計**
-- 背景自動查詢每件作品的類型：遊戲用 Steam 商店分類、動畫用 AniList 類型、音樂用 Last.fm 歌曲標籤（沒有時退回歌手標籤）
+- 背景自動查詢每件作品的類型：遊戲用 Steam 商店分類、動畫用 AniList 類型、音樂用 Last.fm 歌曲標籤（沒有時退回歌手標籤）、影視用 TMDB 類型、書籍用書籍分類
 - 依投入程度加權，在興趣頁顯示每個類別的風格偏好，之後可用於推薦朋友與作品
 
 **Recap 分享卡** `/me/card`
@@ -91,6 +93,8 @@ uvicorn app.main:app --reload
 | `STEAM_API_KEY` | 讀取 Steam 遊戲庫 | [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey)，網域填 `localhost` 即可 |
 | `LASTFM_API_KEY` | 讀取 Last.fm 收聽紀錄與歌曲資訊 | [last.fm/api/account/create](https://www.last.fm/api/account/create) |
 | `LASTFM_SHARED_SECRET` | Last.fm 登入驗證 | 同上，建立應用程式後會一起拿到 |
+| `TMDB_API_KEY` | 搜尋電影與影集、比對 Netflix 紀錄 | [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)，v3 API Key 或 v4 Read Access Token 都可以 |
+| `GOOGLE_BOOKS_API_KEY` | 選填但建議：搜尋書籍（中文書較完整） | [Google Cloud Console](https://console.cloud.google.com/apis/library/books.googleapis.com) 啟用 Books API 後建立 API 金鑰；未設定時改用 Open Library |
 | `ADMIN_USERNAMES` | 選填：可以審核檢舉的帳號，逗號分隔 | 例如 `domino` |
 | `BACKGROUND_JOBS` | 選填：設為 `false` 關閉背景類型查詢（測試用） | 預設開啟 |
 | `CARD_FONT_REGULAR`、`CARD_FONT_BOLD` | 選填：Recap 卡片用的中文字型檔路徑 | 見下方「部署注意事項」 |
@@ -113,6 +117,7 @@ python -m scripts.seed_demo
 - **Last.fm**：第一次同步會匯入最近 6 個月；如果在 Last.fm 隱藏了最近收聽資訊，會無法同步。
 - **YouTube Music**：在 Google Takeout 只勾「YouTube 和 YouTube Music」，並把「記錄」的格式改成 **JSON**（預設是 HTML）。上傳 `觀看記錄/watch-history.json` 與 `music (library and uploads)/music library songs.csv`。只會保留音樂播放，其他影片的觀看紀錄在上傳時就丟棄。
 - **重複的歌**：同一首歌同時從 YouTube 和 Last.fm 匯入時，排行只取較高的播放次數，不會相加。
+- **Netflix**：在 Netflix 網頁版「帳戶」→ 選擇個人檔案 →「觀看記錄」→ 最下方「全部下載」，上傳 `NetflixViewingHistory.csv`。影集的每一集合併成一部作品，看幾集算幾次；一次最多比對 150 部，比對到的作品要先確認才會公開。重複上傳不會重複計算。
 
 ## 專案結構
 
@@ -121,14 +126,15 @@ app/
 ├── main.py            FastAPI 入口、路由註冊
 ├── models.py          資料表
 ├── db.py              資料庫連線與啟動時的自動補欄位
-├── anime.py           動畫評價等級與標籤
+├── anime.py           動畫、影視、書籍的評價等級、標籤與閱讀狀態
 ├── music.py           音樂匯入、排行計算
+├── netflix.py         Netflix 觀看紀錄匯入
 ├── sync.py            Steam、Last.fm 同步
 ├── cards.py           Recap 統計（當月／當年／有史以來）
 ├── card_render.py     Recap 卡片繪製
 ├── workinfo.py        作品頁的外部資訊
 ├── importers/         上傳檔案解析（Google Takeout）
-├── services/          外部 API：Steam、AniList、Last.fm
+├── services/          外部 API：Steam、AniList、Last.fm、iTunes、TMDB、Google Books／Open Library
 ├── routers/           各頁面路由
 ├── templates/         Jinja 模板
 └── static/            CSS 與 JS
@@ -147,4 +153,4 @@ scripts/seed_demo.py   本機測試帳號
 依提案的規劃：
 
 1. **第二階段**：~~好友、動態、同好推薦~~（已完成），接著在校園社團內試行，確認用戶密度足以讓推薦有意義
-2. **第三階段**：~~小遊戲~~（已完成）、影視與電子書、更多檔案匯入（Netflix 觀看紀錄等）、作品討論與評分
+2. **第三階段**：~~小遊戲、影視與電子書、Netflix 觀看紀錄匯入~~（已完成）、作品討論與評分

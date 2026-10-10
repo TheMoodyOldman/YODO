@@ -74,7 +74,8 @@ class RecapStats:
         return self.period.label
 
     def has(self, category: Category) -> bool:
-        return bool({Category.music: self.songs, Category.game: self.games, Category.anime: self.anime}[category])
+        # Recap covers games, anime and music; other categories simply have no section.
+        return bool({Category.music: self.songs, Category.game: self.games, Category.anime: self.anime}.get(category))
 
     @property
     def empty(self) -> bool:

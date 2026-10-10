@@ -6,7 +6,18 @@ from fastapi import Request
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
-from app.anime import TAG_COLORS, TAG_GROUPS, TIER_COLORS, TIER_LABELS, TIERS
+from app.anime import (
+    BOOK_STATUSES,
+    STATUS_COLORS,
+    STATUS_LABELS,
+    TAG_COLORS,
+    TAG_GROUPS,
+    TAG_GROUPS_BY_CATEGORY,
+    TIER_COLORS,
+    TIER_LABELS,
+    TIERED,
+    TIERS,
+)
 from app.db import engine
 from app.models import CATEGORY_LABELS, VISIBILITY_LABELS, Category, Visibility
 from app.social import Relation, incoming_request_count
@@ -64,12 +75,17 @@ templates.env.globals.update(
     Relation=Relation,
     CATEGORY_LABELS=CATEGORY_LABELS,
     VISIBILITY_LABELS=VISIBILITY_LABELS,
-    UNITS={Category.game: "款", Category.anime: "部", Category.music: "首"},
+    UNITS={Category.game: "款", Category.anime: "部", Category.music: "首", Category.film: "部", Category.book: "本"},
     ANIME_TIERS=TIERS,
     TIER_LABELS=TIER_LABELS,
     ANIME_TAG_GROUPS=TAG_GROUPS,
     TIER_COLORS=TIER_COLORS,
     TAG_COLORS=TAG_COLORS,
+    TAG_GROUPS_BY_CATEGORY=TAG_GROUPS_BY_CATEGORY,
+    BOOK_STATUSES=BOOK_STATUSES,
+    STATUS_LABELS=STATUS_LABELS,
+    STATUS_COLORS=STATUS_COLORS,
+    TIERED=[c for c in Category if c in TIERED],
     avatar_hue=avatar_hue,
     asset=asset,
     challenge_label=challenge_label,

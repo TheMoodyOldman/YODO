@@ -12,6 +12,9 @@
 {% if pending[Category.music] %}
   <p class="notice">有 {{ pending[Category.music] }} 首新匯入的歌曲還沒公開。<a href="/me/music/review">確認要公開哪些</a></p>
 {% endif %}
+{% if pending[Category.film] %}
+  <p class="notice">有 {{ pending[Category.film] }} 部從 Netflix 匯入的作品還沒公開。<a href="/me/review/film">確認要公開哪些</a></p>
+{% endif %}
 
 <nav class="tabs" role="tablist" aria-label="收藏分類" data-default="{{ default_tab }}">
   {% for category in Category %}
@@ -46,29 +49,30 @@
   {% elif category == Category.anime %}
     <section class="panel">
       <h2>加入動畫</h2>
+      {% set srch = searches[Category.anime] %}
       <form method="get" action="/me/collection" class="search">
-        <input name="q" value="{{ q }}" placeholder="搜尋動畫名稱" aria-label="搜尋動畫名稱">
+        <input name="q" value="{{ srch.query }}" placeholder="搜尋動畫名稱" aria-label="搜尋動畫名稱">
         <button type="submit" class="btn">搜尋</button>
       </form>
       <p class="muted small">資料來自 AniList，支援英文、日文與羅馬拼音片名；中文片名可能搜尋不到。</p>
 
-      {% if search_error %}<p class="error">{{ search_error }}</p>{% endif %}
-      {% if q and not results and not search_error %}<p class="muted">找不到「{{ q }}」，試試英文或日文片名。</p>{% endif %}
+      {% if srch.error %}<p class="error">{{ srch.error }}</p>{% endif %}
+      {% if srch.query and not srch.results and not srch.error %}<p class="muted">找不到「{{ srch.query }}」，試試英文或日文片名。</p>{% endif %}
 
-      {% if results %}
+      {% if srch.results %}
         <div class="grid compact">
-          {% for anime in results %}
+          {% for anime in srch.results %}
             <article class="card">
               {% set work = anime %}{% set entry = none %}
               {% include "_work_card.html" %}
               <div class="card-actions">
                 {% if anime.format_label %}<span class="muted small">{{ anime.format_label }}</span>{% endif %}
-                {% if anime.id | string in owned_anilist_ids %}
+                {% if ("anilist", anime.id | string) in owned %}
                   <span class="badge">已加入</span>
                 {% else %}
                   <form method="post" action="/me/collection/anime" class="inline">
                     <input type="hidden" name="anilist_id" value="{{ anime.id }}">
-                    <input type="hidden" name="q" value="{{ q }}">
+                    <input type="hidden" name="q" value="{{ srch.query }}">
                     <button type="submit" class="btn small">加入</button>
                   </form>
                 {% endif %}
@@ -79,7 +83,92 @@
       {% endif %}
     </section>
 
-  {% else %}
+  {% elif category == Category.film %}
+    {% set srch = searches[Category.film] %}
+    <section class="panel">
+      <h2>加入電影、影集</h2>
+      <form method="get" action="/me/collection" class="search">
+        <input name="fq" value="{{ srch.query }}" placeholder="搜尋片名（中英文都可以）" aria-label="搜尋電影或影集">
+        <button type="submit" class="btn">搜尋</button>
+      </form>
+      <p class="muted small">資料來自 TMDB。{% if not tmdb_ready %}<strong>伺服器尚未設定 TMDB_API_KEY，暫時無法搜尋。</strong>{% endif %}</p>
+      {% if srch.error %}<p class="error">{{ srch.error }}</p>{% endif %}
+      {% if srch.query and not srch.results and not srch.error %}<p class="muted">找不到「{{ srch.query }}」，換個片名試試。</p>{% endif %}
+      {% if srch.results %}
+        <div class="grid compact">
+          {% for t in srch.results %}
+            <article class="card">
+              {% set work = t %}{% set entry = none %}
+              {% include "_work_card.html" %}
+              <div class="card-actions">
+                <span class="muted small">{{ t.kind_label }}</span>
+                {% if ("tmdb", t.external_id) in owned %}
+                  <span class="badge">已加入</span>
+                {% else %}
+                  <form method="post" action="/me/collection/film" class="inline">
+                    <input type="hidden" name="tmdb_id" value="{{ t.external_id }}">
+                    <input type="hidden" name="fq" value="{{ srch.query }}">
+                    <button type="submit" class="btn small">加入</button>
+                  </form>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+    <section class="panel">
+      <h2>Netflix 觀看紀錄</h2>
+      <details class="small"{% if not has_netflix %} open{% endif %}>
+        <summary>{{ '上傳新的觀看紀錄' if has_netflix else '上傳觀看紀錄' }}</summary>
+        <p class="muted">在 Netflix 網頁版點右上角頭像 →「帳戶」→ 選擇個人檔案 →「觀看記錄」→ 頁面最下方「全部下載」，會得到 <code>NetflixViewingHistory.csv</code>。</p>
+        <form method="post" action="/me/netflix/import" enctype="multipart/form-data" class="stack upload">
+          <input type="file" name="history" accept=".csv,text/csv">
+          <p class="muted">影集的每一集會合併成一部作品，看幾集就算幾次。比對到的作品要先確認才會公開。</p>
+          <div class="actions"><button type="submit" class="btn small">匯入</button></div>
+        </form>
+      </details>
+    </section>
+
+  {% elif category == Category.book %}
+    {% set srch = searches[Category.book] %}
+    <section class="panel">
+      <h2>加入書籍</h2>
+      <form method="get" action="/me/collection" class="search">
+        <input name="bq" value="{{ srch.query }}" placeholder="搜尋書名或作者" aria-label="搜尋書籍">
+        <button type="submit" class="btn">搜尋</button>
+      </form>
+      <p class="muted small">資料來自 {{ "Google Books" if books_source == "googlebooks" else "Open Library（中文書較少，可請管理員設定 Google Books 金鑰）" }}。</p>
+      {% if srch.error %}<p class="error">{{ srch.error }}</p>{% endif %}
+      {% if srch.query and not srch.results and not srch.error %}<p class="muted">找不到「{{ srch.query }}」，試試原文書名或作者。</p>{% endif %}
+      {% if srch.results %}
+        <div class="grid compact">
+          {% for b in srch.results %}
+            <article class="card">
+              {% set work = b %}{% set entry = none %}
+              <div class="cover">{% if b.cover_url %}<img src="{{ b.cover_url }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}</div>
+              <div class="card-body"><div class="card-title">{{ b.title }}</div>
+                {% if b.authors %}<div class="card-sub">{{ b.authors }}</div>{% endif %}
+                {% if b.year %}<div class="card-meta"><span>{{ b.year }}</span></div>{% endif %}</div>
+              <div class="card-actions">
+                {% if (b.source, b.external_id) in owned %}
+                  <span class="badge">已加入</span>
+                {% else %}
+                  <form method="post" action="/me/collection/book" class="inline">
+                    <input type="hidden" name="source" value="{{ b.source }}">
+                    <input type="hidden" name="book_id" value="{{ b.external_id }}">
+                    <input type="hidden" name="bq" value="{{ srch.query }}">
+                    <button type="submit" class="btn small">加入</button>
+                  </form>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+
+  {% elif category == Category.music %}
     <section class="panel">
       <h2>Last.fm</h2>
       {% if me.lastfm_username %}
@@ -161,14 +250,14 @@
               {% if work.original_title and work.original_title != work.title %}<div class="card-sub">{{ work.original_title }}</div>{% endif %}
               {% if work.creator %}<div class="card-sub">{{ work.creator }}</div>{% endif %}
               {% if entry.playtime_minutes %}<div class="card-sub">{{ hours(entry.playtime_minutes) }}</div>{% endif %}
-              {% if entry.play_count %}<div class="card-sub">{{ entry.play_count }} 次播放</div>{% endif %}
+              {% if entry.play_count %}<div class="card-sub">{{ "看了 " ~ entry.play_count ~ " 次" if category == Category.film else entry.play_count ~ " 次播放" }}</div>{% endif %}
               {{ verdict_badges(entry) }}
               {% if entry.hidden %}<span class="badge">已隱藏</span>{% endif %}
             </div>
             <form method="post" action="/me/collection/{{ entry.id }}" class="entry-form">
-              {% if category == Category.anime %}
-                <button type="button" class="btn small" data-rate data-id="{{ entry.id }}" data-title="{{ work.title }}"
-                        data-cover="{{ work.cover_url or '' }}" data-tier="{{ entry.tier or '' }}" data-tag="{{ entry.tag or '' }}">評價</button>
+              {% if category in TIERED %}
+                <button type="button" class="btn small" data-rate data-category="{{ category.value }}" data-id="{{ entry.id }}" data-title="{{ work.title }}"
+                        data-cover="{{ work.cover_url or '' }}" data-tier="{{ entry.tier or '' }}" data-tag="{{ entry.tag or '' }}" data-status="{{ entry.status or '' }}">評價</button>
               {% endif %}
               <label class="check"><input type="checkbox" name="hidden" value="true" {% if entry.hidden %}checked{% endif %}> 隱藏</label>
               <button type="submit" class="btn small secondary">儲存</button>
@@ -188,53 +277,57 @@
 </div>
 {% endfor %}
 
-{# Rating dialog: opened by every 評價 button, and right after adding an anime. #}
+{# Rating dialogs (one per rated category): opened by 評價 buttons and right after adding a work. #}
 {% if rate_entry %}
   {% set e, w = rate_entry %}
-  <button type="button" hidden data-rate data-autoopen data-id="{{ e.id }}" data-title="{{ w.title }}"
-          data-cover="{{ w.cover_url or '' }}" data-tier="{{ e.tier or '' }}" data-tag="{{ e.tag or '' }}"></button>
+  <button type="button" hidden data-rate data-autoopen data-category="{{ w.category.value }}" data-id="{{ e.id }}" data-title="{{ w.title }}"
+          data-cover="{{ w.cover_url or '' }}" data-tier="{{ e.tier or '' }}" data-tag="{{ e.tag or '' }}" data-status="{{ e.status or '' }}"></button>
 {% endif %}
-<dialog class="rate-dialog" id="rate-dialog" aria-labelledby="rate-title">
-  <form method="post" id="rate-form">
+{% for cat in TIERED %}
+<dialog class="rate-dialog" id="rate-dialog-{{ cat.value }}" aria-labelledby="rate-title-{{ cat.value }}">
+  <form method="post" class="rate-form">
     <input type="hidden" name="next" value="{{ rate_next }}">
-    <div class="rate-head">
-      <div class="thumb"><img id="rate-cover" alt=""></div>
+    <div class="rate-head rate-{{ cat.value }}">
+      <div class="thumb"><img class="rate-cover" alt=""></div>
       <div>
-        <p class="eyebrow">這部你覺得如何？</p>
-        <h2 id="rate-title"></h2>
+        <p class="eyebrow">{{ "這本你覺得如何？" if cat == Category.book else "這部你覺得如何？" }}</p>
+        <h2 class="rate-title" id="rate-title-{{ cat.value }}"></h2>
       </div>
     </div>
-    {{ verdict_picker(none, none, "dlg") }}
+    {{ verdict_picker(none, none, "dlg-" ~ cat.value, cat) }}
     <div class="actions">
       <button type="submit" class="btn">儲存</button>
       <button type="button" class="btn secondary" data-close>稍後再說</button>
     </div>
   </form>
 </dialog>
+{% endfor %}
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ asset('js/tabs.js') }}"></script>
 <script>
   (() => {
-    const dialog = document.getElementById("rate-dialog");
-    const form = document.getElementById("rate-form");
-    const cover = document.getElementById("rate-cover");
-
     function open(btn) {
       const d = btn.dataset;
+      const dialog = document.getElementById(`rate-dialog-${d.category}`);
+      const form = dialog.querySelector("form");
+      const cover = dialog.querySelector(".rate-cover");
       form.action = `/me/collection/${d.id}/verdict`;
-      document.getElementById("rate-title").textContent = d.title;
+      dialog.querySelector(".rate-title").textContent = d.title;
       cover.hidden = !d.cover;
       if (d.cover) cover.src = d.cover;
-      form.querySelectorAll('input[name="tier"]').forEach((r) => (r.checked = r.value === (d.tier || "")));
-      form.querySelectorAll('input[name="tag"]').forEach((r) => (r.checked = r.value === (d.tag || "")));
+      for (const name of ["tier", "tag", "status"]) {
+        form.querySelectorAll(`input[name="${name}"]`).forEach((r) => (r.checked = r.value === (d[name] || "")));
+      }
       dialog.showModal();
     }
 
     document.querySelectorAll("[data-rate]").forEach((b) => b.addEventListener("click", () => open(b)));
-    dialog.querySelector("[data-close]").addEventListener("click", () => dialog.close());
-    dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });  // backdrop click
+    document.querySelectorAll(".rate-dialog").forEach((dialog) => {
+      dialog.querySelector("[data-close]").addEventListener("click", () => dialog.close());
+      dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });  // backdrop click
+    });
 
     const auto = document.querySelector("[data-rate][data-autoopen]");
     if (auto) {

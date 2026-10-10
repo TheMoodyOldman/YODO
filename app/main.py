@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.auth import BirthDateRequired, LoginRequired
 from app.config import settings
 from app.db import init_db
-from app.routers import auth, card, feed, friends, games, lastfm, match, me, music, pages, profile, rooms, steam, work, youtube
+from app.routers import auth, card, feed, film, friends, games, lastfm, match, me, music, pages, profile, rooms, steam, work, youtube
 
 BASE_DIR = Path(__file__).parent
 
@@ -38,6 +38,7 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(pages.router)
 app.include_router(auth.router)
 app.include_router(me.router)
+app.include_router(film.router)
 app.include_router(steam.router)
 app.include_router(youtube.router)
 app.include_router(lastfm.router)

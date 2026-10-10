@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 from sqlmodel import Session, col, func, select
 
-from app.anime import TIER_LABELS
+from app.anime import TIER_LABELS, TIERED
 from app.auth import is_adult
 from app.models import (
     Block,
@@ -41,7 +41,7 @@ LOOKING_LABELS = dict(LOOKING_FOR)
 REPORT_THRESHOLD = 3  # distinct unresolved reporters before someone leaves recommendations
 MIN_ENTRIES = 3  # the viewer needs some data before recommendations mean anything
 
-CATEGORY_FACTOR = {Category.game: 1.0, Category.anime: 1.2, Category.music: 0.6}
+CATEGORY_FACTOR = {Category.game: 1.0, Category.anime: 1.2, Category.music: 0.6, Category.film: 1.1, Category.book: 1.2}
 ARTIST_FACTOR = 0.5
 TIER_WEIGHT = {"must_watch": 3.0, "great": 2.5, "good": 2.0, "okay": 1.2, "bad": 0.6, "dropped": 0.4}
 SAME_TIER_BONUS, SAME_TAG_BONUS = 1.3, 1.2
@@ -128,12 +128,12 @@ def _hours_text(title: str, minutes_a: int, minutes_b: int) -> str:
 def _reason_text(work: Work, mine: CollectionEntry, theirs: CollectionEntry) -> str:
     if work.category == Category.game:
         return _hours_text(work.title, mine.playtime_minutes or 0, theirs.playtime_minutes or 0)
-    if work.category == Category.anime:
+    if work.category in TIERED:
         if mine.tier and mine.tier == theirs.tier:
             return f"你們都把《{work.title}》評為「{TIER_LABELS[mine.tier]}」"
         if mine.tag and mine.tag == theirs.tag:
             return f"你們都覺得《{work.title}》#{mine.tag}"
-        return f"你們都看過《{work.title}》"
+        return f"你們都{'讀過' if work.category == Category.book else '看過'}《{work.title}》"
     artist = f" — {work.creator}" if work.creator else ""
     if min(mine.play_count or 0, theirs.play_count or 0) >= 5:
         return f"你們都常聽〈{work.title}〉{artist}"
@@ -203,7 +203,7 @@ def find_matches(session: Session, viewer: User, limit: int = 20) -> list[Match]
             df = work_df.get(work_id, 1)
             score = idf(df) * math.sqrt(_weight(my_entry, work.category) * _weight(their_entry, work.category))
             score *= CATEGORY_FACTOR[work.category]
-            if work.category == Category.anime:
+            if work.category in TIERED:
                 if my_entry.tier and my_entry.tier == their_entry.tier:
                     score *= SAME_TIER_BONUS
                 if my_entry.tag and my_entry.tag == their_entry.tag:

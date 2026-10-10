@@ -12,6 +12,8 @@ class Category(StrEnum):
     game = "game"
     anime = "anime"
     music = "music"
+    film = "film"  # movies and series
+    book = "book"
 
 
 class Visibility(StrEnum):
@@ -20,7 +22,9 @@ class Visibility(StrEnum):
     private = "private"
 
 
-CATEGORY_LABELS = {Category.game: "遊戲", Category.anime: "動畫", Category.music: "音樂"}
+CATEGORY_LABELS = {
+    Category.game: "遊戲", Category.anime: "動畫", Category.music: "音樂", Category.film: "影視", Category.book: "書籍",
+}
 VISIBILITY_LABELS = {Visibility.public: "所有人", Visibility.friends: "好友", Visibility.private: "僅自己"}
 
 
@@ -77,8 +81,9 @@ class CollectionEntry(SQLModel, table=True):
     playtime_minutes: int | None = None  # games
     play_count: int | None = None  # music
     rating: int | None = Field(default=None, ge=1, le=10)  # games / music
-    tier: str | None = None  # anime: app.anime.AnimeTier
-    tag: str | None = None  # anime: one of app.anime.TAGS
+    tier: str | None = None  # anime / film / book: app.anime.AnimeTier
+    tag: str | None = None  # anime / film / book: one of that category's tags (app.anime)
+    status: str | None = None  # books: app.anime.BookStatus
     hidden: bool = False
     pending_review: bool = False  # imported/synced items await user confirmation before going public
     added_at: datetime = Field(default_factory=utcnow)

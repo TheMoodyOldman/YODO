@@ -5,7 +5,7 @@ from sqlmodel import col, select
 from app.auth import CurrentUser, is_locked
 from app.db import SessionDep
 from app.models import Category, CollectionEntry, User, Work
-from app.anime import TIERS, tier_rank
+from app.anime import BOOK_STATUSES, TIERED, TIERS, status_rank, tier_rank
 from app.genres import user_style
 from app.matching import LOOKING_LABELS, looking_keys
 from app.music import top_artists, top_songs
@@ -47,11 +47,17 @@ def profile(request: Request, username: str, session: SessionDep, me: CurrentUse
                 col(CollectionEntry.added_at).desc(),
             )
         ).all()
-        if category == Category.anime:
-            rows = sorted(rows, key=lambda r: tier_rank(r[0].tier), reverse=True)  # stable: keeps added order per tier
+        if category in TIERED:  # stable sorts: keep added order within a tier / status
+            rows = sorted(rows, key=lambda r: tier_rank(r[0].tier), reverse=True)
+        if category == Category.book:
+            rows = sorted(rows, key=lambda r: status_rank(r[0].status), reverse=True)
         section = {"category": category, "visibility": privacy[category], "items": rows}
-        if category == Category.anime:
-            section["tier_groups"] = [
+        if category == Category.book:  # 讀完 / 在讀 / 想讀, each best-rated first
+            section["groups"] = [
+                (label, [r for r in rows if r[0].status == status]) for status, label in BOOK_STATUSES
+            ] + [("未分類", [r for r in rows if not r[0].status])]
+        elif category in TIERED:
+            section["groups"] = [
                 (label, [r for r in rows if r[0].tier == tier]) for tier, label in TIERS
             ] + [("未評價", [r for r in rows if not r[0].tier])]
         if category == Category.music:

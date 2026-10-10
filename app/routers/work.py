@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import col, select
 
-from app.anime import tier_rank
+from app.anime import status_rank, tier_rank
 from app.auth import CurrentUser, is_locked
 from app.db import SessionDep
 from app.models import Category, CollectionEntry, MonthlyPlays, MonthlyPlaytime, User, Work
@@ -15,7 +15,10 @@ router = APIRouter()
 
 HISTORY_MONTHS = 12
 # Backdrop tint when the source gives no color of its own.
-CATEGORY_COLORS = {Category.game: "#3b82f6", Category.anime: "#ec4899", Category.music: "#10b981"}
+CATEGORY_COLORS = {
+    Category.game: "#3b82f6", Category.anime: "#ec4899", Category.music: "#10b981",
+    Category.film: "#f97316", Category.book: "#8b5cf6",
+}
 
 
 def ordered(rows: list[tuple[CollectionEntry, Work]], category: Category) -> list[tuple[CollectionEntry, Work]]:
@@ -24,6 +27,8 @@ def ordered(rows: list[tuple[CollectionEntry, Work]], category: Category) -> lis
         key = lambda r: (r[0].playtime_minutes or 0, r[0].added_at)  # noqa: E731
     elif category == Category.music:
         key = lambda r: (r[0].play_count or 0, r[0].added_at)  # noqa: E731
+    elif category == Category.book:
+        key = lambda r: (status_rank(r[0].status), tier_rank(r[0].tier), r[0].added_at)  # noqa: E731
     else:
         key = lambda r: (tier_rank(r[0].tier), r[0].added_at)  # noqa: E731
     return sorted(rows, key=key, reverse=True)
@@ -71,7 +76,7 @@ async def work_page(request: Request, username: str, work_id: int, session: Sess
             ).all()
             if end > start
         ]
-    elif work.category == Category.music:
+    elif work.category in (Category.music, Category.film):  # film: Netflix views per month
         history = list(
             session.exec(
                 select(MonthlyPlays.month, MonthlyPlays.plays)

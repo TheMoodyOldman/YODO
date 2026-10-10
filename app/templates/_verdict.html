@@ -1,6 +1,18 @@
-{# Button-style anime verdict picker (radio inputs styled as colored chips).
-   uid keeps ids unique when several pickers share a page. #}
-{% macro verdict_picker(tier, tag, uid) -%}
+{# Button-style verdict picker (radio inputs styled as colored chips) for anime, film and books.
+   uid keeps ids unique when several pickers share a page. Books also get a reading status. #}
+{% macro verdict_picker(tier, tag, uid, category=Category.anime, status=none) -%}
+{% if category == Category.book %}
+<fieldset class="picker">
+  <legend>狀態</legend>
+  <div class="chips">
+    {% for s, label in BOOK_STATUSES %}
+      {% set h, sat = STATUS_COLORS[s] %}
+      <input type="radio" name="status" value="{{ s.value }}" id="{{ uid }}-status-{{ s.value }}" {% if status == s %}checked{% endif %}>
+      <label for="{{ uid }}-status-{{ s.value }}" class="chip" style="--h: {{ h }}; --s: {{ sat }}%">{{ label }}</label>
+    {% endfor %}
+  </div>
+</fieldset>
+{% endif %}
 <fieldset class="picker">
   <legend>評價</legend>
   <div class="chips">
@@ -16,7 +28,7 @@
 
 <fieldset class="picker">
   <legend>標籤 <span class="muted small">挑一個最貼切的，也可以不選</span></legend>
-  {% for group, tags in ANIME_TAG_GROUPS %}
+  {% for group, tags in TAG_GROUPS_BY_CATEGORY[category] %}
     {% set gi = loop.index %}
     <div class="chip-row">
       <span class="chip-group">{{ group }}</span>
@@ -41,8 +53,9 @@
 
 {# Read-only badges for a saved verdict. #}
 {% macro verdict_badges(entry) -%}
-  {% if entry.tier or entry.tag %}
+  {% if entry.tier or entry.tag or entry.status %}
     <div class="verdict">
+      {% if entry.status %}<span class="status-chip status-{{ entry.status }}">{{ STATUS_LABELS[entry.status] }}</span>{% endif %}
       {% if entry.tier %}<span class="tier tier-{{ entry.tier }}">{{ TIER_LABELS[entry.tier] }}</span>{% endif %}
       {% if entry.tag %}<span class="tag-chip">#{{ entry.tag }}</span>{% endif %}
     </div>

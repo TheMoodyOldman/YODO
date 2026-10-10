@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from sqlmodel import Session, col, func, select
 
 from app.models import Category, CollectionEntry, User, Work, WorkGenre, utcnow
-from app.services import anilist, lastfm, steam
+from app.services import anilist, books, lastfm, steam, tmdb
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +32,8 @@ JUNK_TAGS = {
 }
 MAX_MUSIC_TAGS = 5
 MIN_TAG_STRENGTH = 10
-DELAY = {"steam": 1.5, "anilist": 0.8, "lastfm": 0.3}  # seconds between requests, per source
+DELAY = {"steam": 1.5, "anilist": 0.8, "lastfm": 0.3, "tmdb": 0.3, "books": 1.0}  # seconds between requests
+MAX_BOOK_TAGS = 6
 
 
 def _clean_music_tags(tags: list[tuple[str, int]], artist: str) -> list[tuple[str, float]]:
@@ -94,6 +95,15 @@ async def enrich_batch(session: Session, limit: int = 20) -> int:
                         await asyncio.sleep(DELAY["lastfm"])
                     tags = artist_tags[key]
                 _save(session, [work], tags)
+            elif work.source == "tmdb":
+                data = await tmdb.get_details(work.external_id)
+                _save(session, [work], [(g["name"], 1.0) for g in (data or {}).get("genres") or [] if g.get("name")])
+                await asyncio.sleep(DELAY["tmdb"])
+            elif work.source in (books.GOOGLE, books.OPENLIBRARY):
+                data = await books.get_details(work.source, work.external_id)
+                names = [c for c in (data or {}).get("categories") or [] if ":" not in c][:MAX_BOOK_TAGS]
+                _save(session, [work], [(n if not n.isascii() else n.lower(), 1.0) for n in names])
+                await asyncio.sleep(DELAY["books"])
             else:
                 _save(session, [work], [])
             session.commit()

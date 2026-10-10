@@ -30,6 +30,11 @@
   function show(name, scroll) {
     tabs.forEach((t) => t.setAttribute("aria-selected", String(t.dataset.tab === name)));
     panels.forEach((p) => (p.hidden = p.dataset.panel !== name));
+    // On narrow screens the tab row scrolls sideways: keep the active tab visible.
+    const active = tabs.find((t) => t.dataset.tab === name);
+    if (active && bar.scrollWidth > bar.clientWidth) {
+      bar.scrollLeft = active.offsetLeft - (bar.clientWidth - active.offsetWidth) / 2;
+    }
     if (scroll && bar.getBoundingClientRect().top < 0) bar.scrollIntoView();
     history.replaceState(null, "", location.pathname + location.search + (name === fallback ? "" : "#" + name));
   }
