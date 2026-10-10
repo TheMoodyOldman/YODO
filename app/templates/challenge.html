@@ -4,16 +4,21 @@
 {% block content %}
 {% from "_share.html" import share_box %}
 {% from "_macros.html" import cover_img %}
-<p><a class="back-btn" href="/games/challenge"><span class="arrow" aria-hidden="true">←</span> 30 天挑戰</a></p>
-<h1>{{ title }}</h1>
+{% from "_games.html" import game_hero %}
+<a class="back-btn plain game-back" href="/games/challenge"><span class="arrow" aria-hidden="true">←</span> 30 天挑戰</a>
+{{ game_hero("challenge", title, back=false) }}
 
 {% if not challenge %}
-  <section class="panel empty-feed">
+  <section class="panel empty-state">
     <p>每天解鎖一題，從你的{{ CATEGORY_LABELS[kind] }}收藏挑一個作品回答。漏掉的天數可以之後補，未來的題目要等到那天。</p>
     <form method="post" action="/games/challenge/{{ kind.value }}/start"><button type="submit" class="btn">開始第 1 天</button></form>
   </section>
 {% else %}
-  <p class="bingo-score"><strong>{{ picks | length }}</strong> / {{ DAYS }} 天 · 已解鎖 {{ open_days }} 天</p>
+  <div class="score-pills">
+    <span class="score-pill"><strong>{{ picks | length }}</strong> / {{ DAYS }} 天</span>
+    <span class="score-pill soft">已解鎖 {{ open_days }} 天</span>
+  </div>
+  <div class="progress-bar" aria-hidden="true"><span style="width: {{ (picks | length / DAYS * 100) | round(1) }}%"></span></div>
 
   <div class="challenge-grid">
     {% for prompt in prompts %}

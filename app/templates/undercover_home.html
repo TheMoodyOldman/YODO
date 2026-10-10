@@ -2,8 +2,8 @@
 {% block title %}猜誰是臥底 · 友多聞 YODO{% endblock %}
 
 {% block content %}
-<h1>猜誰是臥底</h1>
-<p class="muted">3–8 人一起玩。大家拿到同一張 4×4 表，平民的格子圈著 A，臥底圈著很像的 B（臥底自己不知道）。輪流描述自己的格子，再投票抓出臥底；被抓到的臥底猜中 A 就算平手。</p>
+{% from "_games.html" import game_hero %}
+{{ game_hero("undercover", "猜誰是臥底", "3–8 人一起玩。大家拿到同一張 4×4 表，平民圈著 A，臥底圈著很像的 B（臥底自己不知道）。輪流描述、投票抓臥底；被抓到的臥底猜中 A 就算平手。", live=true) }}
 
 <div class="share-pair">
   <section class="panel">

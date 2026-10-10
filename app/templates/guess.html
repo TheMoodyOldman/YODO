@@ -5,10 +5,11 @@
 {% from "_social.html" import avatar %}
 {% from "_macros.html" import cover_img %}
 {% from "_share.html" import share_box %}
-<h1>猜猜這是誰的收藏</h1>
+{% from "_games.html" import game_hero %}
+{{ game_hero("guess", "猜猜這是誰的收藏", "看三件作品，猜是哪位好友的收藏。") }}
 
 {% if not_enough %}
-  <section class="panel empty-feed">
+  <section class="panel empty-state">
     <p><strong>需要至少 2 位好友才能玩。</strong></p>
     <p class="muted">好友要有 3 件以上你看得到的收藏。到<a href="/me/friends">好友</a>或<a href="/match">同好推薦</a>找人吧。</p>
   </section>
@@ -21,7 +22,10 @@
   {% endif %}
 
   {% if not finished %}
-    <p class="muted">第 {{ state.i + 1 }} / {{ total }} 題 · 目前 {{ state.s }} 分</p>
+    <div class="round-row">
+      <div class="round-dots">{% for n in range(total) %}<span class="{{ 'done' if n < state.i else ('on' if n == state.i) }}"></span>{% endfor %}</div>
+      <span class="round-label">第 {{ state.i + 1 }} / {{ total }} 題 · <strong class="round-score">{{ state.s }} 分</strong></span>
+    </div>
     <div class="guess-items">
       {% for work in question.works %}
         <div class="card"><div class="cover{% if work.category == Category.music %} square-cover{% endif %}">{{ cover_img(work) }}</div>

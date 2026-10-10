@@ -3,13 +3,15 @@
 
 {% block content %}
 {% from "_social.html" import avatar %}
+{% from "_games.html" import game_hero, room_code %}
+{% from "_icons.html" import icon %}
 <div data-room-poll="/games/room/song/{{ room.code }}/v" data-room-version="{{ version }}">
-<h1>猜歌對戰 <span class="muted small">房間 {{ room.code }}</span></h1>
+{{ game_hero("song", "猜歌對戰", "房間 " ~ room.code, live=true) }}
 
 {% if room.status == "lobby" %}
   <section class="panel">
     <h2>邀請對手</h2>
-    <p class="room-code">{{ room.code }}</p>
+    {{ room_code(room.code) }}
     <button type="button" class="btn secondary small" data-copy="{{ request.url }}">複製邀請連結</button>
     <ul class="room-players">
       {% for p in people %}<li>{{ avatar(p, "sm") }} {{ p.display_name }}{% if p.id == room.host_id %} <span class="badge">房主</span>{% endif %}</li>{% endfor %}
@@ -26,16 +28,17 @@
 
 {% else %}
   {% set scores = state.scores %}
-  <div class="song-score">
+  <div class="versus">
     {% for p in people %}
-      <div class="song-player{% if p.id == me.id %} me{% endif %}">{{ avatar(p, "sm") }} <span>{{ p.display_name }}</span> <strong>{{ scores[p.id | string] }}</strong></div>
+      {% if loop.index == 2 %}<span class="vs" aria-hidden="true">VS</span>{% endif %}
+      <div class="vs-player{% if p.id == me.id %} me{% endif %}">{{ avatar(p, "lg") }}<span class="vs-name">{{ p.display_name }}</span><strong class="vs-score">{{ scores[p.id | string] }}</strong></div>
     {% endfor %}
   </div>
 
   {% if room.status == "done" %}
     {% set a, b = people[0], people[1] %}
     {% set sa, sb = scores[a.id | string], scores[b.id | string] %}
-    <p class="uc-result">{% if sa == sb %}平手！{% else %}{{ (a if sa > sb else b).display_name }} 獲勝！{% endif %}</p>
+    <p class="uc-result winner">{{ icon("trophy", 28) }} {% if sa == sb %}平手！{% else %}{{ (a if sa > sb else b).display_name }} 獲勝！{% endif %}</p>
     <ol class="uc-turns">
       {% for r in state.rounds %}<li><strong>{{ r.t }}</strong> <span class="muted small">— {{ r.a }}</span> <a class="small" href="{{ r.link }}" target="_blank" rel="noopener">完整聆聽 ↗</a></li>{% endfor %}
     </ol>
@@ -45,9 +48,12 @@
     {% set stage = state.stage %}
     {% set solved = mine in state.solved %}
     {% set acted = mine in state.acted %}
-    <p class="muted">第 {{ state.i + 1 }} / {{ ROUNDS }} 首 · 第 {{ stage + 1 }} 段（{{ STAGES[stage] }} 秒，猜中 {{ POINTS[stage] }} 分）</p>
+    <div class="round-dots" aria-label="第 {{ state.i + 1 }} / {{ ROUNDS }} 首">{% for n in range(ROUNDS) %}<span class="{{ 'done' if n < state.i else ('on' if n == state.i) }}"></span>{% endfor %}</div>
     <div class="song-player-box">
-      <button type="button" class="btn song-play" data-clip="{{ rnd.p }}" data-seconds="{{ STAGES[stage] }}">▶ 播放 {{ STAGES[stage] }} 秒</button>
+      <button type="button" class="song-play" data-clip="{{ rnd.p }}" data-seconds="{{ STAGES[stage] }}" aria-label="播放 {{ STAGES[stage] }} 秒">
+        <span class="song-play-icon">{{ icon("play", 34) }}</span><span class="song-play-label">播放 {{ STAGES[stage] }} 秒</span>
+      </button>
+      <p class="song-stage-info">第 {{ state.i + 1 }} / {{ ROUNDS }} 首 · 現在猜中 <strong>+{{ POINTS[stage] }}</strong> 分</p>
       <div class="song-stages">{% for s in STAGES %}<span class="{{ 'on' if loop.index0 <= stage }}">{{ s }}s</span>{% endfor %}</div>
     </div>
     <p class="muted small">
@@ -104,15 +110,17 @@
   if (btn) {
     const audio = new Audio(btn.dataset.clip);
     const limit = Number(btn.dataset.seconds);
-    const label = btn.textContent;
-    const stop = () => { audio.pause(); window.roomBusy = false; btn.textContent = label; };
+    const text = btn.querySelector(".song-play-label");
+    const label = text.textContent;
+    const stop = () => { audio.pause(); window.roomBusy = false; text.textContent = label; btn.classList.remove("playing"); };
     audio.addEventListener("timeupdate", () => { if (audio.currentTime >= limit) stop(); });
     audio.addEventListener("ended", stop);
     btn.addEventListener("click", () => {
       if (!audio.paused) return stop();
       audio.currentTime = 0;
       window.roomBusy = true;
-      btn.textContent = "■ 播放中…";
+      text.textContent = "播放中…";
+      btn.classList.add("playing");
       audio.play().catch(stop);
     });
   }

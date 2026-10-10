@@ -251,6 +251,7 @@
       <ul class="entries {{ 'rows' if is_music else 'tiles' }}" data-paged="{{ PAGE_ITEMS }}">
         {% for entry, work in rows %}
           <li id="entry-{{ entry.id }}" class="entry{% if entry.hidden %} is-hidden{% endif %}{% if loop.index > PAGE_ITEMS %} extra{% endif %}">
+            {% if is_music %}<span class="row-num">{{ loop.index }}</span>{% endif %}
             <a class="thumb entry-cover{% if is_music %} square{% endif %}" href="/u/{{ me.username }}/w/{{ work.id }}" tabindex="-1">{{ cover_img(work) }}
               {% if entry.hidden %}<span class="hidden-flag">已隱藏</span>{% endif %}</a>
             <div class="entry-info">
@@ -258,10 +259,12 @@
               {% if work.original_title and work.original_title != work.title %}<div class="card-sub">{{ work.original_title }}</div>{% endif %}
               {% if work.creator %}<div class="card-sub">{{ work.creator }}</div>{% endif %}
               {% if entry.playtime_minutes %}<div class="card-sub">{{ hours(entry.playtime_minutes) }}</div>{% endif %}
-              {% if entry.play_count %}<div class="card-sub">{{ "看了 " ~ entry.play_count ~ " 次" if category in (Category.film, Category.anime) else entry.play_count ~ " 次播放" }}</div>{% endif %}
+              {% if entry.play_count and not is_music %}<div class="card-sub">{{ "看了 " ~ entry.play_count ~ " 次" }}</div>{% endif %}
               {{ verdict_badges(entry) }}
+              {% if is_music and entry.hidden %}<span class="badge">已隱藏</span>{% endif %}
             </div>
             <div class="entry-actions">
+              {% if is_music and entry.play_count %}<span class="row-plays">{{ entry.play_count }} 次</span>{% endif %}
               {% if category in TIERED %}
                 <button type="button" class="btn small" data-rate data-category="{{ category.value }}" data-id="{{ entry.id }}" data-title="{{ work.title }}"
                         data-cover="{{ work.cover_url or '' }}" data-tier="{{ entry.tier or '' }}" data-tag="{{ entry.tag or '' }}" data-status="{{ entry.status or '' }}">評價</button>

@@ -3,14 +3,15 @@
 
 {% block content %}
 {% from "_social.html" import avatar %}
+{% from "_games.html" import game_hero, room_code %}
 <div data-room-poll="/games/room/undercover/{{ room.code }}/v" data-room-version="{{ version }}">
 <p class="notice" data-room-stale hidden>房間有新動態，<a href="">按這裡更新</a>（你打的字會不見）</p>
-<h1>猜誰是臥底 <span class="muted small">房間 {{ room.code }} · {{ themes[state.theme] }}</span></h1>
+{{ game_hero("undercover", "猜誰是臥底", "房間 " ~ room.code ~ " · " ~ themes[state.theme], live=true) }}
 
 {% if room.status == "lobby" %}
   <section class="panel">
     <h2>邀請朋友</h2>
-    <p class="room-code">{{ room.code }}</p>
+    {{ room_code(room.code) }}
     <button type="button" class="btn secondary small" data-copy="{{ request.url }}">複製邀請連結</button>
     <h2>玩家 <span class="muted small">{{ people | length }} / {{ MAX }}</span></h2>
     <ul class="room-players">

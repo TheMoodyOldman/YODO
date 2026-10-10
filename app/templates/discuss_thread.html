@@ -8,6 +8,9 @@
 
 <a class="back-btn plain" href="/discuss?c={{ post.category.value }}"><span class="arrow" aria-hidden="true">←</span> {{ CATEGORY_LABELS[post.category] }}討論區</a>
 
+{% if expired %}
+  <p class="note-expiry center-text">這張便利貼已經超過 {{ NOTE_DAYS }} 天，不會出現在討論區牆上，只有拿到連結的人看得到。</p>
+{% endif %}
 <article class="note note-{{ post.color }} note-big">
   <span class="note-cat">{{ CATEGORY_LABELS[post.category] }}</span>
   <div class="note-text">{{ post_body(post.body, post.spoiler) }}</div>

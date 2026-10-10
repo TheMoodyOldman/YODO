@@ -5,6 +5,7 @@ or friends-only: those count anonymously and never show a name. Reviews and comm
 posts; a reviewer's own tier/tag is shown next to the review only if the viewer may see it."""
 
 from collections import Counter
+from datetime import timedelta
 from dataclasses import dataclass, field
 
 from sqlmodel import Session, col, func, select
@@ -21,6 +22,7 @@ from app.models import (
     User,
     Work,
     WorkComment,
+    utcnow,
 )
 from app.privacy import can_view, get_privacy
 from app.social import blocked_ids, friend_ids
@@ -31,6 +33,7 @@ MAX_NOTE = 200
 TOP_TAGS = 5
 NOTE_COLORS = [("yellow", "黃"), ("pink", "粉"), ("blue", "藍"), ("green", "綠"), ("purple", "紫"), ("orange", "橘")]
 NOTE_COLOR_KEYS = {k for k, _ in NOTE_COLORS}
+NOTE_DAYS = 7  # notes leave the wall after this; their link keeps working
 
 
 @dataclass
@@ -169,13 +172,20 @@ def community_counts(session: Session, work_id: int) -> tuple[int, int]:
 
 def notes(session: Session, viewer: User | None, category: Category | None, limit: int, offset: int = 0) -> list[tuple[Post, User]]:
     hidden = hidden_authors(session, viewer)
-    query = select(Post, User).join(User, col(User.id) == Post.user_id)
+    since = utcnow() - timedelta(days=NOTE_DAYS)
+    query = select(Post, User).join(User, col(User.id) == Post.user_id).where(col(Post.created_at) >= since)
     if category is not None:
         query = query.where(Post.category == category)
     if hidden:
         query = query.where(col(Post.user_id).not_in(hidden))
     query = query.order_by(col(Post.last_activity_at).desc(), col(Post.id).desc()).offset(offset).limit(limit)
     return list(session.exec(query).all())
+
+
+def note_expired(post: Post) -> bool:
+    """Off the wall (older than NOTE_DAYS); still reachable by its link."""
+    created = post.created_at if post.created_at.tzinfo else post.created_at.replace(tzinfo=utcnow().tzinfo)
+    return created < utcnow() - timedelta(days=NOTE_DAYS)
 
 
 def replies_for(session: Session, post: Post, viewer: User | None) -> list[tuple[PostReply, User]]:

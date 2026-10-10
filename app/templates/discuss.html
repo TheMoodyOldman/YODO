@@ -4,10 +4,12 @@
 {% block content %}
 {% from "_social.html" import avatar %}
 {% from "_community.html" import CATEGORY_HUES with context %}
+{% from "_icons.html" import icon %}
 {% set here = "/discuss" ~ ("?c=" ~ category.value if category else "") %}
 
 <h1>討論區</h1>
 <p class="muted">想聊什麼就貼一張便利貼，點開便利貼就能回覆。</p>
+<p class="note-expiry">{{ icon("clock", 16) }} 便利貼只會在牆上留 {{ NOTE_DAYS }} 天，之後牆上就看不到了；有連結的人還是能打開、回覆。</p>
 
 <nav class="tabs discuss-tabs" aria-label="分類">
   <a class="tab" href="/discuss"{% if not category %} aria-current="page"{% endif %}>全部</a>
@@ -39,6 +41,7 @@
           {% endfor %}
         </div>
       </fieldset>
+      <p class="muted small">貼出後會在牆上顯示 {{ NOTE_DAYS }} 天。</p>
       <div class="actions">
         <label class="check small"><input type="checkbox" name="spoiler" value="true"> 有雷（內容先遮住）</label>
         <button type="submit" class="btn small">貼上</button>
@@ -73,6 +76,6 @@
     </p>
   {% endif %}
 {% else %}
-  <p class="muted">{{ CATEGORY_LABELS[category] if category else "這裡" }}還沒有便利貼{% if me %}，來貼第一張吧{% endif %}。</p>
+  <p class="muted">{{ CATEGORY_LABELS[category] if category else "這裡" }}這 {{ NOTE_DAYS }} 天還沒有便利貼{% if me %}，來貼第一張吧{% endif %}。</p>
 {% endif %}
 {% endblock %}

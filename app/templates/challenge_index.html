@@ -2,8 +2,8 @@
 {% block title %}30 天挑戰 · 友多聞 YODO{% endblock %}
 
 {% block content %}
-<h1>30 天挑戰</h1>
-<p class="muted">每天一個題目，從你的收藏挑一個作品回答，每天都能做成限動分享。</p>
+{% from "_games.html" import game_hero %}
+{{ game_hero("challenge", "30 天挑戰", "每天一個題目，從你的收藏挑一個作品回答，每天都能做成限動分享。") }}
 <div class="game-grid">
   {% for run in runs %}
     <a class="game-tile challenge-tile cat-{{ run.kind.value }}" href="/games/challenge/{{ run.kind.value }}">

@@ -2,9 +2,11 @@
 {% block title %}猜歌 · 友多聞 YODO{% endblock %}
 
 {% block content %}
-<h1>猜歌對戰</h1>
-<p class="muted">一對一即時對戰，共 5 首。每首歌依序放 {{ STAGES | join(" → ") }} 秒，每段每人可以猜一次，越早猜中分數越高（{{ POINTS | join(" / ") }} 分）。題目會從你們都有、或都可能聽過的歌挑。</p>
-<p class="muted small">試聽片段來自 Apple Music 官方 30 秒試聽；每首揭曉後可以用 YouTube 聽完整首。</p>
+{% from "_games.html" import game_hero %}
+{% call game_hero("song", "猜歌對戰", "一對一即時對戰，共 5 首。每首依序放 " ~ (STAGES | join(" → ")) ~ " 秒，每段每人猜一次，越早猜中分數越高。", live=true) %}
+  <p class="game-steps">{% for s in STAGES %}<span>{{ s }}s · {{ POINTS[loop.index0] }} 分</span>{% endfor %}</p>
+{% endcall %}
+<p class="muted small">試聽片段來自 Apple Music 官方 30 秒試聽；每首揭曉後可以用 YouTube 聽完整首。題目會從你們都有、或都可能聽過的歌挑。</p>
 
 <div class="share-pair">
   <section class="panel">

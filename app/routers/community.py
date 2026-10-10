@@ -177,6 +177,7 @@ def discuss(request: Request, session: SessionDep, me: CurrentUser, c: str = "",
         has_more=len(rows) > NOTES_PER_PAGE,
         NOTE_COLORS=community.NOTE_COLORS,
         MAX_NOTE=community.MAX_NOTE,
+        NOTE_DAYS=community.NOTE_DAYS,
     )
 
 
@@ -227,6 +228,8 @@ def thread(request: Request, session: SessionDep, me: CurrentUser, post_id: int)
         post=post,
         author=author,
         replies=community.replies_for(session, post, me),
+        expired=community.note_expired(post),
+        NOTE_DAYS=community.NOTE_DAYS,
         admin=is_admin(me),
         MAX_COMMENT=community.MAX_COMMENT,
     )

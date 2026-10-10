@@ -3,12 +3,16 @@
 
 {% block content %}
 {% from "_share.html" import share_box %}
-<h1>興趣賓果 <span class="muted small">{{ month[:4] }} 年 {{ month[5:] | int }} 月</span></h1>
+{% from "_games.html" import game_hero %}
+{{ game_hero("bingo", "興趣賓果", month[:4] ~ " 年 " ~ (month[5:] | int) ~ " 月 · 每個月換一張新的") }}
 <p class="muted small">虛線框、右上角有 <span class="auto-dot inline-dot"></span> 的格子會依你的收藏自動打勾，其他做過的就點一下。每個月換一張新的。</p>
 
-<p class="bingo-score"><strong data-lines>{{ lines }}</strong> 條線 · <span data-count>{{ marked_count }}</span> / 24 格</p>
+<div class="score-pills">
+  <span class="score-pill"><strong data-lines>{{ lines }}</strong> 條線</span>
+  <span class="score-pill soft"><strong data-count>{{ marked_count }}</strong> / 24 格</span>
+</div>
 
-<div class="bingo" role="grid" aria-label="興趣賓果">
+<div class="bingo-frame"><div class="bingo" role="grid" aria-label="興趣賓果">
   {% for cell in cells %}
     {% if cell.auto %}
       <div class="bingo-cell{% if cell.marked %} on{% endif %} auto" role="gridcell" aria-checked="{{ 'true' if cell.marked else 'false' }}">
@@ -23,7 +27,7 @@
       </form>
     {% endif %}
   {% endfor %}
-</div>
+</div></div>
 
 <section class="category">
   <h2>分享我的賓果</h2>

@@ -9,7 +9,8 @@
 <div class="compat-head">
   {{ avatar(me, "lg") }}<span class="compat-x" aria-hidden="true">×</span>{{ avatar(other, "lg") }}
 </div>
-<h1 class="center">你和 {{ other.display_name }} 的品味契合度</h1>
+<p class="eyebrow gradient-text center">品味契合度挑戰</p>
+<h1 class="center">你和 {{ other.display_name }} 有多合？</h1>
 
 {% if result is none %}
   <section class="panel compat-guess">
@@ -24,7 +25,7 @@
   </section>
 {% else %}
   <section class="compat-result">
-    <p class="compat-pct">{{ result.pct }}<small>%</small></p>
+    <div class="score-ring" style="--p: {{ result.pct }}"><p class="compat-pct">{{ result.pct }}<small>%</small></p></div>
     <p class="compat-label">{{ result.label }}</p>
     {% if guessed is not none %}
       <p class="muted">你猜 {{ guessed }}%，

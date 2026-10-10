@@ -1,0 +1,24 @@
+{# Shared pieces for the 小遊戲 pages. #}
+{% from "_icons.html" import icon %}
+
+{% set GAME_ICONS = {"compat": "g-compat", "guess": "g-guess", "bingo": "g-bingo", "undercover": "g-undercover",
+                     "song": "g-song", "challenge": "g-challenge"} %}
+
+{# Gradient header with the game's icon. `live` marks the real-time games. #}
+{% macro game_hero(kind, title, sub="", live=false, back=true) -%}
+  {% if back %}<a class="back-btn plain game-back" href="/games"><span class="arrow" aria-hidden="true">←</span> 小遊戲</a>{% endif %}
+  <header class="game-hero game-{{ kind }}">
+    <span class="game-icon">{{ icon(GAME_ICONS[kind], 36) }}</span>
+    <div class="game-hero-text">
+      {% if live %}<p class="live-badge"><span class="live-dot"></span>即時對戰</p>{% endif %}
+      <h1>{{ title }}</h1>
+      {% if sub %}<p>{{ sub }}</p>{% endif %}
+      {{ caller() if caller }}
+    </div>
+  </header>
+{%- endmacro %}
+
+{# Room code as big letter tiles. #}
+{% macro room_code(code) -%}
+  <p class="room-code" aria-label="房間代碼 {{ code }}">{% for ch in code %}<span>{{ ch }}</span>{% endfor %}</p>
+{%- endmacro %}
