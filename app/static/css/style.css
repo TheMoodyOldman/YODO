@@ -785,11 +785,7 @@ a.note:hover { transform: rotate(0deg) translateY(-3px) scale(1.02); box-shadow:
   }
 }
 body {
-  background:
-    radial-gradient(1200px 500px at 100% -10%, color-mix(in srgb, #ff5ca8 9%, transparent), transparent 60%),
-    radial-gradient(900px 500px at -10% 0%, color-mix(in srgb, #6d5bff 9%, transparent), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
   font-family: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -1440,3 +1436,26 @@ form[action$="/pass"] .link { padding: 8px 18px; border-radius: 999px; font-weig
 .nearby-card header { display: flex; align-items: center; gap: 12px; }
 .nearby-card header p { margin: 0; }
 .nearby-card .comment-form.wide { margin: 6px 0 0; }
+
+/* ===== page background (dating-app style): a calm warm off-white, color only in a soft band
+   under the top bar; cards stay pure white so they lift off the page. ===== */
+:root {
+  --bg: #f7f4fa;
+  --page-band: linear-gradient(180deg, rgb(109 91 255 / 0.16) 0%, rgb(255 92 168 / 0.10) 160px, rgb(247 244 250 / 0) 320px);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131019;
+    --page-band: linear-gradient(180deg, rgb(109 91 255 / 0.22) 0%, rgb(255 92 168 / 0.10) 160px, rgb(19 16 25 / 0) 320px);
+  }
+}
+body { position: relative; background: var(--bg); min-height: 100vh; }
+body::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 320px; z-index: -1; pointer-events: none;
+  background: var(--page-band);
+}
+/* pages with their own cover backdrop keep it */
+body:has(.work-backdrop) { background: transparent; }
+body:has(.work-backdrop)::before { display: none; }
+/* sticky bars blend into the colored page instead of showing a flat strip */
+.tabs, .chat-head { background: color-mix(in srgb, var(--bg) 70%, transparent); }

@@ -176,6 +176,30 @@ app/
 scripts/seed_demo.py   本機測試帳號
 ```
 
+## 在手機上測試、讓組員一起註冊
+
+**同一個 Wi‑Fi（最快）**：讓伺服器聽所有網路介面，再用手機開電腦的區網 IP（`ipconfig` 裡的 IPv4，例如 `http://192.168.x.x:8000`）。第一次啟動時 Windows 防火牆會詢問，請允許「私人網路」。
+
+```
+./.venv/Scripts/uvicorn.exe app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+限制：這是 HTTP，手機瀏覽器不允許「附近 → 使用目前位置」（可以改選地區），系統分享面板也可能無法使用；只有同一個網路的人連得到。
+
+**不同網路／遠端組員（HTTPS 通道）**：用 Cloudflare 的免費快速通道產生一個 `https://….trycloudflare.com` 網址，手機和組員在任何地方都能開，HTTPS 下定位與分享都能用。
+
+```
+./.venv/Scripts/uvicorn.exe app.main:app --port 8000 --proxy-headers --forwarded-allow-ips "*"
+```
+
+```
+cloudflared tunnel --url http://localhost:8000
+```
+
+`--proxy-headers` 讓 Steam／Last.fm 登入的回傳網址使用通道的 https 網址。快速通道的網址每次啟動都會變，電腦關機或關掉指令就無法連線；資料都存在這台電腦的 SQLite。長期給多人使用請改成正式部署（見下方）。
+
+組員打開網址後點「註冊」即可，需填出生日期（未滿 18 歲無法註冊）；註冊後互加好友就能測試私訊、動態、契合度與即時小遊戲。
+
 ## 部署注意事項
 
 - **資料庫變更**：啟動時只會自動補上「新增的可為空欄位」，改名、改型別或新增必填欄位需要自己處理。改用 PostgreSQL 或正式上線前建議導入 Alembic。
