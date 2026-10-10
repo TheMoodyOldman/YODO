@@ -92,6 +92,7 @@ def feed(request: Request, session: SessionDep, me: RequiredUser, page: int = 0)
         page=page,
         has_more=len(items) > (page + 1) * PAGE_SIZE,
         has_friends=len(ids) > 1,
+        friends=sorted(session.exec(select(User).where(col(User.id).in_(ids - {me.id}))).all(), key=lambda u: u.display_name.casefold()),
         MAX_COMMENT=MAX_COMMENT,
     )
 

@@ -140,6 +140,13 @@ def _reason_text(work: Work, mine: CollectionEntry, theirs: CollectionEntry) -> 
     return f"你們都聽過〈{work.title}〉{artist}"
 
 
+def empty_reason(session: Session, viewer: User) -> str:
+    """Why find_matches came back empty: "few_entries", "no_people" or "no_overlap"."""
+    if len(_entries(session, [viewer.id])) < MIN_ENTRIES:
+        return "few_entries"
+    return "no_overlap" if _eligible_ids(session, viewer) else "no_people"
+
+
 def find_matches(session: Session, viewer: User, limit: int = 20) -> list[Match]:
     mine = {w.id: (e, w) for e, w in _entries(session, [viewer.id])}
     if len(mine) < MIN_ENTRIES:

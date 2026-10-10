@@ -5,18 +5,30 @@
 {% from "_social.html" import avatar %}
 {% from "_verdict.html" import verdict_badges %}
 {% from "_macros.html" import cover_img, hours %}
+{% from "_icons.html" import icon %}
 
-<div class="feed-top">
-  <h1>動態</h1>
-  <a class="btn small secondary" href="/me/friends">好友{% if friend_requests %}<span class="nav-badge">{{ friend_requests }}</span>{% endif %}</a>
-</div>
+<h1>動態</h1>
+<nav class="friend-row" aria-label="好友">
+  <a class="friend-bubble find" href="/match">
+    <span class="bubble-ring">{{ icon("compass", 26) }}</span><span class="bubble-name">找同好</span>
+  </a>
+  {% for f in friends %}
+    <a class="friend-bubble" href="/u/{{ f.username }}">
+      <span class="bubble-ring">{{ avatar(f, "lg") }}</span><span class="bubble-name">{{ f.display_name }}</span>
+    </a>
+  {% endfor %}
+  <a class="friend-bubble add" href="/me/friends">
+    <span class="bubble-ring">{{ icon("plus", 26) }}</span><span class="bubble-name">加好友</span>
+    {% if friend_requests %}<span class="nav-badge">{{ friend_requests }}</span>{% endif %}
+  </a>
+</nav>
 
 {% if friend_requests %}
   <a class="notice notice-link" href="/me/friends">有 {{ friend_requests }} 個好友邀請等你回覆 →</a>
 {% endif %}
 
 {% if not items %}
-  <section class="panel empty-feed">
+  <section class="panel empty-state">
     {% if has_friends %}
       <p>好友最近沒有新動態。</p>
     {% else %}

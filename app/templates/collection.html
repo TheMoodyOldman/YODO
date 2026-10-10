@@ -248,10 +248,11 @@
       {% if is_music and music_total > rows | length %}
         <p class="muted small">依播放次數列出前 {{ rows | length }} 首。<a href="/me/collection?music=all#music">顯示全部 {{ music_total }} 首</a></p>
       {% endif %}
-      <ul class="entries" data-paged="{{ PAGE_ITEMS }}">
+      <ul class="entries {{ 'rows' if is_music else 'tiles' }}" data-paged="{{ PAGE_ITEMS }}">
         {% for entry, work in rows %}
           <li id="entry-{{ entry.id }}" class="entry{% if entry.hidden %} is-hidden{% endif %}{% if loop.index > PAGE_ITEMS %} extra{% endif %}">
-            <div class="thumb{% if is_music %} square{% endif %}">{{ cover_img(work) }}</div>
+            <a class="thumb entry-cover{% if is_music %} square{% endif %}" href="/u/{{ me.username }}/w/{{ work.id }}" tabindex="-1">{{ cover_img(work) }}
+              {% if entry.hidden %}<span class="hidden-flag">已隱藏</span>{% endif %}</a>
             <div class="entry-info">
               <a class="card-title" href="/u/{{ me.username }}/w/{{ work.id }}">{{ work.title }}</a>
               {% if work.original_title and work.original_title != work.title %}<div class="card-sub">{{ work.original_title }}</div>{% endif %}
@@ -259,20 +260,26 @@
               {% if entry.playtime_minutes %}<div class="card-sub">{{ hours(entry.playtime_minutes) }}</div>{% endif %}
               {% if entry.play_count %}<div class="card-sub">{{ "看了 " ~ entry.play_count ~ " 次" if category in (Category.film, Category.anime) else entry.play_count ~ " 次播放" }}</div>{% endif %}
               {{ verdict_badges(entry) }}
-              {% if entry.hidden %}<span class="badge">已隱藏</span>{% endif %}
             </div>
-            <form method="post" action="/me/collection/{{ entry.id }}" class="entry-form">
+            <div class="entry-actions">
               {% if category in TIERED %}
                 <button type="button" class="btn small" data-rate data-category="{{ category.value }}" data-id="{{ entry.id }}" data-title="{{ work.title }}"
                         data-cover="{{ work.cover_url or '' }}" data-tier="{{ entry.tier or '' }}" data-tag="{{ entry.tag or '' }}" data-status="{{ entry.status or '' }}">評價</button>
               {% endif %}
-              <label class="check"><input type="checkbox" name="hidden" value="true" {% if entry.hidden %}checked{% endif %}> 隱藏</label>
-              <button type="submit" class="btn small secondary">儲存</button>
-            </form>
-            <form method="post" action="/me/collection/{{ entry.id }}/delete" class="inline"
-                  data-confirm="從收藏移除《{{ work.title }}》？" onsubmit="return confirm(this.dataset.confirm)">
-              <button type="submit" class="link danger">移除</button>
-            </form>
+              <details class="entry-more">
+                <summary aria-label="更多動作">⋯</summary>
+                <div class="menu">
+                  <form method="post" action="/me/collection/{{ entry.id }}">
+                    <input type="hidden" name="hidden" value="{{ 'false' if entry.hidden else 'true' }}">
+                    <button type="submit" class="menu-item">{{ "取消隱藏" if entry.hidden else "從興趣頁隱藏" }}</button>
+                  </form>
+                  <form method="post" action="/me/collection/{{ entry.id }}/delete"
+                        data-confirm="從收藏移除《{{ work.title }}》？" onsubmit="return confirm(this.dataset.confirm)">
+                    <button type="submit" class="menu-item danger">從收藏移除</button>
+                  </form>
+                </div>
+              </details>
+            </div>
           </li>
         {% endfor %}
       </ul>
@@ -314,6 +321,10 @@
 {% block scripts %}
 <script src="{{ asset('js/tabs.js') }}"></script>
 <script>
+  // ⋯ menus: only one open at a time, closed by tapping elsewhere.
+  document.addEventListener("click", (e) => {
+    document.querySelectorAll(".entry-more[open]").forEach((d) => { if (!d.contains(e.target)) d.open = false; });
+  });
   // Imports can take a while: show progress and block double submits.
   document.querySelectorAll("form.upload").forEach((form) => form.addEventListener("submit", () => {
     const btn = form.querySelector("[data-busy]");

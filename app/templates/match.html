@@ -16,9 +16,22 @@
 {% if not matches %}
   <section class="panel empty-state">
     <div class="empty-icon">{{ icon("compass", 36) }}</div>
-    <p><strong>目前還沒有推薦</strong></p>
-    <p class="muted">至少要有 {{ MIN_ENTRIES }} 個收藏才能比對品味。多加幾部動畫、同步 Steam 或匯入音樂，或者等更多同好加入。</p>
-    <a class="btn" href="/me/collection">去加收藏</a>
+    {% if empty == "few_entries" %}
+      <p><strong>再多一點收藏就能開始配對</strong></p>
+      <p class="muted">至少要有 {{ MIN_ENTRIES }} 個公開的收藏（沒有隱藏、也不在待確認中）才能比對品味。多加幾部動畫、同步 Steam 或匯入音樂吧。</p>
+      <a class="btn" href="/me/collection">去加收藏</a>
+    {% elif empty == "no_people" %}
+      <p><strong>目前沒有新的人可以推薦</strong></p>
+      <p class="muted">已經是好友、送過或收到邀請、按過「不感興趣」或封鎖的人都不會再出現在這裡。邀請朋友加入 YODO，同好越多，推薦越準。</p>
+      <div class="actions center-row">
+        <a class="btn" href="/me/friends">看好友與邀請</a>
+        <button type="button" class="btn secondary" data-copy="{{ request.base_url }}">複製 YODO 連結</button>
+      </div>
+    {% else %}
+      <p><strong>還沒找到和你有共同喜好的人</strong></p>
+      <p class="muted">推薦只會用到對方設為「所有人」的收藏。多加一些收藏，或等更多同好加入後再回來看看。</p>
+      <a class="btn" href="/me/collection">去加收藏</a>
+    {% endif %}
   </section>
 {% endif %}
 
@@ -73,4 +86,13 @@
   </article>
 {% endfor %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll("[data-copy]").forEach((btn) => btn.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent = "已複製！"; }
+    catch { prompt("複製這個連結：", btn.dataset.copy); }
+  }));
+</script>
 {% endblock %}

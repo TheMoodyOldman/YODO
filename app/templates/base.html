@@ -37,7 +37,7 @@
     </nav>
   </header>
   <main class="container">
-    {% if me and in_mine %}
+    {% if me and (path == my_home or path.startswith("/me/")) %}
       {% macro sub(href, name, label, exact=false) %}
         <a href="{{ href }}"{% if ((path == href) if exact else path.startswith(href)) %} aria-current="page"{% endif %}>{{ icon(name, 18) }}{{ label }}{{ caller() if caller }}</a>
       {% endmacro %}
