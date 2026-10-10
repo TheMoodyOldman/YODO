@@ -938,14 +938,18 @@ img.avatar { object-fit: cover; background: var(--border); }
 }
 .recap-btn .arrow { margin-left: auto; }
 @media (max-width: 640px) {
-  .profile-hero { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .hero-photos { margin: -24px -16px 0; border-radius: 0 0 28px 28px; aspect-ratio: 4 / 4.6; }
-  .hero-arrow { opacity: 1; }
+  /* phones: a centered photo card (not full-bleed), name card below it */
+  .profile-hero { grid-template-columns: minmax(0, 1fr); gap: 14px; justify-items: center; }
+  .hero-photos { width: min(70vw, 280px); aspect-ratio: 4 / 5; border-radius: 26px; }
+  .hero-arrow { opacity: 1; width: 30px; height: 30px; font-size: 1.2rem; }
+  .hero-initial { font-size: 5rem; }
+  .hero-edit { bottom: 10px; right: 10px; padding: 5px 10px; font-size: 0.78rem; }
   .hero-info {
-    position: relative; margin: -36px 4px 0; padding: 18px 18px 16px; border-radius: 24px;
-    background: var(--surface); box-shadow: var(--shadow-lift);
+    justify-self: stretch; padding: 16px 18px 14px; border-radius: 24px; text-align: center;
+    background: var(--surface); box-shadow: var(--shadow);
   }
-  .hero-info h1 { font-size: 1.7rem; }
+  .hero-info h1 { font-size: 1.6rem; }
+  .hero-info .profile-meta, .hero-info .contact-chips, .hero-info .profile-actions, .hero-info .profile-danger { justify-content: center; }
 }
 
 /* 探索 match cards */
