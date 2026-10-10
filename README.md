@@ -21,10 +21,10 @@
 | 類別 | 來源 | 怎麼排序 |
 |---|---|---|
 | 遊戲 | 用 Steam 登入連結帳號，自動匯入遊戲庫與遊玩時數（只匯入玩超過 1 小時的） | 遊玩時數 |
-| 動畫 | 用 AniList 搜尋後手動加入，加入時會跳出評價視窗 | 評價等級 |
+| 動畫 | 用中文、英文或日文片名搜尋後加入（AniList，中文片名由 Bangumi 番組計劃對照），加入時會跳出評價視窗 | 評價等級 |
 | 音樂 | 用 Last.fm 登入同步收聽紀錄，或上傳 Google Takeout 的 YouTube Music 紀錄 | 播放次數 |
 | 影視 | 用 TMDB 搜尋電影、影集後加入，或上傳 Netflix 觀看紀錄 | 評價等級 |
-| 書籍 | 用 Google Books（未設定金鑰時改用 Open Library）搜尋後加入 | 閱讀狀態，再依評價等級 |
+| 書籍 | 用 Google Books（未設定金鑰時改用 Open Library，繁簡中文都會搜尋）搜尋後加入 | 閱讀狀態，再依評價等級 |
 
 動畫評價分為「此生必看／大推／還不錯／普通／雷／已棄坑」，另可加一個 ACG 用語標籤（例如 #神作、#胃痛、#我看了什麼）。影視與書籍用同一組等級，標籤換成各自的用語（例如影視的 #後勁很強、#值得二刷，書籍的 #一口氣讀完、#難啃）；書籍另有「想讀／在讀／讀完」狀態。等級、標籤與狀態定義在 `app/anime.py`。
 
@@ -127,6 +127,8 @@ app/
 ├── models.py          資料表
 ├── db.py              資料庫連線與啟動時的自動補欄位
 ├── anime.py           動畫、影視、書籍的評價等級、標籤與閱讀狀態
+├── anime_search.py    中文動畫搜尋與中文片名（Bangumi → AniList）
+├── zh.py              繁簡轉換（OpenCC）
 ├── music.py           音樂匯入、排行計算
 ├── netflix.py         Netflix 觀看紀錄匯入
 ├── sync.py            Steam、Last.fm 同步
@@ -134,7 +136,7 @@ app/
 ├── card_render.py     Recap 卡片繪製
 ├── workinfo.py        作品頁的外部資訊
 ├── importers/         上傳檔案解析（Google Takeout）
-├── services/          外部 API：Steam、AniList、Last.fm、iTunes、TMDB、Google Books／Open Library
+├── services/          外部 API：Steam、AniList、Bangumi、Last.fm、iTunes、TMDB、Google Books／Open Library
 ├── routers/           各頁面路由
 ├── templates/         Jinja 模板
 └── static/            CSS 與 JS

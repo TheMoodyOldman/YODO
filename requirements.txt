@@ -3,6 +3,7 @@ uvicorn[standard]==0.54.0
 sqlmodel==0.0.48
 jinja2==3.1.6
 httpx==0.28.1
+opencc==1.4.2
 pillow==12.3.0
 python-multipart==0.0.32
 pydantic-settings==2.15.0

@@ -5,11 +5,13 @@ usually exhausted, so it is used only when GOOGLE_BOOKS_API_KEY is set. Otherwis
 (no key) is used; it sometimes lists a work under its original-language title.
 """
 
+import asyncio
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
+from app import zh
 from app.config import settings
 
 GOOGLE_URL = "https://www.googleapis.com/books/v1/volumes"
@@ -83,8 +85,8 @@ def _ol_book(doc: dict[str, Any]) -> Book | None:
     return Book(
         source=OPENLIBRARY,
         external_id=doc["key"].rsplit("/", 1)[-1],
-        title=doc["title"],
-        authors="、".join(doc.get("author_name") or []),
+        title=zh.to_traditional(doc["title"]),
+        authors="、".join(zh.to_traditional(a) for a in doc.get("author_name") or []),
         cover_url=OL_COVER.format(doc["cover_i"]) if doc.get("cover_i") else None,
         year=doc.get("first_publish_year"),
     )
@@ -96,8 +98,20 @@ async def search(query: str) -> list[Book]:
     if active_source() == GOOGLE:
         data = await _get(GOOGLE_URL, _google_params({"q": query, "maxResults": "12", "printType": "books"}))
         return [b for b in (_google_book(i) for i in (data or {}).get("items", [])) if b]
+    # Open Library's Chinese records are mostly Simplified: search both scripts, original first.
     query = query.strip()
-    if len(query) < 3:  # Open Library rejects shorter queries; a quoted phrase is fine (三體 → "三體")
+    found = await asyncio.gather(*(_ol_search(q) for q in dict.fromkeys([query, zh.to_simplified(query)])))
+    results: list[Book] = []
+    seen: set[str] = set()
+    for book in (b for docs in found for b in (_ol_book(d) for d in docs) if b):
+        if book.external_id not in seen:
+            seen.add(book.external_id)
+            results.append(book)
+    return results[:12]
+
+
+async def _ol_search(query: str) -> list[dict[str, Any]]:
+    if len(query) < 3:  # Open Library rejects shorter queries; a quoted phrase is fine (三体 → "三体")
         query = f'"{query}"'
     try:
         data = await _get(f"{OL_URL}/search.json", {"q": query, "limit": "12", "fields": _OL_FIELDS})
@@ -105,7 +119,7 @@ async def search(query: str) -> list[Book]:
         if "422" in str(e):
             return []
         raise
-    return [b for b in (_ol_book(d) for d in (data or {}).get("docs", [])) if b]
+    return (data or {}).get("docs", [])
 
 
 async def get_book(source: str, external_id: str) -> Book | None:

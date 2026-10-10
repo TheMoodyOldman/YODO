@@ -10,6 +10,7 @@ from app.auth import RequiredUser, safe_next
 from app.db import SessionDep
 from app.activity import has_today, record
 from app.models import ActivityKind, Category, CollectionEntry, User, Visibility, Work
+from app import anime_search
 from app.anime import TIERED, parse_status, parse_tag, parse_tier, status_rank, tier_rank
 from app.matching import LOOKING_FOR, REGIONS, looking_keys
 from app.music import LASTFM, YOUTUBE
@@ -76,7 +77,7 @@ async def collection(
     }
     if q:
         try:
-            searches[Category.anime]["results"] = await anilist.search_anime(q)
+            searches[Category.anime]["results"] = await anime_search.search(q)
         except anilist.AniListError:
             searches[Category.anime]["error"] = "AniList 暫時無法連線，請稍後再試"
     if fq:
@@ -186,6 +187,7 @@ async def add_anime(
         return RedirectResponse(_search_url(Category.anime, q), status_code=303)
     if anime is None:
         raise HTTPException(status_code=404)
+    anime.title = await anime_search.chinese_title(anime.original_title) or anime.title
     work = upsert_work(
         session, category=Category.anime, source="anilist", external_id=str(anime.id), title=anime.title,
         original_title=anime.original_title, cover_url=anime.cover_url, year=anime.year,

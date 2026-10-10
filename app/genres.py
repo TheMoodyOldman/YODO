@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from sqlmodel import Session, col, func, select
 
 from app.models import Category, CollectionEntry, User, Work, WorkGenre, utcnow
+from app import anime_search
 from app.services import anilist, books, lastfm, steam, tmdb
 
 log = logging.getLogger(__name__)
@@ -119,6 +120,7 @@ async def background_loop(session_factory, interval: float = 30) -> None:
         try:
             with session_factory() as session:
                 processed = await enrich_batch(session)
+                processed += await anime_search.enrich_titles(session)
         except Exception:
             log.exception("genre enrichment pass failed")
             processed = 0

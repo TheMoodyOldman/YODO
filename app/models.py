@@ -70,6 +70,7 @@ class Work(SQLModel, table=True):
     genres_checked_at: datetime | None = None  # genre/tag lookup done (even if it found nothing)
     preview_url: str | None = None  # 30 s Apple preview for 猜歌
     preview_checked_at: datetime | None = None
+    zh_checked_at: datetime | None = None  # Chinese title lookup done (anime)
 
 
 class CollectionEntry(SQLModel, table=True):

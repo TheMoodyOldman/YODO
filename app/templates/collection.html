@@ -54,7 +54,7 @@
         <input name="q" value="{{ srch.query }}" placeholder="搜尋動畫名稱" aria-label="搜尋動畫名稱">
         <button type="submit" class="btn">搜尋</button>
       </form>
-      <p class="muted small">資料來自 AniList，支援英文、日文與羅馬拼音片名；中文片名可能搜尋不到。</p>
+      <p class="muted small">可用中文、英文或日文片名搜尋。資料來自 AniList，中文片名由 Bangumi 番組計劃對照。</p>
 
       {% if srch.error %}<p class="error">{{ srch.error }}</p>{% endif %}
       {% if srch.query and not srch.results and not srch.error %}<p class="muted">找不到「{{ srch.query }}」，試試英文或日文片名。</p>{% endif %}
@@ -122,11 +122,15 @@
       <details class="small"{% if not has_netflix %} open{% endif %}>
         <summary>{{ '上傳新的觀看紀錄' if has_netflix else '上傳觀看紀錄' }}</summary>
         <p class="muted">在 Netflix 網頁版點右上角頭像 →「帳戶」→ 選擇個人檔案 →「觀看記錄」→ 頁面最下方「全部下載」，會得到 <code>NetflixViewingHistory.csv</code>。</p>
-        <form method="post" action="/me/netflix/import" enctype="multipart/form-data" class="stack upload">
-          <input type="file" name="history" accept=".csv,text/csv">
-          <p class="muted">影集的每一集會合併成一部作品，看幾集就算幾次。比對到的作品要先確認才會公開。</p>
-          <div class="actions"><button type="submit" class="btn small">匯入</button></div>
-        </form>
+        {% if tmdb_ready %}
+          <form method="post" action="/me/netflix/import" enctype="multipart/form-data" class="stack upload">
+            <input type="file" name="history" accept=".csv,text/csv" required>
+            <p class="muted">影集的每一集會合併成一部作品，看幾集就算幾次。比對到的作品要先確認才會公開。片名比對約需 10–30 秒。</p>
+            <div class="actions"><button type="submit" class="btn small" data-busy="匯入中，正在比對片名…">匯入</button></div>
+          </form>
+        {% else %}
+          <p class="error">伺服器尚未設定 TMDB_API_KEY，暫時無法匯入 Netflix 紀錄。</p>
+        {% endif %}
       </details>
     </section>
 
@@ -138,7 +142,7 @@
         <input name="bq" value="{{ srch.query }}" placeholder="搜尋書名或作者" aria-label="搜尋書籍">
         <button type="submit" class="btn">搜尋</button>
       </form>
-      <p class="muted small">資料來自 {{ "Google Books" if books_source == "googlebooks" else "Open Library（中文書較少，可請管理員設定 Google Books 金鑰）" }}。</p>
+      <p class="muted small">資料來自 {{ "Google Books" if books_source == "googlebooks" else "Open Library（繁簡中文都能搜，但中文書收錄較少，可改用原文書名或作者）" }}。</p>
       {% if srch.error %}<p class="error">{{ srch.error }}</p>{% endif %}
       {% if srch.query and not srch.results and not srch.error %}<p class="muted">找不到「{{ srch.query }}」，試試原文書名或作者。</p>{% endif %}
       {% if srch.results %}
@@ -219,7 +223,7 @@
           </label>
           <p class="muted">只會保留 YouTube Music 與音樂頻道的播放紀錄，其他影片的觀看紀錄在上傳時就會丟棄，不會儲存。重複匯入新的檔案不會重複計算。</p>
           <div class="actions">
-            <button type="submit" class="btn small">匯入</button>
+            <button type="submit" class="btn small" data-busy="匯入中…">匯入</button>
           </div>
         </form>
       </details>
@@ -307,6 +311,11 @@
 {% block scripts %}
 <script src="{{ asset('js/tabs.js') }}"></script>
 <script>
+  // Imports can take a while: show progress and block double submits.
+  document.querySelectorAll("form.upload").forEach((form) => form.addEventListener("submit", () => {
+    const btn = form.querySelector("[data-busy]");
+    if (btn) { btn.disabled = true; btn.textContent = btn.dataset.busy; }
+  }));
   (() => {
     function open(btn) {
       const d = btn.dataset;
