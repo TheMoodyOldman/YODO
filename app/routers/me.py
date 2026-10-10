@@ -313,9 +313,26 @@ def settings_form(request: Request, session: SessionDep, me: RequiredUser):
         my_looking=looking_keys(me),
         my_contacts=contacts.load(me),
         onboarding_open=not me.onboarding_hidden,
+        tour_state=me.tour_state,
         CONTACT_KINDS=contacts.KINDS,
         CONTACT_VISIBILITY=contacts.VISIBILITY,
     )
+
+
+@router.post("/tour/{action}")
+def tour(request: Request, session: SessionDep, me: RequiredUser, action: str):
+    """互動教學: start (or restart), skip, finish. The tour script calls this with fetch."""
+    states = {"start": "active", "skip": "skipped", "finish": "done"}
+    if action not in states:
+        raise HTTPException(status_code=404)
+    me.tour_state = states[action]
+    if action == "start":
+        me.onboarding_hidden = False
+    session.add(me)
+    session.commit()
+    if request.headers.get("x-requested-with") == "fetch":
+        return {"state": me.tour_state}
+    return RedirectResponse("/feed", status_code=303)
 
 
 @router.post("/onboarding/{action}")

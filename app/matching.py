@@ -140,6 +140,15 @@ def _reason_text(work: Work, mine: CollectionEntry, theirs: CollectionEntry) -> 
     return f"你們都聽過〈{work.title}〉{artist}"
 
 
+def newcomers(session: Session, viewer: User, limit: int = 8) -> list[User]:
+    """Recently joined people the viewer could add (same exclusions as recommendations), newest first.
+    Shown on 探索 while there are too few users for taste-based matches."""
+    ids = _eligible_ids(session, viewer)
+    if not ids:
+        return []
+    return list(session.exec(select(User).where(col(User.id).in_(ids)).order_by(col(User.created_at).desc()).limit(limit)).all())
+
+
 def empty_reason(session: Session, viewer: User) -> str:
     """Why find_matches came back empty: "few_entries", "no_people" or "no_overlap"."""
     if len(_entries(session, [viewer.id])) < MIN_ENTRIES:

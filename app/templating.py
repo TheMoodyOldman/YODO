@@ -106,14 +106,18 @@ def flash(request: Request, message: str) -> None:
 
 
 def render(request: Request, name: str, status_code: int = 200, **context: Any):
+    from app import accounts, onboarding  # late imports: both import models/settings that import this module's deps
+
     context.setdefault("flash", request.session.pop("flash", None))
     me = context.get("me")
     if me is not None and "friend_requests" not in context:
-        with Session(engine) as session:  # nav badges: pending friend requests, unread messages
+        with Session(engine) as session:
+            # nav badges: pending friend requests, unread messages
             context["friend_requests"] = incoming_request_count(session, me.id)
             context["unread_messages"] = unread_count(session, me.id)
-        from app import accounts  # late import: accounts imports mail and settings
-
+            # 互動教學 (offered once, then shown while active)
+            if "tour" not in context:
+                context["tour"] = onboarding.tour_payload(session, session.get(type(me), me.id) or me)
         if not accounts.is_verified(me):
             context["email_state"] = "required" if accounts.enforced() else ("unverified" if me.email else "missing")
     return templates.TemplateResponse(request, name, context, status_code=status_code)

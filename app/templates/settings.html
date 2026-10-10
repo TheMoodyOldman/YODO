@@ -67,6 +67,10 @@
   </form>
 
   <h2>新手教學</h2>
+  <form method="post" action="/me/tour/start" class="tour-restart">
+    <button type="submit" class="btn small">{{ "重新開始互動教學" if tour_state else "開始互動教學" }}</button>
+    <span class="muted small">一步一步帶你放照片、加收藏、認識同好。</span>
+  </form>
   {% if onboarding_open %}
     <p class="muted small">新手教學正在動態、收藏和你的頁面上顯示，全部完成後會自動收起。</p>
   {% else %}

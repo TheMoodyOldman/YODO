@@ -7,7 +7,7 @@ from sqlmodel import Session, col, select
 from app.auth import RequiredUser, safe_next
 from app.config import settings
 from app.db import SessionDep
-from app.matching import MIN_ENTRIES, empty_reason, find_matches, looking_keys
+from app.matching import MIN_ENTRIES, empty_reason, find_matches, looking_keys, newcomers
 from app.models import Block, MatchDismiss, Report, User, utcnow
 from app.social import Relation, get_friendship
 from app.templating import flash, render
@@ -46,6 +46,7 @@ def match_page(request: Request, session: SessionDep, me: RequiredUser):
         me=me,
         matches=matches,
         empty=None if matches else empty_reason(session, me),
+        newcomers=newcomers(session, me) if len(matches) < 3 else [],
         needs_profile=not me.region and not looking_keys(me),
         MIN_ENTRIES=MIN_ENTRIES,
         Relation=Relation,

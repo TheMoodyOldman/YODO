@@ -1413,7 +1413,9 @@ form[action$="/pass"] .link { padding: 8px 18px; border-radius: 999px; font-weig
 .progress-bar.light span { background: #fff; }
 .onboarding-steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .onboarding-steps li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; background: rgb(255 255 255 / 0.14); }
-.onboarding-steps li.next { background: rgb(255 255 255 / 0.95); color: var(--fg); }
+/* the current step reads as a card on the theme's own surface, so text and background always contrast */
+.onboarding-steps li.next { background: var(--surface); color: var(--fg); box-shadow: 0 6px 16px rgb(0 0 0 / 0.12); }
+.onboarding-steps li.next .step-text span { color: var(--muted); opacity: 1; }
 .onboarding-steps li.done { opacity: 0.75; }
 .step-mark { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 50%; font-weight: 800; background: rgb(255 255 255 / 0.25); }
 .onboarding-steps li.next .step-mark { background: var(--grad); color: #fff; }
@@ -1471,3 +1473,92 @@ body:has(.work-backdrop)::before { display: none; }
 .verify-status { margin-bottom: 16px; padding-top: 14px; }
 .verify-badge { display: inline-block; margin: 0 0 6px; padding: 3px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 800; color: #fff; background: #f59e0b; }
 .verify-status.ok .verify-badge { background: #16a34a; }
+
+/* 新加入的同好 */
+.newcomers { margin-top: 24px; }
+.newcomer-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.newcomer { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); }
+.newcomer-photo {
+  flex: none; width: 58px; height: 58px; border-radius: 18px; overflow: hidden; display: grid; place-items: center; text-decoration: none;
+  color: #fff; font-weight: 900; font-size: 1.5rem; background: linear-gradient(150deg, hsl(var(--h) 80% 66%), hsl(calc(var(--h) + 70) 85% 66%));
+}
+.newcomer-photo img { width: 100%; height: 100%; object-fit: cover; }
+.newcomer-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.newcomer-bio { margin: 2px 0 0; font-size: 0.85rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.round-btn.small-like { width: 46px; height: 46px; }
+
+/* ===== 互動新手教學 ===== */
+.tour-restart { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+body.tour-locked { overflow: hidden; }
+.tour-veil {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px;
+  background: rgb(20 12 40 / 0.55); backdrop-filter: blur(4px); animation: tour-fade 0.25s ease;
+}
+.tour-veil.closing { animation: tour-fade 0.25s ease reverse forwards; }
+.tour-welcome {
+  width: min(440px, 100%); padding: 26px 24px 20px; border-radius: 28px; text-align: center;
+  background: var(--surface); color: var(--fg); box-shadow: 0 30px 80px rgb(0 0 0 / 0.35); animation: tour-pop 0.35s cubic-bezier(.2,.9,.3,1.2);
+}
+.tour-welcome h2 { margin: 6px 0 6px; font-size: 1.4rem; }
+.tour-welcome-mark { display: inline-grid; place-items: center; width: 64px; height: 64px; border-radius: 22px; font-size: 2rem; background: var(--grad); }
+.tour-welcome-steps { text-align: left; margin: 14px auto; padding: 0; max-width: 300px; list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 6px; }
+.tour-welcome-steps li { counter-increment: s; display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.tour-welcome-steps li::before {
+  content: counter(s); display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font-size: 0.8rem;
+  color: #fff; background: var(--grad); flex: none;
+}
+.tour-welcome-steps li.done { color: var(--muted); text-decoration: line-through; }
+.tour-welcome-steps li.done::before { content: "✓"; background: #16a34a; }
+.tour-welcome-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.tour-welcome-actions .btn { width: 100%; padding: 12px; }
+
+/* spotlight: a ring around the target; its huge shadow dims everything else, clicks still pass through */
+.tour-ring {
+  position: fixed; z-index: 90; pointer-events: none; border-radius: 18px;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--accent-2), 0 0 0 9999px rgb(20 12 40 / 0.45);
+  will-change: top, left, width, height;
+}
+.tour-ring::after {
+  content: ""; position: absolute; inset: -6px; border-radius: 22px; border: 3px solid var(--accent-2);
+  animation: tour-ping 1.4s ease-out infinite;
+}
+
+/* the step card */
+.tour-card {
+  position: fixed; z-index: 95; right: 16px; bottom: 16px; width: min(380px, calc(100vw - 32px));
+  padding: 14px 16px 12px; border-radius: 22px; background: var(--surface); color: var(--fg);
+  box-shadow: 0 20px 50px rgb(20 12 40 / 0.35); border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+  opacity: 0; transform: translateY(16px) scale(0.98); transition: opacity 0.3s ease, transform 0.3s cubic-bezier(.2,.9,.3,1.2);
+}
+.tour-card.in { opacity: 1; transform: none; }
+.tour-card-head { display: flex; align-items: center; gap: 10px; }
+.tour-count { font-size: 0.8rem; font-weight: 800; color: #fff; background: var(--grad); padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.tour-dots { display: flex; gap: 4px; flex: 1; }
+.tour-dots span { width: 8px; height: 8px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 18%, var(--border)); }
+.tour-dots span.done { background: #16a34a; }
+.tour-dots span.on { width: 20px; border-radius: 8px; background: var(--grad); }
+.tour-skip { font: inherit; font-size: 0.8rem; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 4px; }
+.tour-card h3 { margin: 10px 0 4px; font-size: 1.1rem; }
+.tour-hint { margin: 0; line-height: 1.6; font-size: 0.93rem; }
+.tour-progress { margin: 8px 0 0; font-weight: 700; color: var(--accent); }
+.tour-actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.tour-spacer { flex: 1; }
+.btn.pulse { animation: tour-pulse 1.2s ease-in-out infinite; }
+@media (max-width: 640px) {
+  .tour-card { left: 12px; right: 12px; width: auto; bottom: calc(76px + env(safe-area-inset-bottom)); }
+}
+
+/* slideshow-style page change while the tour moves between pages */
+html.tour-leave main.container { animation: tour-out 0.28s ease forwards; }
+html.tour-enter main.container { animation: tour-in 0.5s cubic-bezier(.2,.8,.2,1); }
+@keyframes tour-out { to { opacity: 0; transform: translateX(-56px) scale(0.98); } }
+@keyframes tour-in { from { opacity: 0; transform: translateX(64px) scale(0.98); } }
+@keyframes tour-fade { from { opacity: 0; } }
+@keyframes tour-pop { from { opacity: 0; transform: translateY(20px) scale(0.94); } }
+@keyframes tour-ping { 0% { opacity: 0.9; transform: scale(1); } 100% { opacity: 0; transform: scale(1.08); } }
+@keyframes tour-pulse { 50% { box-shadow: 0 0 0 6px rgb(255 92 168 / 0.25), 0 6px 16px rgb(109 91 255 / 0.28); } }
+@media (prefers-reduced-motion: reduce) {
+  html.tour-leave main.container, html.tour-enter main.container, .tour-ring::after, .btn.pulse, .tour-welcome { animation: none; }
+}
+.tour-card.top { bottom: auto; top: 76px; }
+@media (max-width: 640px) { .tour-card.top { bottom: auto; top: 70px; } }

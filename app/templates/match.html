@@ -30,8 +30,8 @@
       </div>
     {% else %}
       <p><strong>還沒找到和你有共同喜好的人</strong></p>
-      <p class="muted">推薦只會用到對方設為「所有人」的收藏。多加一些收藏，或等更多同好加入後再回來看看。</p>
-      <a class="btn" href="/me/collection">去加收藏</a>
+      <p class="muted">推薦只會用到對方設為「所有人」的收藏。現在人還不多，可以先認識下面新加入的同好，或多加一些收藏再回來看看。</p>
+      <a class="btn secondary" href="/me/collection">去加收藏</a>
     {% endif %}
   </section>
 {% endif %}
@@ -87,6 +87,31 @@
   </article>
 {% endfor %}
 </div>
+
+{% if newcomers %}
+  <section class="newcomers">
+    <h2>新加入的同好</h2>
+    <p class="muted small">最近加入 YODO 的人。送出好友邀請，對方接受後就能聊天、看動態、測契合度。</p>
+    <div class="newcomer-list">
+      {% for u in newcomers %}
+        <article class="newcomer">
+          <a class="newcomer-photo" href="/u/{{ u.username }}" style="--h: {{ avatar_hue(u.id) }}">
+            {% if u.avatar_photo_id %}<img src="/photos/{{ u.avatar_photo_id }}" alt="" loading="lazy">{% else %}<span>{{ u.display_name[:1] | upper }}</span>{% endif %}
+          </a>
+          <div class="newcomer-info">
+            <a class="feed-name" href="/u/{{ u.username }}">{{ u.display_name }}</a>
+            <span class="muted small">{% if u.region %}{{ u.region }} · {% endif %}{{ u.created_at | ago }}加入</span>
+            {% if u.bio %}<p class="newcomer-bio">{{ u.bio }}</p>{% endif %}
+          </div>
+          <form method="post" action="/friends/{{ u.username }}/request" class="inline">
+            <input type="hidden" name="next" value="/match">
+            <button type="submit" class="round-btn like small-like"{% if loop.first %} data-tour="newcomer-add"{% endif %} aria-label="向 {{ u.display_name }} 送出好友邀請">{{ icon("heart", 20) }}</button>
+          </form>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
