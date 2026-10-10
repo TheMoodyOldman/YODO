@@ -1566,3 +1566,20 @@ html.tour-enter main.container { animation: tour-in 0.5s cubic-bezier(.2,.8,.2,1
 }
 .tour-card.top { bottom: auto; top: 76px; }
 @media (max-width: 640px) { .tour-card.top { bottom: auto; top: 70px; } }
+
+/* game invites */
+.invite-friends { margin: 14px 0; padding: 12px 14px; border-radius: 18px; background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.invite-friends h3 { margin: 0 0 8px; }
+.invite-list { list-style: none; padding: 0; margin: 0 0 6px; display: flex; flex-direction: column; gap: 8px; }
+.invite-list li { display: flex; align-items: center; gap: 10px; }
+.invite-list li > span { flex: 1; font-weight: 600; }
+.invite-toast {
+  position: fixed; z-index: 98; left: 50%; top: 72px; width: min(400px, calc(100vw - 24px)); padding: 14px 16px;
+  border-radius: 20px; background: var(--surface); color: var(--fg); box-shadow: 0 18px 44px rgb(20 12 40 / 0.3);
+  border: 2px solid transparent; background-clip: padding-box;
+  outline: 2px solid color-mix(in srgb, var(--accent-2) 55%, transparent);
+  transform: translate(-50%, -20px); opacity: 0; transition: transform 0.35s cubic-bezier(.2,.9,.3,1.2), opacity 0.25s ease;
+}
+.invite-toast.in { transform: translate(-50%, 0); opacity: 1; }
+.invite-toast p { margin: 0 0 10px; font-size: 1rem; }
+.invite-actions { display: flex; justify-content: flex-end; gap: 8px; }

@@ -4,9 +4,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from app import rooms, songquiz, undercover
+from app import invites, rooms, songquiz, undercover
 from app.auth import RequiredUser, VerifiedUser
 from app.db import SessionDep
 from app.models import GameRoom, User
@@ -36,6 +36,31 @@ def _back(kind: str, room: GameRoom) -> RedirectResponse:
 def room_version(session: SessionDep, me: RequiredUser, kind: str, code: str):
     room = _room_or_404(session, code, kind)
     return JSONResponse({"v": rooms.version(room)})
+
+
+# ---------- inviting friends ----------
+
+@router.post("/room/{kind}/{code}/invite/{username}")
+def invite_friend(request: Request, session: SessionDep, me: VerifiedUser, kind: str, code: str, username: str):
+    room = _room_or_404(session, code, kind)
+    friend = session.exec(select(User).where(User.username == username.lower())).first()
+    error = invites.send(session, room, me, friend) if friend else "找不到這位好友"
+    if request.headers.get("x-requested-with") == "fetch":
+        return JSONResponse({"error": error} if error else {"ok": True}, status_code=400 if error else 200)
+    flash(request, error or f"已邀請 {friend.display_name}，對方會在畫面上看到邀請")
+    return _back(kind, room)
+
+
+@router.get("/invites")
+def my_invites(session: SessionDep, me: RequiredUser):
+    return {"invites": invites.pending(session, me)}
+
+
+@router.post("/invites/{invite_id}/decline")
+def decline_invite(session: SessionDep, me: RequiredUser, invite_id: int):
+    if not invites.decline(session, me, invite_id):
+        raise HTTPException(status_code=404)
+    return {"ok": True}
 
 
 # ---------- 猜誰是臥底 ----------
@@ -84,6 +109,7 @@ def undercover_room(request: Request, session: SessionDep, me: VerifiedUser, cod
         me=me, room=room, state=state, people=people, by_id=by_id, is_host=room.host_id == me.id,
         themes=undercover.THEMES, results=undercover.RESULTS, MIN=undercover.MIN_PLAYERS, MAX=undercover.MAX_PLAYERS,
         MAX_DESC=undercover.MAX_DESC, version=rooms.version(room),
+        invitable=invites.invitable(session, room, me) if room.status == "lobby" else [],
     )
     if room.status != "lobby":
         ctx.update(
@@ -201,7 +227,8 @@ def song_room(request: Request, session: SessionDep, me: VerifiedUser, code: str
     state = rooms.load(room)
     ctx = dict(me=me, room=room, state=state, people=people, by_id={p.id: p for p in people},
                is_host=room.host_id == me.id, version=rooms.version(room), STAGES=songquiz.STAGES,
-               POINTS=songquiz.POINTS, ROUNDS=songquiz.ROUNDS)
+               POINTS=songquiz.POINTS, ROUNDS=songquiz.ROUNDS,
+               invitable=invites.invitable(session, room, me) if room.status == "lobby" and len(people) < 2 else [])
     if room.status == "playing":
         rnd = state["rounds"][min(state["i"], len(state["rounds"]) - 1)]
         opponent = next((p for p in people if p.id != me.id), None)
@@ -222,7 +249,7 @@ async def song_start(request: Request, session: SessionDep, me: RequiredUser, co
     try:
         quiz = await songquiz.build_quiz(session, a, b, are_friends(session, a.id, b.id))
     except songquiz.NotEnoughSongs:
-        flash(request, "找不到足夠你們都可能聽過、而且有試聽片段的歌。多匯入一些音樂再試試")
+        flash(request, "你們的音樂收藏裡找不到 5 首有試聽片段的歌。至少一個人先匯入一些音樂（YouTube Music 或 Last.fm）再試試")
         return _back("song", room)
     rooms.save(session, room, songquiz.new_state([a.id, b.id], quiz), "playing")
     return _back("song", room)

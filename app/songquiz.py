@@ -1,6 +1,7 @@
 """猜歌: a live 1-on-1 quiz. Five songs, each revealed in growing clips (3/5/10/25/30 s, Apple
-previews); earlier correct guesses score more. Songs come from what both players share, never
-from one player's library alone.
+previews); earlier correct guesses score more. Songs come from what both players share first;
+when that runs out, songs whose style is close to the other player's taste, popular songs, and
+finally songs only one of them has heard (the reveal says whose library it came from).
 """
 
 import random
@@ -40,9 +41,13 @@ def _music(session: Session, owner: User, viewer: User, is_friend: bool) -> dict
     return out
 
 
+TIER_LABELS = ["你們都聽過", "你們都喜歡的歌手", "你們都愛的風格", "風格相近", "熱門歌曲", "只有一人聽過"]
+
+
 def candidate_tiers(session: Session, p1: User, p2: User, is_friend: bool) -> list[list[Work]]:
-    """Songs both players could know, best first: shared songs, songs by shared artists,
-    songs in shared styles, then the platform's most-collected songs."""
+    """Songs best first: shared songs, songs by shared artists, songs in both players' top styles,
+    songs whose style overlaps the other player's taste, the platform's most-collected songs, and
+    last any song from either library (so a game can always be made if previews exist)."""
     m1, m2 = _music(session, p1, p2, is_friend), _music(session, p2, p1, is_friend)
 
     def plays(k) -> int:
@@ -67,7 +72,28 @@ def candidate_tiers(session: Session, p1: User, p2: User, is_friend: bool) -> li
         styled = set(session.exec(select(WorkGenre.work_id).where(col(WorkGenre.genre).in_(common_styles))))
         tier3 = [w for k, (e, w) in either.items() if w.id in styled and w.id not in used]
         used |= {w.id for w in tier3}
-    tier4 = list(
+
+    # Style overlap: a song from one library scores by how much its genres weigh in the other's taste.
+    weights = {
+        1: {g.genre: g.pct for g in styles2.genres} if styles2 else {},  # songs from p1, judged by p2's taste
+        2: {g.genre: g.pct for g in styles1.genres} if styles1 else {},
+    }
+    rest = {k: v for k, v in either.items() if v[1].id not in used}
+    genres_of: dict[int, set[str]] = {}
+    if rest:
+        for wid, genre in session.exec(
+            select(WorkGenre.work_id, WorkGenre.genre).where(col(WorkGenre.work_id).in_([w.id for _, w in rest.values()]))
+        ):
+            genres_of.setdefault(wid, set()).add(genre)
+
+    def closeness(k) -> int:
+        owner = 1 if k in m1 else 2
+        return sum(weights[owner].get(g, 0) for g in genres_of.get(either[k][1].id, ()))
+
+    close = sorted((k for k in rest if closeness(k) > 0), key=lambda k: (closeness(k), plays(k)), reverse=True)
+    tier4 = [best_copy(k) for k in close]
+    used |= {w.id for w in tier4}
+    tier5 = list(
         session.exec(
             select(Work)
             .join(CollectionEntry, col(CollectionEntry.work_id) == Work.id)
@@ -78,7 +104,9 @@ def candidate_tiers(session: Session, p1: User, p2: User, is_friend: bool) -> li
             .limit(50)
         ).all()
     )
-    return [tier1, tier2, tier3, tier4]
+    used |= {w.id for w in tier5}
+    tier6 = [best_copy(k) for k in sorted(rest, key=plays, reverse=True) if either[k][1].id not in used]
+    return [tier1, tier2, tier3, tier4, tier5, tier6]
 
 
 async def _preview(session: Session, work: Work) -> str | None:
@@ -123,6 +151,10 @@ async def build_quiz(session: Session, p1: User, p2: User, is_friend: bool, rng:
     # Decoys may come from either library (they're never the answer), plus the popular songs.
     libraries = [w for _, w in _music(session, p1, p2, is_friend).values()] + [w for _, w in _music(session, p2, p1, is_friend).values()]
     decoy_pool = list({w.id: w for w in libraries + [w for tier in tiers for w in tier]}.values())
+    owners = {}
+    for player, lib in ((p1, _music(session, p1, p2, is_friend)), (p2, _music(session, p2, p1, is_friend))):
+        for k in lib:
+            owners.setdefault(k, []).append(player.display_name)
     rounds = []
     for work, tier in picked:
         same_artist = [w for w in decoy_pool if w.id != work.id and _key(w)[0] == _key(work)[0]]
@@ -140,7 +172,8 @@ async def build_quiz(session: Session, p1: User, p2: User, is_friend: bool, rng:
         rng.shuffle(options)
         embed, link = youtube_link(work)
         rounds.append({"id": work.id, "t": work.title, "a": work.creator or "", "p": work.preview_url,
-                       "o": options, "tier": tier, "yt": embed, "link": link})
+                       "o": options, "tier": tier, "yt": embed, "link": link,
+                       "why": TIER_LABELS[tier], "own": owners.get(_key(work), [])})
     return rounds
 
 

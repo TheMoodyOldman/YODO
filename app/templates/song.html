@@ -3,7 +3,7 @@
 
 {% block content %}
 {% from "_social.html" import avatar %}
-{% from "_games.html" import game_hero, room_code %}
+{% from "_games.html" import game_hero, room_code, invite_friends with context %}
 {% from "_icons.html" import icon %}
 <div data-room-poll="/games/room/song/{{ room.code }}/v" data-room-version="{{ version }}">
 {{ game_hero("song", "猜歌對戰", "房間 " ~ room.code, live=true) }}
@@ -16,6 +16,7 @@
     <ul class="room-players">
       {% for p in people %}<li>{{ avatar(p, "sm") }} {{ p.display_name }}{% if p.id == room.host_id %} <span class="badge">房主</span>{% endif %}</li>{% endfor %}
     </ul>
+    {% if people | length < 2 %}{{ invite_friends(room, invitable) }}{% endif %}
     {% if is_host %}
       <form method="post" action="/games/song/{{ room.code }}/start" class="actions">
         <button type="submit" class="btn"{% if people | length != 2 %} disabled{% endif %}>開始對戰</button>
@@ -77,6 +78,8 @@
       <p class="eyebrow">第 {{ state.i + 1 }} 首答案</p>
       <h2>{{ rnd.t }}</h2>
       <p class="muted">{{ rnd.a }}</p>
+      {% if rnd.own %}<p class="song-why"><span class="meta-chip">{{ rnd.why }}</span> 來自 {{ rnd.own | join("、") }} 的收藏</p>
+      {% elif rnd.why %}<p class="song-why"><span class="meta-chip">{{ rnd.why }}</span></p>{% endif %}
       <ul class="profile-meta center-row">
         {% for p in people %}
           {% set k = p.id | string %}

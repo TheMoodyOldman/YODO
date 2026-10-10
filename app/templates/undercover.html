@@ -3,7 +3,7 @@
 
 {% block content %}
 {% from "_social.html" import avatar %}
-{% from "_games.html" import game_hero, room_code %}
+{% from "_games.html" import game_hero, room_code, invite_friends with context %}
 <div data-room-poll="/games/room/undercover/{{ room.code }}/v" data-room-version="{{ version }}">
 <p class="notice" data-room-stale hidden>房間有新動態，<a href="">按這裡更新</a>（你打的字會不見）</p>
 {{ game_hero("undercover", "猜誰是臥底", "房間 " ~ room.code ~ " · " ~ themes[state.theme], live=true) }}
@@ -17,6 +17,7 @@
     <ul class="room-players">
       {% for p in people %}<li>{{ avatar(p, "sm") }} {{ p.display_name }}{% if p.id == room.host_id %} <span class="badge">房主</span>{% endif %}</li>{% endfor %}
     </ul>
+    {% if people | length < MAX %}{{ invite_friends(room, invitable) }}{% endif %}
     {% if is_host %}
       <form method="post" action="/games/undercover/{{ room.code }}/theme" class="inline">
         <label class="row">主題

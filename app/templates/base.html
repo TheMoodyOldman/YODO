@@ -63,6 +63,7 @@
     {% block content %}{% endblock %}
   </main>
   {% block scripts %}{% endblock %}
+  {% if me %}<script src="{{ asset('js/invites.js') }}" defer></script>{% endif %}
   {% if tour %}
     <script id="tour-data" type="application/json">{{ tour | tojson }}</script>
     <script src="{{ asset('js/tour.js') }}" defer></script>

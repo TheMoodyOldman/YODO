@@ -391,3 +391,16 @@ class NearbyReply(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", index=True)
     body: str
     created_at: datetime = Field(default_factory=utcnow)
+
+
+class GameInvite(SQLModel, table=True):
+    """A friend invited into a live game room; shown to them as a pop-up on any page."""
+
+    __table_args__ = (UniqueConstraint("room_id", "to_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    room_id: int = Field(foreign_key="gameroom.id", index=True)
+    from_id: int = Field(foreign_key="user.id")
+    to_id: int = Field(foreign_key="user.id", index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    declined: bool = False

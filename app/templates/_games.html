@@ -1,5 +1,6 @@
 {# Shared pieces for the 小遊戲 pages. #}
 {% from "_icons.html" import icon %}
+{% from "_social.html" import avatar %}
 
 {% set GAME_ICONS = {"compat": "g-compat", "guess": "g-guess", "bingo": "g-bingo", "undercover": "g-undercover",
                      "song": "g-song", "challenge": "g-challenge"} %}
@@ -16,6 +17,28 @@
       {{ caller() if caller }}
     </div>
   </header>
+{%- endmacro %}
+
+{# Lobby: invite friends with one tap (they get a pop-up), instead of sending the link around. #}
+{% macro invite_friends(room, friends) -%}
+  <div class="invite-friends">
+    <h3>邀請好友</h3>
+    {% if friends %}
+      <ul class="invite-list">
+        {% for f, invited in friends %}
+          <li>
+            {{ avatar(f, "sm") }}<span>{{ f.display_name }}</span>
+            <form method="post" action="/games/room/{{ room.kind }}/{{ room.code }}/invite/{{ f.username }}" class="inline" data-invite>
+              <button type="submit" class="btn small{% if invited %} secondary{% endif %}">{{ "再邀一次" if invited else "邀請" }}</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="muted small">對方在 YODO 的任何頁面都會跳出邀請，按「加入」就進來了。</p>
+    {% else %}
+      <p class="muted small">還沒有可以邀請的好友。也可以把房間代碼或連結傳給朋友。</p>
+    {% endif %}
+  </div>
 {%- endmacro %}
 
 {# Room code as big letter tiles. #}
