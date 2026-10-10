@@ -4,6 +4,7 @@ Usage: .venv\\Scripts\\python.exe -m scripts.seed_demo
 """
 
 import asyncio
+from datetime import date
 
 from sqlmodel import Session, select
 
@@ -28,6 +29,7 @@ async def main() -> None:
                 display_name="Demo",
                 bio="週末追番，通勤聽 city pop",
                 password_hash=hash_password(DEMO_PASSWORD),
+                birth_date=date(2000, 1, 1),
             )
             session.add(user)
             session.flush()

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}動態 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_social.html" import avatar %}
+{% from "_verdict.html" import verdict_badges %}
+{% from "_macros.html" import cover_img, hours %}
+
+<div class="feed-top">
+  <h1>動態</h1>
+  <a class="btn small secondary" href="/me/friends">好友{% if friend_requests %}<span class="nav-badge">{{ friend_requests }}</span>{% endif %}</a>
+</div>
+
+{% if friend_requests %}
+  <a class="notice notice-link" href="/me/friends">有 {{ friend_requests }} 個好友邀請等你回覆 →</a>
+{% endif %}
+
+{% if not items %}
+  <section class="panel empty-feed">
+    {% if has_friends %}
+      <p>好友最近沒有新動態。</p>
+    {% else %}
+      <p><strong>還沒有好友。</strong></p>
+      <p class="muted">到<a href="/me/friends">好友頁</a>搜尋帳號，或把你的興趣頁連結分享給朋友。加好友後，這裡會出現他們最近在玩、在看、在聽什麼。</p>
+    {% endif %}
+  </section>
+{% endif %}
+
+<div class="feed">
+{% for item in items %}
+  {% set a, u, w = item.activity, item.user, item.work %}
+  <article class="feed-item" id="act-{{ a.id }}">
+    <header class="feed-head">
+      <a href="/u/{{ u.username }}">{{ avatar(u) }}</a>
+      <div>
+        <a class="feed-name" href="/u/{{ u.username }}">{{ u.display_name }}</a>
+        <span class="muted small">· {{ a.updated_at | ago }}</span>
+        <p class="feed-text">
+          {% if a.kind == "anime_added" %}把這部動畫加進收藏
+          {% elif a.kind == "anime_rated" %}更新了動畫評價
+          {% elif a.kind == "played" %}玩了 <strong>{{ hours(a.minutes or 0) }}</strong>
+          {% else %}這個月多聽了 <strong>{{ a.plays }} 次</strong>{% if a.songs and a.songs > 1 %}（{{ a.songs }} 首歌）{% endif %}，最常聽
+          {% endif %}
+        </p>
+      </div>
+    </header>
+
+    <a class="feed-work cat-{{ w.category.value }}" href="/u/{{ u.username }}/w/{{ w.id }}">
+      <span class="thumb{% if w.category == Category.music %} square{% endif %}">{{ cover_img(w) }}</span>
+      <span class="feed-work-info">
+        <span class="card-title">{{ w.title }}</span>
+        {% if w.creator %}<span class="card-sub">{{ w.creator }}</span>
+        {% elif w.original_title and w.original_title != w.title %}<span class="card-sub">{{ w.original_title }}</span>{% endif %}
+        {% if w.category == Category.anime %}{{ verdict_badges(item.entry) }}{% endif %}
+      </span>
+    </a>
+
+    {% if item.comments %}
+      <ul class="comments">
+        {% for c, cu in item.comments %}
+          <li>
+            {{ avatar(cu, "sm") }}
+            <div class="comment-body">
+              <a class="feed-name" href="/u/{{ cu.username }}">{{ cu.display_name }}</a>
+              <span class="comment-text">{{ c.body }}</span>
+              <span class="muted small">{{ c.created_at | ago }}</span>
+              {% if me.id in (c.user_id, a.user_id) %}
+                <form method="post" action="/comments/{{ c.id }}/delete" class="inline">
+                  <button type="submit" class="link small muted">刪除</button>
+                </form>
+              {% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <form method="post" action="/feed/{{ a.id }}/comments" class="comment-form">
+      <input name="body" maxlength="{{ MAX_COMMENT }}" placeholder="留言…" aria-label="留言" required autocomplete="off">
+      <button type="submit" class="btn small">送出</button>
+    </form>
+  </article>
+{% endfor %}
+</div>
+
+{% if page > 0 or has_more %}
+  <nav class="actions pager">
+    {% if page > 0 %}<a class="btn small secondary" href="/feed?page={{ page - 1 }}">← 較新</a>{% endif %}
+    {% if has_more %}<a class="btn small secondary" href="/feed?page={{ page + 1 }}">較舊 →</a>{% endif %}
+  </nav>
+{% endif %}
+{% endblock %}

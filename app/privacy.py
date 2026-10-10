@@ -20,8 +20,10 @@ def set_privacy(session: Session, user_id: int, category: Category, visibility: 
     session.add(row)
 
 
-def can_view(visibility: Visibility, owner: User, viewer: User | None) -> bool:
+def can_view(visibility: Visibility, owner: User, viewer: User | None, is_friend: bool = False) -> bool:
+    """is_friend: whether viewer and owner are accepted friends (callers look it up once per page)."""
     if viewer is not None and viewer.id == owner.id:
         return True
-    # No friend system until phase 2, so "friends" behaves like "private" for now.
+    if visibility == Visibility.friends:
+        return is_friend
     return visibility == Visibility.public

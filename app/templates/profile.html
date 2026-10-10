@@ -11,16 +11,35 @@
 
 {% block content %}
 {% from "_profile_macros.html" import music_rankings %}
+{% from "_social.html" import avatar, friend_actions %}
 <section class="profile-head">
-  <h1>{{ owner.display_name }}</h1>
-  <p class="muted">@{{ owner.username }}</p>
+  <div class="profile-id">
+    {{ avatar(owner, "lg") }}
+    <div>
+      <h1>{{ owner.display_name }}</h1>
+      <p class="muted">@{{ owner.username }}</p>
+    </div>
+  </div>
   {% if owner.bio %}<p class="bio">{{ owner.bio }}</p>{% endif %}
-  <button type="button" class="btn secondary small" data-copy="{{ page_url }}">複製頁面連結</button>
+  <div class="actions profile-actions">
+    {% if relation is none %}
+      <a class="btn small" href="/login?next=/u/{{ owner.username }}">登入後加好友</a>
+    {% elif relation != Relation.self %}
+      {{ friend_actions(owner, relation, "/u/" ~ owner.username) }}
+    {% endif %}
+    <button type="button" class="btn secondary small" data-copy="{{ page_url }}">複製頁面連結</button>
+    {% if relation and relation not in (Relation.self, Relation.blocked) %}
+      <form method="post" action="/friends/{{ owner.username }}/block" class="inline"
+            data-confirm="封鎖 {{ owner.display_name }}？你們會互相看不到對方的頁面，也會解除好友關係。" onsubmit="return confirm(this.dataset.confirm)">
+        <button type="submit" class="link danger small">封鎖</button>
+      </form>
+    {% endif %}
+  </div>
 </section>
 
 {% if is_owner %}
   <p class="notice">
-    這是你的興趣頁。隱藏的作品不會顯示；設為「好友」或「僅自己」的類別，其他人目前看不到。
+    這是你的興趣頁。隱藏的作品不會顯示；設為「好友」的類別只有好友看得到，「僅自己」只有你看得到。
     <a href="/me/collection">管理收藏</a> · <a href="/me/settings">公開範圍</a>
   </p>
   <a class="btn recap-btn" href="/me/card">製作我的 Recap<span class="arrow" aria-hidden="true">→</span></a>
@@ -119,5 +138,5 @@
     });
   });
 </script>
-<script src="{{ url_for('static', path='js/tabs.js') }}"></script>
+<script src="{{ asset('js/tabs.js') }}"></script>
 {% endblock %}

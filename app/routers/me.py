@@ -8,7 +8,8 @@ from sqlmodel import Session, col, select
 
 from app.auth import RequiredUser, safe_next
 from app.db import SessionDep
-from app.models import Category, CollectionEntry, User, Visibility, Work
+from app.activity import has_today, record
+from app.models import ActivityKind, Category, CollectionEntry, User, Visibility, Work
 from app.anime import parse_tag, parse_tier, tier_rank
 from app.music import LASTFM, YOUTUBE
 from app.privacy import get_privacy, set_privacy
@@ -143,6 +144,7 @@ async def add_anime(
         return RedirectResponse(_collection_url(q), status_code=303)
     entry = CollectionEntry(user_id=me.id, work_id=work.id)
     session.add(entry)
+    record(session, me.id, ActivityKind.anime_added, work.id)
     session.commit()
     flash(request, f"已加入《{anime.title}》")
     rate = f"rate={entry.id}"
@@ -182,6 +184,10 @@ def set_verdict(
         raise HTTPException(status_code=400)
     entry.tier, entry.tag = parse_tier(tier), parse_tag(tag)
     session.add(entry)
+    # Rated the day it was added: the "added" item already shows the verdict, so just bump it.
+    if entry.tier or entry.tag:
+        kind = ActivityKind.anime_added if has_today(session, me.id, ActivityKind.anime_added, entry.work_id) else ActivityKind.anime_rated
+        record(session, me.id, kind, entry.work_id)
     session.commit()
     if request.headers.get("x-requested-with") == "fetch":
         return Response(status_code=204)

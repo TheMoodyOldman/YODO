@@ -3,10 +3,11 @@ from fastapi.responses import HTMLResponse
 from sqlmodel import col, select
 
 from app.anime import tier_rank
-from app.auth import CurrentUser
+from app.auth import CurrentUser, is_locked
 from app.db import SessionDep
 from app.models import Category, CollectionEntry, MonthlyPlays, MonthlyPlaytime, User, Work
 from app.privacy import can_view, get_privacy
+from app.social import Relation, relation
 from app.templating import render
 from app.workinfo import get_work_info
 
@@ -32,8 +33,15 @@ def ordered(rows: list[tuple[CollectionEntry, Work]], category: Category) -> lis
 async def work_page(request: Request, username: str, work_id: int, session: SessionDep, me: CurrentUser):
     owner = session.exec(select(User).where(User.username == username.lower())).first()
     work = session.get(Work, work_id)
-    is_owner = me is not None and owner is not None and me.id == owner.id
-    if owner is None or work is None or not can_view(get_privacy(session, owner.id)[work.category], owner, me):
+    rel = relation(session, me, owner) if owner else None
+    is_owner = rel == Relation.self
+    if (
+        owner is None
+        or work is None
+        or rel == Relation.blocked
+        or is_locked(owner)
+        or not can_view(get_privacy(session, owner.id)[work.category], owner, me, is_friend=rel == Relation.friends)
+    ):
         return render(request, "not_found.html", status_code=404, me=me)
 
     query = (

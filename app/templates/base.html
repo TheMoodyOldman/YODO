@@ -5,18 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}友多聞 YODO{% endblock %}</title>
   {% block meta %}{% endblock %}
-  <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/style.css') }}">
 </head>
 <body>
   <header class="topbar">
     <nav class="container nav">
       <a class="brand" href="/"><span class="brand-zh">友多聞</span> YODO</a>
-      <div class="nav-links">
+      <div class="nav-links{% if me %} has-tabbar{% endif %}">
         {% if me %}
-          <a href="/me/collection">我的收藏</a>
-          <a href="/u/{{ me.username }}">我的頁面</a>
-          <a href="/me/card">Recap</a>
-          <a href="/me/settings">設定</a>
+          {% set path = request.url.path %}
+          {% macro cur(prefix) %}{% if path.startswith(prefix) %} aria-current="page"{% endif %}{% endmacro %}
+          <a href="/feed"{{ cur("/feed") }}>動態</a>
+          <a href="/me/collection"{{ cur("/me/collection") }}>我的收藏</a>
+          <a href="/u/{{ me.username }}"{{ cur("/u/" ~ me.username) }}>我的頁面</a>
+          <a href="/me/card"{{ cur("/me/card") }}>Recap</a>
+          <a href="/me/friends"{{ cur("/me/friends") }}>好友{% if friend_requests %}<span class="nav-badge" aria-label="{{ friend_requests }} 個好友邀請">{{ friend_requests }}</span>{% endif %}</a>
+          <a href="/me/settings"{{ cur("/me/settings") }}>設定</a>
           <form method="post" action="/logout" class="inline nav-logout">
             <button type="submit" class="link">登出</button>
           </form>

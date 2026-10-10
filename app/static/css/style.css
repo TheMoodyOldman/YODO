@@ -59,6 +59,26 @@ main.container { padding-top: 24px; padding-bottom: 48px; }
   .nav-links .nav-logout { display: none; }  /* phones: 登出 lives at the bottom of 設定 instead */
 }
 
+/* Phones, logged in: the menu becomes an app-style bottom tab bar so every section is one tap away. */
+@media (max-width: 640px) {
+  .nav-links.has-tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border); font-size: 0.78rem; overflow: visible;
+  }
+  .nav-links.has-tabbar > a {
+    position: relative; display: flex; align-items: center; justify-content: center;
+    min-height: 40px; padding: 4px 2px; border-radius: 10px; text-align: center; white-space: nowrap;
+  }
+  .nav-links.has-tabbar > a[aria-current="page"] { color: var(--accent); font-weight: 700; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .nav-links.has-tabbar .nav-badge { position: absolute; top: 0; right: 4px; margin: 0; }
+  .nav-links.has-tabbar .nav-logout { display: none; }
+  body:has(.has-tabbar) main.container { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+  body:has(.has-tabbar) .work-nav { bottom: calc(72px + env(safe-area-inset-bottom)); }
+}
+
 /* buttons & forms */
 .btn {
   display: inline-block; padding: 8px 16px; border: 1px solid var(--accent); border-radius: 8px;
@@ -355,3 +375,63 @@ h3 { font-size: 1rem; margin: 8px 0; }
 .rank-list .thumb { width: 40px; }
 .rank-info { min-width: 0; display: flex; flex-direction: column; }
 .rank-info .card-title, .rank-info .card-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* social: avatars, friend lists, feed */
+.avatar {
+  --h: 250;
+  flex: none; display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  font-weight: 700; color: #fff; background: linear-gradient(135deg, hsl(var(--h) 70% 55%), hsl(calc(var(--h) + 40) 70% 45%));
+}
+.avatar-sm { width: 28px; height: 28px; font-size: 0.8rem; }
+.avatar-lg { width: 64px; height: 64px; font-size: 1.6rem; }
+.nav-badge {
+  display: inline-block; min-width: 18px; margin-left: 4px; padding: 0 5px; border-radius: 999px;
+  font-size: 0.72rem; line-height: 18px; text-align: center; color: #fff; background: #ef4444; vertical-align: 1px;
+}
+.profile-id { display: flex; align-items: center; gap: 14px; }
+.profile-id .muted { margin: 0; }
+.profile-actions { flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.friend-yes { color: #16a34a; border-color: #16a34a; }
+.people { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.people li {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+}
+.person { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; min-width: 0; }
+.person:hover strong { color: var(--accent); }
+.people .actions { margin: 0; gap: 8px; }
+
+.feed-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.notice-link { display: block; color: inherit; text-decoration: none; margin-bottom: 12px; }
+.notice-link:hover { border-color: var(--accent); }
+.empty-feed { padding: 8px 18px 14px; }
+.feed { display: flex; flex-direction: column; gap: 14px; }
+.feed-item { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; }
+.feed-head { display: flex; gap: 12px; align-items: flex-start; }
+.feed-name { font-weight: 700; color: var(--fg); text-decoration: none; }
+.feed-name:hover { color: var(--accent); }
+.feed-text { margin: 2px 0 0; }
+.feed-work {
+  display: flex; gap: 12px; align-items: center; margin: 12px 0 0 52px; padding: 10px;
+  border-radius: 12px; color: inherit; text-decoration: none;
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface)); transition: background 0.12s;
+}
+.feed-work.cat-game { background: color-mix(in srgb, #3b82f6 9%, var(--surface)); }
+.feed-work.cat-anime { background: color-mix(in srgb, #ec4899 9%, var(--surface)); }
+.feed-work.cat-music { background: color-mix(in srgb, #10b981 9%, var(--surface)); }
+.feed-work:hover .card-title { color: var(--accent); }
+.feed-work .thumb { width: 52px; }
+.feed-work-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.comments { list-style: none; padding: 0; margin: 12px 0 0 52px; display: flex; flex-direction: column; gap: 8px; }
+.comments li { display: flex; gap: 8px; align-items: flex-start; }
+.comment-body { min-width: 0; overflow-wrap: anywhere; }
+.comment-text { margin: 0 4px; }
+.comment-form { display: flex; gap: 8px; margin: 12px 0 0 52px; }
+.comment-form input { flex: 1; min-width: 0; padding: 6px 10px; }
+.pager { justify-content: center; margin-top: 18px; }
+@media (max-width: 420px) {
+  .brand-zh { display: none; }  /* phones: "YODO" alone keeps the menu on one line */
+  .feed-work, .comments, .comment-form { margin-left: 0; }
+}
+
+.age-logout { margin-top: 18px; }

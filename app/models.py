@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from enum import StrEnum
 
 from sqlmodel import Field, SQLModel, UniqueConstraint
@@ -33,6 +33,7 @@ class User(SQLModel, table=True):
     steam_id: str | None = None
     lastfm_username: str | None = None
     lastfm_synced_at: datetime | None = None
+    birth_date: date | None = None  # age check only (18+ service); never shown
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -111,4 +112,61 @@ class CardEvent(SQLModel, table=True):
     period: str | None = None  # "month" | "year" | "all" (None: logged before periods existed = month)
     month: str  # the period key: "2026-10" | "2026" | "all"
     action: str  # "share" | "download"
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class FriendStatus(StrEnum):
+    pending = "pending"
+    accepted = "accepted"
+
+
+class Friendship(SQLModel, table=True):
+    """One row per pair of users; requester asked, addressee answers."""
+
+    __table_args__ = (UniqueConstraint("requester_id", "addressee_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    requester_id: int = Field(foreign_key="user.id", index=True)
+    addressee_id: int = Field(foreign_key="user.id", index=True)
+    status: FriendStatus = FriendStatus.pending
+    created_at: datetime = Field(default_factory=utcnow)
+    responded_at: datetime | None = None
+
+
+class Block(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("blocker_id", "blocked_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    blocker_id: int = Field(foreign_key="user.id", index=True)
+    blocked_id: int = Field(foreign_key="user.id", index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class ActivityKind(StrEnum):
+    anime_added = "anime_added"
+    anime_rated = "anime_rated"
+    played = "played"  # Steam playtime gained (minutes)
+    listened = "listened"  # plays this month gained (plays, songs; work = top song)
+
+
+class Activity(SQLModel, table=True):
+    """Feed item. Merged per user/kind/work/day so syncs and chip taps don't spam friends."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    kind: ActivityKind
+    work_id: int | None = Field(default=None, foreign_key="work.id")
+    day: str  # "YYYY-MM-DD", Taiwan time
+    minutes: int | None = None
+    plays: int | None = None
+    songs: int | None = None
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class Comment(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    activity_id: int = Field(foreign_key="activity.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    body: str
     created_at: datetime = Field(default_factory=utcnow)

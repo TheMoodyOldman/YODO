@@ -7,10 +7,10 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.auth import LoginRequired
+from app.auth import BirthDateRequired, LoginRequired
 from app.config import settings
 from app.db import init_db
-from app.routers import auth, card, lastfm, me, music, pages, profile, steam, work, youtube
+from app.routers import auth, card, feed, friends, lastfm, me, music, pages, profile, steam, work, youtube
 
 BASE_DIR = Path(__file__).parent
 
@@ -34,6 +34,8 @@ app.include_router(music.router)
 app.include_router(card.router)
 app.include_router(profile.router)
 app.include_router(work.router)
+app.include_router(friends.router)
+app.include_router(feed.router)
 
 
 @app.middleware("http")
@@ -43,6 +45,12 @@ async def no_stale_pages(request: Request, call_next):
     if response.headers.get("content-type", "").startswith("text/html") and "cache-control" not in response.headers:
         response.headers["Cache-Control"] = "no-cache"
     return response
+
+
+@app.exception_handler(BirthDateRequired)
+async def birth_date_required_handler(request: Request, exc: BirthDateRequired):
+    nxt = request.url.path if request.method == "GET" else ""
+    return RedirectResponse(f"/me/age?next={quote(nxt)}" if nxt else "/me/age", status_code=303)
 
 
 @app.exception_handler(LoginRequired)

@@ -2,12 +2,13 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import col, select
 
-from app.auth import CurrentUser
+from app.auth import CurrentUser, is_locked
 from app.db import SessionDep
 from app.models import Category, CollectionEntry, User, Work
 from app.anime import TIERS, tier_rank
 from app.music import top_artists, top_songs
 from app.privacy import can_view, get_privacy
+from app.social import Relation, relation
 from app.templating import render
 
 router = APIRouter()
@@ -20,13 +21,14 @@ PAGE_ITEMS = 24  # cards per "顯示更多" step in a category tab
 @router.get("/u/{username}", response_class=HTMLResponse)
 def profile(request: Request, username: str, session: SessionDep, me: CurrentUser):
     owner = session.exec(select(User).where(User.username == username.lower())).first()
-    if owner is None:
+    rel = relation(session, me, owner) if owner else None
+    if owner is None or rel == Relation.blocked or is_locked(owner):
         return render(request, "not_found.html", status_code=404, me=me)
 
     privacy = get_privacy(session, owner.id)
     sections = []
     for category in Category:
-        if not can_view(privacy[category], owner, me):
+        if not can_view(privacy[category], owner, me, is_friend=rel == Relation.friends):
             continue
         rows = session.exec(
             select(CollectionEntry, Work)
@@ -68,4 +70,5 @@ def profile(request: Request, username: str, session: SessionDep, me: CurrentUse
         OVERVIEW_ITEMS=OVERVIEW_ITEMS,
         PAGE_ITEMS=PAGE_ITEMS,
         page_url=str(request.url),
+        relation=rel,
     )

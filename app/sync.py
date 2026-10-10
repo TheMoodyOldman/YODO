@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 from sqlmodel import Session, col, select
 
 from app.importers.youtube import TAIPEI
-from app.models import Category, CollectionEntry, MonthlyPlaytime, User, Work
+from app.activity import record
+from app.models import ActivityKind, Category, CollectionEntry, MonthlyPlaytime, User, Work
 from app.music import LASTFM, ImportResult, Song, import_music
 from app.services import lastfm, steam
 from app.works import upsert_work
@@ -86,6 +87,9 @@ async def sync_steam(session: Session, user: User) -> SyncResult | None:
         previous_total = entry.playtime_minutes if entry is not None else None
         if entry is not None:
             if entry.playtime_minutes != game.playtime_minutes:
+                gained = game.playtime_minutes - (entry.playtime_minutes or 0)
+                if gained > 0 and not entry.pending_review:
+                    record(session, user.id, ActivityKind.played, entry.work_id, minutes=gained)
                 entry.playtime_minutes = game.playtime_minutes
                 session.add(entry)
                 updated += 1

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}確認年齡 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+<section class="narrow">
+  {% if underage %}
+    <h1>暫時無法使用</h1>
+    <p class="error">{{ error }}。</p>
+    <p class="muted">你的帳號和收藏資料都還在，滿 18 歲後就能用原本的帳號登入。</p>
+    <p><a class="btn secondary" href="/">回首頁</a></p>
+  {% else %}
+    <h1>確認你的年齡</h1>
+    <p class="muted">友多聞 YODO 僅限 18 歲以上使用。請填寫出生日期，只用來確認年齡，不會顯示在任何頁面上。</p>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <form method="post" action="/me/age" class="stack">
+      <input type="hidden" name="next" value="{{ next }}">
+      <label>出生日期
+        <input type="date" name="birth_date" required max="{{ max_birth }}" min="1900-01-01">
+      </label>
+      <button type="submit" class="btn">確認</button>
+    </form>
+    <form method="post" action="/logout" class="age-logout"><button type="submit" class="link small muted">不是你？登出</button></form>
+  {% endif %}
+</section>
+{% endblock %}

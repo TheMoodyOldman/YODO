@@ -1,0 +1,35 @@
+{# Initial-letter avatar in a stable per-user color. #}
+{% macro avatar(user, size="") -%}
+  <span class="avatar{% if size %} avatar-{{ size }}{% endif %}" style="--h: {{ avatar_hue(user.id) }}" aria-hidden="true">{{ user.display_name[:1] | upper }}</span>
+{%- endmacro %}
+
+{# Friend action(s) for `user` given the viewer's relation to them. #}
+{% macro friend_actions(user, rel, next) -%}
+  {% set base = "/friends/" ~ user.username %}
+  {% if rel == Relation.none %}
+    <form method="post" action="{{ base }}/request" class="inline">
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn small">＋ 加好友</button>
+    </form>
+  {% elif rel == Relation.outgoing %}
+    <form method="post" action="{{ base }}/decline" class="inline">
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn small secondary" title="取消邀請">已送出邀請 · 取消</button>
+    </form>
+  {% elif rel == Relation.incoming %}
+    <form method="post" action="{{ base }}/accept" class="inline">
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn small">接受好友邀請</button>
+    </form>
+    <form method="post" action="{{ base }}/decline" class="inline">
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn small secondary">婉拒</button>
+    </form>
+  {% elif rel == Relation.friends %}
+    <form method="post" action="{{ base }}/decline" class="inline"
+          data-confirm="解除與 {{ user.display_name }} 的好友關係？" onsubmit="return confirm(this.dataset.confirm)">
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn small secondary friend-yes">✓ 好友</button>
+    </form>
+  {% endif %}
+{%- endmacro %}

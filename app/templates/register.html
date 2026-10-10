@@ -17,6 +17,10 @@
     <label>密碼
       <input name="password" type="password" required minlength="8" autocomplete="new-password">
     </label>
+    <label>出生日期
+      <input type="date" name="birth_date" required max="{{ max_birth }}" min="1900-01-01">
+      <small class="muted">友多聞 YODO 僅限 18 歲以上使用。出生日期只用來確認年齡，不會公開。</small>
+    </label>
     <button type="submit" class="btn">註冊</button>
   </form>
   <p class="muted">已經有帳號？<a href="/login">登入</a></p>

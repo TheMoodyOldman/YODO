@@ -2,12 +2,14 @@
 
 from collections import Counter
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy import delete
 from sqlmodel import Session, col, func, select
 
-from app.importers.youtube import Track, WatchHistory
-from app.models import Category, CollectionEntry, MonthlyPlays, User, Work
+from app.activity import record
+from app.importers.youtube import TAIPEI, Track, WatchHistory
+from app.models import ActivityKind, Category, CollectionEntry, MonthlyPlays, User, Work
 
 YOUTUBE = "youtube"
 LASTFM = "lastfm"
@@ -82,14 +84,22 @@ def import_music(
             (row.work_id, row.month): row
             for row in session.exec(select(MonthlyPlays).where(MonthlyPlays.user_id == user.id))
         }
+        this_month = datetime.now(TAIPEI).strftime("%Y-%m")
+        gained: dict[int, int] = {}  # this month's new plays per song, for the friends feed
         for (external_id, month), count in plays.items():
             work_id = works[external_id].id
             row = existing.get((work_id, month))
+            before = row.plays if row else 0
             if row is None:
                 session.add(MonthlyPlays(user_id=user.id, work_id=work_id, month=month, plays=count))
             elif count > row.plays:
                 row.plays = count
                 session.add(row)
+            if month == this_month and count > before:
+                gained[work_id] = count - before
+        if gained:
+            top = max(gained, key=gained.__getitem__)
+            record(session, user.id, ActivityKind.listened, top, plays=sum(gained.values()), songs=len(gained))
         session.flush()
 
     totals: dict[int, int] = dict(
