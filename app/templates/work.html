@@ -61,7 +61,7 @@
         <div><dt>來源</dt><dd>{{ "YouTube Music" if work.source == "youtube" else "Last.fm" }}</dd></div>
       {% else %}
         {% if is_book %}<div><dt>狀態</dt><dd>{{ STATUS_LABELS[entry.status] if entry.status else "未分類" }}</dd></div>{% endif %}
-        {% if work.category == Category.film and entry.play_count %}<div><dt>Netflix</dt><dd>看了 {{ entry.play_count }} 次</dd></div>{% endif %}
+        {% if work.category in (Category.film, Category.anime) and entry.play_count %}<div><dt>Netflix</dt><dd>看了 {{ entry.play_count }} 次</dd></div>{% endif %}
         <div><dt>評價</dt><dd>{{ TIER_LABELS[entry.tier] if entry.tier else "未評價" }}</dd></div>
         {% if entry.tag %}<div><dt>標籤</dt><dd>#{{ entry.tag }}</dd></div>{% endif %}
       {% endif %}
@@ -70,7 +70,7 @@
     </dl>
 
     {% if history %}
-      <h3>每月{{ "遊玩時數" if is_game else ("觀看次數" if work.category == Category.film else "播放次數") }}</h3>
+      <h3>每月{{ "遊玩時數" if is_game else ("觀看次數" if work.category in (Category.film, Category.anime) else "播放次數") }}</h3>
       <ul class="bars">
         {% for month, value in history %}
           <li>

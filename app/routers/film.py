@@ -43,9 +43,12 @@ async def netflix_import(request: Request, session: SessionDep, me: RequiredUser
         msg += f"，{len(result.unmatched)} 部找不到（例如《{result.unmatched[0]}》）"
     if result.skipped:
         msg += f"，另有 {result.skipped} 部看比較少的沒有匯入"
+    if result.new_anime:
+        msg += f"，其中 {result.new_anime} 部日本動畫放進「動畫」類別"
     if result.new:
         flash(request, f"{msg}。新增 {result.new} 部，確認後才會公開")
-        return RedirectResponse("/me/review/film", status_code=303)
+        first = "film" if result.new > result.new_anime else "anime"
+        return RedirectResponse(f"/me/review/{first}", status_code=303)
     flash(request, f"{msg}，沒有新的作品")
     return RedirectResponse(BACK, status_code=303)
 
@@ -85,4 +88,6 @@ async def submit_review(request: Request, session: SessionDep, me: RequiredUser,
         session.add(entry)
     session.commit()
     flash(request, f"已公開 {shown} 部，其餘設為隱藏，之後可在收藏中調整")
+    if category == Category.film and _pending(session, me, Category.anime):
+        return RedirectResponse("/me/review/anime", status_code=303)  # the anime from the same import
     return RedirectResponse(f"/me/collection#{kind}", status_code=303)

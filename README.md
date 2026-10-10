@@ -117,7 +117,7 @@ python -m scripts.seed_demo
 - **Last.fm**：第一次同步會匯入最近 6 個月；如果在 Last.fm 隱藏了最近收聽資訊，會無法同步。
 - **YouTube Music**：在 Google Takeout 只勾「YouTube 和 YouTube Music」，並把「記錄」的格式改成 **JSON**（預設是 HTML）。上傳 `觀看記錄/watch-history.json` 與 `music (library and uploads)/music library songs.csv`。只會保留音樂播放，其他影片的觀看紀錄在上傳時就丟棄。
 - **重複的歌**：同一首歌同時從 YouTube 和 Last.fm 匯入時，排行只取較高的播放次數，不會相加。
-- **Netflix**：在 Netflix 網頁版「帳戶」→ 選擇個人檔案 →「觀看記錄」→ 最下方「全部下載」，上傳 `NetflixViewingHistory.csv`。影集的每一集合併成一部作品，看幾集算幾次；一次最多比對 150 部，比對到的作品要先確認才會公開。重複上傳不會重複計算。
+- **Netflix**：在 Netflix 網頁版「帳戶」→ 選擇個人檔案 →「觀看記錄」→ 最下方「全部下載」，上傳 `NetflixViewingHistory.csv`。影集的每一集合併成一部作品，看幾集算幾次；日本動畫會對照到 AniList 放進「動畫」類別，片名用 Netflix 台灣的譯名；一次最多比對 150 部，比對到的作品要先確認才會公開。重複上傳不會重複計算。
 
 ## 專案結構
 

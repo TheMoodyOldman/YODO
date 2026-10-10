@@ -10,6 +10,7 @@ from app.config import settings
 API_URL = "https://api.themoviedb.org/3"
 IMAGE_URL = "https://image.tmdb.org/t/p/w342"
 LANGUAGE = "zh-TW"
+ANIMATION = 16  # TMDB genre id
 
 
 class TmdbError(Exception):
@@ -24,10 +25,17 @@ class Title:
     cover_url: str | None
     year: int | None
     kind: str  # "movie" | "tv"
+    genre_ids: tuple[int, ...] = ()
+    original_language: str | None = None
 
     @property
     def kind_label(self) -> str:
         return "電影" if self.kind == "movie" else "影集"
+
+    @property
+    def is_anime(self) -> bool:
+        """Japanese animation, which YODO files under 動畫 rather than 影視."""
+        return ANIMATION in self.genre_ids and self.original_language == "ja"
 
 
 def configured() -> bool:
@@ -73,6 +81,8 @@ def _parse(item: dict[str, Any], kind: str | None = None) -> Title | None:
         cover_url=f"{IMAGE_URL}{poster}" if poster else None,
         year=int(date[:4]) if date[:4].isdigit() else None,
         kind=kind,
+        genre_ids=tuple(item.get("genre_ids") or (g["id"] for g in item.get("genres") or [])),
+        original_language=item.get("original_language"),
     )
 
 

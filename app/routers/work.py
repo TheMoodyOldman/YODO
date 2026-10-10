@@ -76,7 +76,7 @@ async def work_page(request: Request, username: str, work_id: int, session: Sess
             ).all()
             if end > start
         ]
-    elif work.category in (Category.music, Category.film):  # film: Netflix views per month
+    elif work.category in (Category.music, Category.film, Category.anime):  # film/anime: Netflix views per month
         history = list(
             session.exec(
                 select(MonthlyPlays.month, MonthlyPlays.plays)

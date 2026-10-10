@@ -24,12 +24,16 @@ def _norm(title: str | None) -> str:
     return _PUNCT.sub("", unicodedata.normalize("NFKC", title or "").casefold())
 
 
+def same_title(a: str | None, b: str | None) -> bool:
+    return bool(a and b) and _norm(a) == _norm(b)
+
+
 def _chinese_name(subjects: list[bangumi.Subject], native: str | None) -> str | None:
     """The Chinese name of the subject whose original title is `native`, in Traditional Chinese."""
     if not native:
         return None
     for s in subjects:
-        if s.name_cn and _norm(s.name) == _norm(native):
+        if s.name_cn and same_title(s.name, native):
             return zh.to_traditional(s.name_cn)
     return None
 

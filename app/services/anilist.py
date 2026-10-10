@@ -28,7 +28,9 @@ FORMAT_LABELS = {
 
 
 class AniListError(Exception):
-    pass
+    def __init__(self, message: str, retry_after: float | None = None):
+        super().__init__(message)
+        self.retry_after = retry_after  # seconds, when rate limited (HTTP 429)
 
 
 @dataclass
@@ -66,6 +68,8 @@ async def _query(query: str, variables: dict[str, Any]) -> dict[str, Any] | None
         raise AniListError(str(e)) from e
     if r.status_code == 404:
         return None
+    if r.status_code == 429:
+        raise AniListError("rate limited", retry_after=float(r.headers.get("retry-after") or 60))
     if r.status_code != 200 or payload.get("errors"):
         raise AniListError(f"HTTP {r.status_code}: {payload.get('errors')}")
     return payload["data"]

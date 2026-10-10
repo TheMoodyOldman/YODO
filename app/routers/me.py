@@ -147,7 +147,7 @@ async def collection(
         EMPTY_HINTS=EMPTY_HINTS,
         has_youtube=YOUTUBE in sources,
         has_lastfm=LASTFM in sources,
-        has_netflix=any(e.play_count for e, _ in by_category[Category.film]),
+        has_netflix=any(e.play_count for c in (Category.film, Category.anime) for e, _ in by_category[c]),
         tmdb_ready=tmdb.configured(),
         books_source=books.active_source(),
         steam_profile_url=steam.profile_url(me.steam_id) if me.steam_id else None,

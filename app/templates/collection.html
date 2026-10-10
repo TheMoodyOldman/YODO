@@ -12,6 +12,9 @@
 {% if pending[Category.music] %}
   <p class="notice">有 {{ pending[Category.music] }} 首新匯入的歌曲還沒公開。<a href="/me/music/review">確認要公開哪些</a></p>
 {% endif %}
+{% if pending[Category.anime] %}
+  <p class="notice">有 {{ pending[Category.anime] }} 部從 Netflix 匯入的動畫還沒公開。<a href="/me/review/anime">確認要公開哪些</a></p>
+{% endif %}
 {% if pending[Category.film] %}
   <p class="notice">有 {{ pending[Category.film] }} 部從 Netflix 匯入的作品還沒公開。<a href="/me/review/film">確認要公開哪些</a></p>
 {% endif %}
@@ -254,7 +257,7 @@
               {% if work.original_title and work.original_title != work.title %}<div class="card-sub">{{ work.original_title }}</div>{% endif %}
               {% if work.creator %}<div class="card-sub">{{ work.creator }}</div>{% endif %}
               {% if entry.playtime_minutes %}<div class="card-sub">{{ hours(entry.playtime_minutes) }}</div>{% endif %}
-              {% if entry.play_count %}<div class="card-sub">{{ "看了 " ~ entry.play_count ~ " 次" if category == Category.film else entry.play_count ~ " 次播放" }}</div>{% endif %}
+              {% if entry.play_count %}<div class="card-sub">{{ "看了 " ~ entry.play_count ~ " 次" if category in (Category.film, Category.anime) else entry.play_count ~ " 次播放" }}</div>{% endif %}
               {{ verdict_badges(entry) }}
               {% if entry.hidden %}<span class="badge">已隱藏</span>{% endif %}
             </div>
