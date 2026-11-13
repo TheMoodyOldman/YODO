@@ -1,25 +1,59 @@
-"""Create a local demo account with a few anime, plus a few fake people with 本季新番 picks
-(2 of them friends with demo for the feed, 2 not, for 探索 recommendations). Development only.
+"""Demo data for local development and the 複賽 demo:
 
+- account `demo`: rated anime, Steam-style games with monthly hours, songs with monthly plays
+  (so Recap has something to show), and 本季新番 picks;
+- a few `demo_` fake people with picks and shared favourites (2 of them friends with demo for the
+  feed and messages, 2 not, for 探索 recommendations), plus a short chat between demo and 小雨.
+
+Safe to run again: it only adds what is missing. Needs the network (AniList, Bangumi, iTunes).
 Usage: .venv\\Scripts\\python.exe -m scripts.seed_demo
 """
 
 import asyncio
 import secrets
-from datetime import date
+from datetime import date, datetime, timedelta
 
-from sqlmodel import Session, select
+import httpx
+from sqlmodel import Session, col, select
 
 from app import anime_search, seasonal
 from app.auth import hash_password
 from app.db import engine, init_db
-from app.models import Category, CollectionEntry, FriendStatus, Friendship, User, Work
-from app.services import anilist
-from app.works import upsert_work
+from app.importers.youtube import TAIPEI
+from app.models import (
+    Category, CollectionEntry, FriendStatus, Friendship, Message, MonthlyPlays, MonthlyPlaytime, User, Work, utcnow,
+)
+from app.services import anilist, lastfm
+from app.services.steam import ASSET_URL
 
 DEMO_USERNAME = "demo"
 DEMO_PASSWORD = "demo-pass-123"
-DEMO_ANIME = [("Frieren", 10), ("Bocchi the Rock", 9), ("Mob Psycho 100", 8), ("Cowboy Bebop", None)]
+DEMO_ANIME = [("Frieren", "must_watch"), ("Bocchi the Rock", "great"), ("Mob Psycho 100", "good"), ("Cowboy Bebop", None)]
+# Steam games: (appid, name, hours last month, hours this month, earlier hours)
+DEMO_GAMES = [
+    (1245620, "艾爾登法環", 14, 22, 84),
+    (413150, "星露谷物語", 6, 11, 68),
+    (1145360, "Hades", 4, 9, 27),
+    (367520, "窟窿騎士", 2, 5, 28),
+]
+# Songs: (artist, title, plays last month, plays this month)
+DEMO_SONGS = [
+    ("YOASOBI", "夜に駆ける", 18, 26),
+    ("ヨルシカ", "ただ君に晴れ", 12, 21),
+    ("結束バンド", "青春コンプレックス", 9, 19),
+    ("Official髭男dism", "Pretender", 10, 12),
+    ("米津玄師", "Lemon", 7, 9),
+    ("告五人", "披星戴月的想你", 5, 8),
+]
+# 小雨 shares some of demo's songs (and has a few of her own), so 猜歌對戰 has a fair mix.
+RAIN_SONGS = [("YOASOBI", "夜に駆ける", 20), ("結束バンド", "青春コンプレックス", 15), ("Aimer", "残響散歌", 22),
+              ("LiSA", "紅蓮華", 11), ("ヨルシカ", "ただ君に晴れ", 6)]
+CHAT = [  # (from demo?, text, minutes ago)
+    (False, "你也在追藥屋第三季！這季貓貓也太可愛", 95),
+    (True, "對啊，每週六晚上準時開看 😆", 90),
+    (False, "要不要一起玩猜歌？我最近都在聽結束バンド", 30),
+    (True, "好啊，等等開房間邀你！", 26),
+]
 
 # 本季新番 picks are indexes into this season's AniList list (most popular first), so the demo works
 # whatever the season. Fake people: (username, name, bio, region, friend of demo?, picks, tiers for DEMO_ANIME)
@@ -30,6 +64,30 @@ FAKE_PEOPLE = [
     ("demo_hikari", "小光", "日常系、音樂番都愛，想找人一起聊", "新北市", False, [0, 3, 6, 8, 9], {"Bocchi the Rock": "must_watch", "Frieren": "great"}),
     ("demo_nana", "奈奈", "冷門番挖掘中", "高雄市", False, [2, 6, 10, 11], {"Cowboy Bebop": "great"}),
 ]
+
+
+def _months() -> tuple[str, str]:
+    now = datetime.now(TAIPEI)
+    last = (now.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    return last, now.strftime("%Y-%m")
+
+
+def _entry(session: Session, user: User, work: Work) -> CollectionEntry:
+    entry = session.exec(select(CollectionEntry).where(CollectionEntry.user_id == user.id, CollectionEntry.work_id == work.id)).first()
+    if entry is None:
+        entry = CollectionEntry(user_id=user.id, work_id=work.id)
+        session.add(entry)
+        session.flush()
+    return entry
+
+
+def _work(session: Session, source: str, external_id: str, **fields) -> Work:
+    work = session.exec(select(Work).where(Work.source == source, Work.external_id == external_id)).first()
+    if work is None:  # never rename an existing work (it may be shared with real users)
+        work = Work(source=source, external_id=external_id, **fields)
+        session.add(work)
+        session.flush()
+    return work
 
 
 def _person(session: Session, username: str, name: str, bio: str, region: str) -> User:
@@ -52,13 +110,71 @@ def _befriend(session: Session, a: User, b: User) -> None:
     session.add(Friendship(requester_id=a.id, addressee_id=b.id, status=FriendStatus.accepted))
 
 
-async def seed_season(session: Session, demo: User, demo_works: dict[str, Work]) -> None:
+async def _song_cover(client: httpx.AsyncClient, artist: str, title: str) -> str | None:
+    try:
+        r = await client.get("https://itunes.apple.com/search",
+                             params={"term": f"{artist} {title}", "entity": "song", "country": "JP", "limit": 1})
+        art = (r.json().get("results") or [{}])[0].get("artworkUrl100")
+        return art.replace("100x100bb", "600x600bb") if art else None
+    except (httpx.HTTPError, ValueError):
+        return None
+
+
+async def seed_music(session: Session, client: httpx.AsyncClient, user: User, songs: list[tuple]) -> None:
+    """Songs with monthly plays (Recap, rankings, 猜歌). songs: (artist, title, plays...) per month, oldest first."""
+    months = _months()[-(len(songs[0]) - 2):]
+    for artist, title, *plays in songs:
+        key = lastfm.song_key(artist, title)
+        work = session.exec(select(Work).where(Work.source == "lastfm", Work.external_id == key)).first()
+        if work is None:
+            work = _work(session, "lastfm", key, category=Category.music, title=title, creator=artist,
+                         cover_url=await _song_cover(client, artist, title))
+        entry = _entry(session, user, work)
+        for month, n in ((m, n) for m, n in zip(months, plays) if n):
+            if not session.exec(select(MonthlyPlays).where(
+                    MonthlyPlays.user_id == user.id, MonthlyPlays.work_id == work.id, MonthlyPlays.month == month)).first():
+                session.add(MonthlyPlays(user_id=user.id, work_id=work.id, month=month, plays=n))
+        entry.play_count = sum(plays)
+        session.add(entry)
+    session.commit()
+
+
+def seed_games(session: Session, user: User) -> None:
+    last, this = _months()
+    for appid, name, h_last, h_this, h_before in DEMO_GAMES:
+        work = _work(session, "steam", str(appid), category=Category.game, title=name,
+                     cover_url=f"{ASSET_URL}/{appid}/library_600x900.jpg")
+        entry = _entry(session, user, work)
+        before, mid, total = h_before * 60, (h_before + h_last) * 60, (h_before + h_last + h_this) * 60
+        for month, start, end in ((last, before, mid), (this, mid, total)):
+            if not session.exec(select(MonthlyPlaytime).where(
+                    MonthlyPlaytime.user_id == user.id, MonthlyPlaytime.work_id == work.id, MonthlyPlaytime.month == month)).first():
+                session.add(MonthlyPlaytime(user_id=user.id, work_id=work.id, month=month, start_minutes=start, end_minutes=end))
+        entry.playtime_minutes = total
+        session.add(entry)
+    session.commit()
+
+
+def seed_chat(session: Session, demo: User, friend: User) -> None:
+    if session.exec(select(Message).where(col(Message.sender_id).in_([demo.id, friend.id]),
+                                          col(Message.recipient_id).in_([demo.id, friend.id]))).first():
+        return
+    now = utcnow()
+    for from_demo, text, ago in CHAT:
+        a, b = (demo, friend) if from_demo else (friend, demo)
+        when = now - timedelta(minutes=ago)
+        session.add(Message(sender_id=a.id, recipient_id=b.id, body=text, created_at=when, read_at=when))
+    session.commit()
+
+
+async def seed_season(session: Session, demo: User, demo_works: dict[str, Work]) -> dict[str, User]:
+    people = {}
     key = seasonal.current_key()
     try:
         listed = await anilist.season_anime(*reversed(seasonal.parse(key)), seasonal.LIST_SIZE)
     except anilist.AniListError as e:
         print(f"AniList unavailable, skipped 本季新番 picks: {e}")
-        return
+        listed = []
     wanted = sorted({i for i in DEMO_PICKS + [i for p in FAKE_PEOPLE for i in p[5]] if i < len(listed)})
     shows: dict[int, seasonal.SeasonAnime] = {}
     for i in wanted:  # Chinese titles for the shows we use (Bangumi, gently)
@@ -68,9 +184,10 @@ async def seed_season(session: Session, demo: User, demo_works: dict[str, Work])
         shows[i] = seasonal.SeasonAnime(a.id, zh or a.title, a.original_title, a.cover_url, a.year, a.format)
         await asyncio.sleep(anime_search.BANGUMI_DELAY)
 
-    seasonal.save(session, demo, key, [shows[i] for i in DEMO_PICKS if i in shows])
+    if shows:
+        seasonal.save(session, demo, key, [shows[i] for i in DEMO_PICKS if i in shows])
     for username, name, bio, region, friend, picks, tiers in FAKE_PEOPLE:
-        person = _person(session, username, name, bio, region)
+        person = people[username] = _person(session, username, name, bio, region)
         if friend:
             _befriend(session, demo, person)
         for query, tier in tiers.items():  # a rated classic shared with demo
@@ -79,12 +196,43 @@ async def seed_season(session: Session, demo: User, demo_works: dict[str, Work])
                     CollectionEntry.user_id == person.id, CollectionEntry.work_id == work.id)).first():
                 session.add(CollectionEntry(user_id=person.id, work_id=work.id, tier=tier))
         session.commit()
-        seasonal.save(session, person, key, [shows[i] for i in picks if i in shows])
+        if shows:
+            seasonal.save(session, person, key, [shows[i] for i in picks if i in shows])
     print(f"本季新番 ({seasonal.label(key)}): demo + {len(FAKE_PEOPLE)} fake people seeded")
+    return people
+
+
+async def seed_anime(session: Session, user: User) -> dict[str, Work]:
+    """demo's rated anime, with Chinese titles. Existing works keep their titles."""
+    demo_works: dict[str, Work] = {}
+    for query, tier in DEMO_ANIME:
+        results = await anilist.search_anime(query)
+        if not results:
+            continue
+        a = results[0]
+        work = session.exec(select(Work).where(Work.source == "anilist", Work.external_id == str(a.id))).first()
+        if work is None:
+            zh = await anime_search.chinese_title(a.original_title)
+            work = _work(session, "anilist", str(a.id), category=Category.anime, title=zh or a.title,
+                         original_title=a.original_title, cover_url=a.cover_url, year=a.year, zh_checked_at=utcnow())
+            await asyncio.sleep(anime_search.BANGUMI_DELAY)
+        entry = _entry(session, user, work)
+        if tier and not entry.tier:
+            entry.tier = tier
+            session.add(entry)
+        demo_works[query] = work
+    session.commit()
+    return demo_works
 
 
 async def main() -> None:
     init_db()
+    async with httpx.AsyncClient(timeout=10) as client:
+        await _seed(client)
+    print(f"Seeded /u/{DEMO_USERNAME}")
+
+
+async def _seed(client: httpx.AsyncClient) -> None:
     with Session(engine) as session:
         user = session.exec(select(User).where(User.username == DEMO_USERNAME)).first()
         if user is None:
@@ -92,43 +240,22 @@ async def main() -> None:
                 username=DEMO_USERNAME,
                 display_name="Demo",
                 bio="週末追番，通勤聽 city pop",
+                region="台中市",
+                looking_for="anime,music,game",
                 password_hash=hash_password(DEMO_PASSWORD),
                 birth_date=date(2000, 1, 1),
             )
             session.add(user)
             session.flush()
 
-        demo_works: dict[str, Work] = {}
-        for query, rating in DEMO_ANIME:
-            existing = session.exec(select(Work).join(CollectionEntry).where(
-                CollectionEntry.user_id == user.id, Work.category == Category.anime, Work.source == "anilist")).all()
-            results = await anilist.search_anime(query)
-            if not results:
-                continue
-            a = results[0]
-            known = next((w for w in existing if w.external_id == str(a.id)), None)
-            if known is not None:  # keep its (possibly Chinese) title
-                demo_works[query] = known
-                continue
-            work = upsert_work(
-                session,
-                category=Category.anime,
-                source="anilist",
-                external_id=str(a.id),
-                title=a.title,
-                original_title=a.original_title,
-                cover_url=a.cover_url,
-                year=a.year,
-            )
-            entry = session.exec(
-                select(CollectionEntry).where(CollectionEntry.user_id == user.id, CollectionEntry.work_id == work.id)
-            ).first()
-            if entry is None:
-                session.add(CollectionEntry(user_id=user.id, work_id=work.id, rating=rating))
-            demo_works[query] = work
-        session.commit()
-        await seed_season(session, user, demo_works)
-    print(f"Seeded /u/{DEMO_USERNAME}")
+        demo_works = await seed_anime(session, user)
+        seed_games(session, user)
+        await seed_music(session, client, user, DEMO_SONGS)
+        people = await seed_season(session, user, demo_works)
+        rain = people.get("demo_rain")
+        if rain:
+            await seed_music(session, client, rain, [(a, t, 0, n) for a, t, n in RAIN_SONGS])
+            seed_chat(session, user, rain)
 
 
 if __name__ == "__main__":
