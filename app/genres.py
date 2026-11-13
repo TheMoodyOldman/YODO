@@ -151,9 +151,9 @@ def _investment(entry: CollectionEntry, category: Category) -> float:
         return math.log1p((entry.playtime_minutes or 0) / 60)
     if category == Category.music:
         return math.log1p(entry.play_count or 0)
-    from app.matching import TIER_WEIGHT
+    from app.matching import _weight
 
-    return TIER_WEIGHT.get(entry.tier or "", 1.0)
+    return _weight(entry, category)  # same tier weights as matching (incl. unrated 本季新番 picks)
 
 
 def style_profiles(session: Session, rows: list[tuple[CollectionEntry, Work]]) -> dict[Category, StyleProfile]:

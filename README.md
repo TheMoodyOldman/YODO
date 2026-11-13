@@ -148,6 +148,17 @@ python -m scripts.seed_demo
 ```
 
 會建立帳號 `demo` 並加入幾部動畫，密碼寫在 `scripts/seed_demo.py`，只適合本機開發使用。
+也會加入本季新番的勾選，以及幾個 `demo_` 開頭的假帳號（部分是 demo 的好友），讓動態、個人頁和探索推薦都看得到「本季在追」。
+
+### 執行測試
+
+```powershell
+.venv\Scripts\python.exe tests\run_all.py           # 全部
+.venv\Scripts\python.exe tests\run_all.py season    # 只跑名稱含 season 的
+```
+
+每個 `tests/test_*.py` 都是獨立腳本，各自用一個暫時的 SQLite 檔（`tests/*.db`，不會進 git），外部 API 都在測試裡用假的回應取代。
+`test_youtube.py` 另外可以拿真的 Google Takeout 檔案測試：把環境變數 `YODO_TAKEOUT_DIR` 設成「YouTube 和 YouTube Music」資料夾，沒設定就跳過那幾項。
 
 ## 使用者需要知道的事
 
@@ -172,6 +183,7 @@ app/
 ├── nearby.py          附近的人（只用約略位置）
 ├── contacts.py        LINE／Discord／Instagram 聯絡方式
 ├── onboarding.py      新手教學清單
+├── seasonal.py        本季新番快速勾選（AniList 當季清單、勾選、季別標籤）
 ├── anime_search.py    中文動畫搜尋與中文片名（Bangumi → AniList）
 ├── zh.py              繁簡轉換（OpenCC）
 ├── music.py           音樂匯入、排行計算
@@ -186,6 +198,7 @@ app/
 ├── templates/         Jinja 模板
 └── static/            CSS 與 JS
 scripts/seed_demo.py   本機測試帳號
+tests/                 整合測試（run_all.py 一次跑完）
 ```
 
 ## 在手機上測試、讓組員一起註冊

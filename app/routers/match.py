@@ -7,6 +7,7 @@ from sqlmodel import Session, col, select
 from app.auth import RequiredUser, safe_next
 from app.config import settings
 from app.db import SessionDep
+from app import seasonal
 from app.matching import MIN_ENTRIES, empty_reason, find_matches, looking_keys, newcomers
 from app.models import Block, MatchDismiss, Report, User, utcnow
 from app.social import Relation, get_friendship
@@ -50,6 +51,7 @@ def match_page(request: Request, session: SessionDep, me: RequiredUser):
         needs_profile=not me.region and not looking_keys(me),
         MIN_ENTRIES=MIN_ENTRIES,
         Relation=Relation,
+        season_banner=seasonal.label(seasonal.current_key()) if seasonal.show_banner(me) else None,
     )
 
 

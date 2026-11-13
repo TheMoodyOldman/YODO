@@ -50,7 +50,8 @@
         <a class="feed-name" href="/u/{{ u.username }}">{{ u.display_name }}</a>
         <span class="muted small">· {{ a.updated_at | ago }}</span>
         <p class="feed-text">
-          {% if a.kind == "anime_added" %}把這{{ {"book": "本書", "film": "部作品"}.get(w.category.value, "部動畫") }}加進收藏
+          {% if a.kind == "season_picks" %}{{ item.text }}
+          {% elif a.kind == "anime_added" %}把這{{ {"book": "本書", "film": "部作品"}.get(w.category.value, "部動畫") }}加進收藏
           {% elif a.kind == "anime_rated" %}更新了{{ CATEGORY_LABELS[w.category] }}評價
           {% elif a.kind == "played" %}玩了 <strong>{{ hours(a.minutes or 0) }}</strong>
           {% elif a.kind == "challenge" %}{{ challenge_label(a.note) }}
@@ -60,6 +61,14 @@
       </div>
     </header>
 
+    {% if item.picks %}
+    <a class="feed-season" href="/u/{{ u.username }}#anime" aria-label="看 {{ u.display_name }} 這季在追的動畫">
+      {% for e, pw in item.picks[:6] %}
+        <span class="feed-season-cover">{{ cover_img(pw) }}</span>
+      {% endfor %}
+      {% if item.picks | length > 6 %}<span class="feed-season-more">+{{ item.picks | length - 6 }}</span>{% endif %}
+    </a>
+    {% else %}
     <a class="feed-work cat-{{ w.category.value }}" href="/u/{{ u.username }}/w/{{ w.id }}">
       <span class="thumb{% if w.category == Category.music %} square{% endif %}">{{ cover_img(w) }}</span>
       <span class="feed-work-info">
@@ -69,6 +78,7 @@
         {% if w.category in TIERED %}{{ verdict_badges(item.entry) }}{% endif %}
       </span>
     </a>
+    {% endif %}
 
     {% if item.comments %}
       <ul class="comments">

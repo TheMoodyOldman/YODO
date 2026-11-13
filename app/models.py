@@ -46,6 +46,7 @@ class User(SQLModel, table=True):
     contacts: str | None = None  # JSON, see app.contacts
     onboarding_hidden: bool | None = None  # 新手教學 card dismissed
     tour_state: str | None = None  # 互動教學: None (not offered yet) / active / done / skipped
+    season_banner_dismissed: str | None = None  # 探索 本季新番 banner closed for this season ("2026-FALL")
     email: str | None = Field(default=None, index=True)  # lowercase; unique (checked in app.accounts)
     email_verified_at: datetime | None = None
     created_at: datetime = Field(default_factory=utcnow)
@@ -92,6 +93,8 @@ class CollectionEntry(SQLModel, table=True):
     tier: str | None = None  # anime / film / book: app.anime.AnimeTier
     tag: str | None = None  # anime / film / book: one of that category's tags (app.anime)
     status: str | None = None  # books: app.anime.BookStatus
+    season: str | None = None  # anime: 本季新番 quick pick, "2026-FALL" (app.seasonal); kept after the season ends
+    quick_pick: bool | None = None  # added by a cover quick pick (本季新番); un-picking it before it is rated removes it
     hidden: bool = False
     pending_review: bool = False  # imported/synced items await user confirmation before going public
     added_at: datetime = Field(default_factory=utcnow)
@@ -167,6 +170,7 @@ class ActivityKind(StrEnum):
     played = "played"  # Steam playtime gained (minutes)
     listened = "listened"  # plays this month gained (plays, songs; work = top song)
     challenge = "challenge"  # 30 天挑戰 pick; note = "<kind>:<day>"
+    season_picks = "season_picks"  # 本季新番 quick pick; note = season ("2026-FALL"), no work (listed at render time)
 
 
 class Activity(SQLModel, table=True):

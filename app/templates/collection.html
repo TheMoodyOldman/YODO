@@ -52,6 +52,11 @@
     </section>
 
   {% elif category == Category.anime %}
+    <a class="season-entry" href="/me/season">
+      <span class="season-entry-mark" aria-hidden="true">📺</span>
+      <span class="season-entry-text"><strong>本季新番快速勾選</strong><span class="muted small">{{ season_label_now }}在追哪些？點封面就好，不用記集數</span></span>
+      <span class="arrow" aria-hidden="true">→</span>
+    </a>
     <section class="panel">
       <h2>加入動畫</h2>
       {% set srch = searches[Category.anime] %}

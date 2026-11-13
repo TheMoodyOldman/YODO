@@ -25,6 +25,7 @@ from app.models import (
     Work,
 )
 from app.privacy import get_privacy
+from app.seasonal import current_key, label as season_label
 
 REGIONS = [
     "基隆市", "台北市", "新北市", "桃園市", "新竹市", "新竹縣", "苗栗縣", "台中市", "彰化縣", "南投縣", "雲林縣",
@@ -45,6 +46,10 @@ CATEGORY_FACTOR = {Category.game: 1.0, Category.anime: 1.2, Category.music: 0.6,
 ARTIST_FACTOR = 0.5
 TIER_WEIGHT = {"must_watch": 3.0, "great": 2.5, "good": 2.0, "okay": 1.2, "bad": 0.6, "dropped": 0.4}
 SAME_TIER_BONUS, SAME_TAG_BONUS = 1.3, 1.2
+# 本季新番 quick picks carry no verdict yet: they count a little less than 普通 (1.2), and only the
+# best few shows two people both merely picked this season count, so a popular season can't inflate a match.
+SEASON_PICK_WEIGHT = 0.8
+SEASONAL_CAP = 3
 REGION_BONUS, LOOKING_BONUS = 0.5, 0.5
 HOUR_MARKS = (1000, 500, 300, 200, 100, 50, 20, 10)
 
@@ -55,6 +60,7 @@ class Reason:
     category: Category
     rare: bool
     score: float
+    seasonal: bool = False  # both only picked it in 本季新番, neither has rated it: listed after the others
 
 
 @dataclass
@@ -76,7 +82,13 @@ def _weight(entry: CollectionEntry, category: Category) -> float:
         return math.log1p((entry.playtime_minutes or 0) / 60)
     if category == Category.music:
         return math.log1p(entry.play_count or 0)
+    if entry.season and not entry.tier:
+        return SEASON_PICK_WEIGHT
     return TIER_WEIGHT.get(entry.tier or "", 1.0)
+
+
+def _season_only(mine: CollectionEntry, theirs: CollectionEntry) -> bool:
+    return bool(mine.season and theirs.season and not mine.tier and not theirs.tier)
 
 
 def _eligible_ids(session: Session, viewer: User) -> list[int]:
@@ -129,6 +141,9 @@ def _reason_text(work: Work, mine: CollectionEntry, theirs: CollectionEntry) -> 
     if work.category == Category.game:
         return _hours_text(work.title, mine.playtime_minutes or 0, theirs.playtime_minutes or 0)
     if work.category in TIERED:
+        if _season_only(mine, theirs) and mine.season == theirs.season:
+            when = "這季" if mine.season == current_key() else season_label(mine.season)
+            return f"你們{when}都在追《{work.title}》"
         if mine.tier and mine.tier == theirs.tier:
             return f"你們都把《{work.title}》評為「{TIER_LABELS[mine.tier]}」"
         if mine.tag and mine.tag == theirs.tag:
@@ -213,6 +228,7 @@ def find_matches(session: Session, viewer: User, limit: int = 20) -> list[Match]
     my_looking, matches = set(looking_keys(viewer)), []
     for uid in candidates:
         reasons: list[Reason] = []
+        seasonal: list[Reason] = []
         for work_id in mine.keys() & theirs[uid].keys():
             my_entry, work = mine[work_id]
             their_entry = theirs[uid][work_id]
@@ -224,7 +240,13 @@ def find_matches(session: Session, viewer: User, limit: int = 20) -> list[Match]
                     score *= SAME_TIER_BONUS
                 if my_entry.tag and my_entry.tag == their_entry.tag:
                     score *= SAME_TAG_BONUS
-            reasons.append(Reason(_reason_text(work, my_entry, their_entry), work.category, rare(df), score))
+            reason = Reason(_reason_text(work, my_entry, their_entry), work.category, rare(df), score)
+            if work.category == Category.anime and _season_only(my_entry, their_entry):
+                reason.seasonal = True
+                seasonal.append(reason)
+            else:
+                reasons.append(reason)
+        reasons += sorted(seasonal, key=lambda r: r.score, reverse=True)[:SEASONAL_CAP]
         for key in my_artists.keys() & their_artists[uid].keys():
             name, my_plays = my_artists[key]
             df = artist_df.get(key, 1)
@@ -236,7 +258,8 @@ def find_matches(session: Session, viewer: User, limit: int = 20) -> list[Match]
         user = users[uid]
         common = [LOOKING_LABELS[k] for k in looking_keys(user) if k in my_looking]
         same_region = bool(viewer.region and viewer.region == user.region)
-        reasons.sort(key=lambda r: r.score, reverse=True)
+        # Rated or plain shared tastes first (rarer = higher score), "這季都在追" after them.
+        reasons.sort(key=lambda r: (r.seasonal, -r.score))
         total = sum(r.score for r in reasons) + REGION_BONUS * same_region + LOOKING_BONUS * len(common)
         matches.append(Match(user, total, len(reasons), reasons[:3], common, same_region))
 

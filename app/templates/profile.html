@@ -144,6 +144,21 @@
 {# One full panel per category #}
 {% for section in shown %}
   <div role="tabpanel" data-panel="{{ section.category.value }}">
+    {% if section.season_picks %}
+      <section class="season-row">
+        <div class="category-head">
+          <h2>本季在追 <span class="muted small">{{ season_label_now }} · {{ section.season_picks | length }} 部</span></h2>
+          {% if is_owner %}<a class="link see-all" href="/me/season?next={{ ('/u/' ~ owner.username ~ '#anime') | urlencode }}">編輯 →</a>{% endif %}
+        </div>
+        <div class="row-scroll">
+          {% for entry, work in section.season_picks %}
+            <a class="card" href="/u/{{ owner.username }}/w/{{ work.id }}">{% include "_work_card.html" %}</a>
+          {% endfor %}
+        </div>
+      </section>
+    {% elif is_owner and section.category == Category.anime %}
+      <a class="notice notice-link season-cta" href="/me/season?next={{ ('/u/' ~ owner.username ~ '#anime') | urlencode }}">📺 勾選{{ season_label_now }}在追的新番，30 秒完成 →</a>
+    {% endif %}
     {% if styles.get(section.category) and styles[section.category].genres %}
       <details class="style-details" open>
         <summary>{{ owner.display_name }} 喜歡的{{ CATEGORY_LABELS[section.category] }}風格</summary>

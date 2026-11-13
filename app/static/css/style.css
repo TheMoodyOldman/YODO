@@ -1583,3 +1583,74 @@ html.tour-enter main.container { animation: tour-in 0.5s cubic-bezier(.2,.8,.2,1
 .invite-toast.in { transform: translate(-50%, 0); opacity: 1; }
 .invite-toast p { margin: 0 0 10px; font-size: 1rem; }
 .invite-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ===================== 本季新番快速勾選 ===================== */
+.season-chip {
+  display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+/* 探索 banner */
+.season-banner {
+  position: relative; display: flex; align-items: stretch; margin: 0 0 16px; border-radius: var(--radius);
+  background: var(--grad); color: #fff; box-shadow: 0 8px 22px rgb(109 91 255 / 0.28); overflow: hidden;
+}
+.season-banner-link { flex: 1; display: flex; align-items: center; gap: 12px; padding: 14px 8px 14px 16px; color: inherit; text-decoration: none; min-height: 64px; }
+.season-banner-mark { font-size: 1.8rem; line-height: 1; flex: none; }
+.season-banner-text { display: flex; flex-direction: column; gap: 2px; }
+.season-banner-text strong { font-size: 1rem; line-height: 1.35; }
+.season-banner-text .small { opacity: 0.9; }
+.season-banner-close-form { display: flex; margin: 0; }
+.season-banner-close {
+  width: 48px; border: 0; background: rgb(255 255 255 / 0.12); color: #fff; font-size: 1.4rem; line-height: 1; cursor: pointer;
+}
+.season-banner-close:hover, .season-banner-close:focus-visible { background: rgb(255 255 255 / 0.25); }
+/* 收藏 → 動畫 entry */
+.season-entry {
+  display: flex; align-items: center; gap: 12px; margin: 0 0 16px; padding: 14px 16px; min-height: 64px;
+  border-radius: var(--radius); background: var(--grad-soft); color: var(--fg); text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.season-entry:hover { box-shadow: var(--shadow-lift); }
+.season-entry-mark { font-size: 1.6rem; flex: none; }
+.season-entry-text { flex: 1; display: flex; flex-direction: column; }
+.season-entry .arrow { color: var(--accent); font-size: 1.2rem; }
+/* pick page */
+.season-head { margin-bottom: 8px; }
+.season-bar {
+  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0 -16px 14px; padding: 10px 16px; background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px); border-bottom: 1px solid var(--border);
+}
+.season-count { margin: 0; font-weight: 700; }
+.season-count strong { font-size: 1.25rem; color: var(--accent); }
+.season-bar .btn { min-width: 96px; min-height: 44px; }
+.season-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 14px 12px; }
+@media (max-width: 480px) { .season-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px; } }
+.season-pick { position: relative; display: flex; flex-direction: column; gap: 6px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.season-pick input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.season-cover {
+  position: relative; display: block; aspect-ratio: 2 / 3; border-radius: 14px; overflow: hidden;
+  background: var(--grad-soft); box-shadow: var(--shadow); outline: 3px solid transparent; outline-offset: 2px;
+  transition: transform 0.12s ease, outline-color 0.12s ease, filter 0.12s ease;
+}
+.season-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.season-initial { display: grid; place-items: center; height: 100%; font-size: 2rem; font-weight: 800; color: var(--accent); }
+.season-check {
+  position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  background: rgb(0 0 0 / 0.35); border: 2px solid #fff; color: transparent; transition: background 0.12s ease, transform 0.12s ease;
+}
+.season-pick:active .season-cover { transform: scale(0.97); }
+.season-pick:has(input:checked) .season-cover { outline-color: var(--accent-2); }
+.season-pick:has(input:checked) .season-check { background: var(--grad); color: #fff; transform: scale(1.08); }
+.season-pick:has(input:focus-visible) .season-cover { outline-color: var(--accent); }
+.season-title { font-size: 0.82rem; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.season-pick:has(input:checked) .season-title { color: var(--accent); }
+/* profile row + feed item */
+.season-row { margin-bottom: 8px; }
+.season-row h2 { margin-top: 8px; }
+.season-cta { margin: 4px 0 16px; }
+.feed-season { display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; scrollbar-width: none; text-decoration: none; }
+.feed-season-cover { flex: none; width: 64px; aspect-ratio: 2 / 3; border-radius: 10px; overflow: hidden; background: var(--grad-soft); box-shadow: var(--shadow); }
+.feed-season-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.feed-season-more { flex: none; width: 64px; display: grid; place-items: center; border-radius: 10px; background: var(--grad-soft); color: var(--accent); font-weight: 800; }

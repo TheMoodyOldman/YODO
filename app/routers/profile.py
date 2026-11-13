@@ -8,7 +8,7 @@ from app.models import Category, CollectionEntry, User, Work
 from app.anime import BOOK_STATUSES, TIERED, TIERS, status_rank, tier_rank
 from app.genres import user_style
 from app.photos import photo_ids
-from app import contacts, messages, onboarding
+from app import contacts, messages, onboarding, seasonal
 from app.matching import LOOKING_LABELS, looking_keys
 from app.music import top_artists, top_songs
 from app.privacy import can_view, get_privacy
@@ -30,6 +30,8 @@ def profile(request: Request, username: str, session: SessionDep, me: CurrentUse
         return render(request, "not_found.html", status_code=404, me=me)
 
     privacy = get_privacy(session, owner.id)
+    is_owner = me is not None and me.id == owner.id
+    season_key = seasonal.current_key()
     sections = []
     for category in Category:
         if not can_view(privacy[category], owner, me, is_friend=rel == Relation.friends):
@@ -62,12 +64,13 @@ def profile(request: Request, username: str, session: SessionDep, me: CurrentUse
             section["groups"] = [
                 (label, [r for r in rows if r[0].tier == tier]) for tier, label in TIERS
             ] + [("未評價", [r for r in rows if not r[0].tier])]
+        if category == Category.anime:  # 「本季在追」 row on top of the anime tab
+            section["season_picks"] = seasonal.picks(session, owner.id, season_key, public_only=not is_owner)
         if category == Category.music:
             section["top_artists"] = top_artists(list(rows), TOP_N)
             section["top_songs"] = top_songs(list(rows), TOP_N)
         sections.append(section)
 
-    is_owner = me is not None and me.id == owner.id
     return render(
         request,
         "profile.html",
@@ -86,5 +89,6 @@ def profile(request: Request, username: str, session: SessionDep, me: CurrentUse
         photos=photo_ids(session, owner.id),
         guide=onboarding.card(session, me) if is_owner else None,
         contacts=contacts.visible(owner, me, rel == Relation.friends),
+        season_label_now=seasonal.label(season_key),
         can_message=bool(me) and not is_owner and messages.can_message(session, me, owner),
     )

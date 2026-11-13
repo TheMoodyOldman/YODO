@@ -7,10 +7,10 @@ from sqlmodel import Session, col, select
 
 from app.auth import RequiredUser, VerifiedUser
 from app.db import SessionDep
-from app.models import Activity, CollectionEntry, Comment, User, Visibility, Work
+from app.models import Activity, ActivityKind, Category, CollectionEntry, Comment, User, Visibility, Work
 from app.privacy import get_privacy
 from app.social import friend_ids
-from app import onboarding
+from app import onboarding, seasonal
 from app.templating import flash, render
 
 router = APIRouter()
@@ -27,17 +27,22 @@ class FeedItem:
     work: Work
     entry: CollectionEntry
     comments: list[tuple[Comment, User]] = field(default_factory=list)
+    picks: list[tuple[CollectionEntry, Work]] = field(default_factory=list)  # 本季新番 item: the shows
+    text: str = ""  # 本季新番 item: 「這季在追《A》、《B》等 5 部新番」
 
 
 def visible_items(session: Session, viewer: User, activities: list[Activity]) -> list[FeedItem]:
     """Activities the viewer may see: from themselves or friends, in categories shared with
     friends, about entries that are still in the collection and not hidden or awaiting review."""
     friends = friend_ids(session, viewer.id)
-    acts = [a for a in activities if a.work_id and (a.user_id == viewer.id or a.user_id in friends)]
+    acts = [
+        a for a in activities
+        if (a.work_id or a.kind == ActivityKind.season_picks) and (a.user_id == viewer.id or a.user_id in friends)
+    ]
     if not acts:
         return []
     user_ids = {a.user_id for a in acts}
-    work_ids = {a.work_id for a in acts}
+    work_ids = {a.work_id for a in acts if a.work_id}
     users = {u.id: u for u in session.exec(select(User).where(col(User.id).in_(user_ids)))}
     works = {w.id: w for w in session.exec(select(Work).where(col(Work.id).in_(work_ids)))}
     entries = {
@@ -50,6 +55,16 @@ def visible_items(session: Session, viewer: User, activities: list[Activity]) ->
 
     items = []
     for a in acts:
+        if a.kind == ActivityKind.season_picks:
+            # One merged item, listing the picks as they are now (un-picked / hidden shows drop out).
+            if a.user_id != viewer.id and privacy[a.user_id][Category.anime] == Visibility.private:
+                continue
+            picks = seasonal.picks(session, a.user_id, a.note, public_only=a.user_id != viewer.id)
+            if not picks:
+                continue
+            text = seasonal.feed_sentence(a.note, [w.title for _, w in picks], len(picks))
+            items.append(FeedItem(a, users[a.user_id], picks[0][1], picks[0][0], picks=picks, text=text))
+            continue
         work, entry = works.get(a.work_id), entries.get((a.user_id, a.work_id))
         if work is None or entry is None or entry.hidden or entry.pending_review:
             continue

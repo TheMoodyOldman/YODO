@@ -10,7 +10,7 @@ from app.auth import RequiredUser, safe_next
 from app.db import SessionDep
 from app.activity import has_today, record
 from app.models import ActivityKind, Category, CollectionEntry, User, Visibility, Work
-from app import anime_search, contacts, onboarding
+from app import anime_search, contacts, onboarding, seasonal
 from app.anime import TIERED, parse_status, parse_tag, parse_tier, status_rank, tier_rank
 from app.matching import LOOKING_FOR, REGIONS, looking_keys
 from app.music import LASTFM, YOUTUBE
@@ -154,6 +154,7 @@ async def collection(
         steam_profile_url=steam.profile_url(me.steam_id) if me.steam_id else None,
         rate_entry=rate_entry,
         rate_next=rate_next,
+        season_label_now=seasonal.label(seasonal.current_key()),
     )
 
 

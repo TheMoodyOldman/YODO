@@ -23,6 +23,7 @@ from app.db import engine
 from app.models import CATEGORY_LABELS, VISIBILITY_LABELS, Category, Visibility
 from app.social import Relation, incoming_request_count
 from app.messages import unread_count
+from app.seasonal import label as season_label
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
@@ -97,6 +98,7 @@ templates.env.globals.update(
     avatar_hue=avatar_hue,
     asset=asset,
     challenge_label=challenge_label,
+    season_label=season_label,
 )
 
 

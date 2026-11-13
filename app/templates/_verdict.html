@@ -53,8 +53,9 @@
 
 {# Read-only badges for a saved verdict. #}
 {% macro verdict_badges(entry) -%}
-  {% if entry.tier or entry.tag or entry.status %}
+  {% if entry.tier or entry.tag or entry.status or entry.season %}
     <div class="verdict">
+      {% if entry.season %}<span class="season-chip">{{ season_label(entry.season) }}</span>{% endif %}
       {% if entry.status %}<span class="status-chip status-{{ entry.status }}">{{ STATUS_LABELS[entry.status] }}</span>{% endif %}
       {% if entry.tier %}<span class="tier tier-{{ entry.tier }}">{{ TIER_LABELS[entry.tier] }}</span>{% endif %}
       {% if entry.tag %}<span class="tag-chip">#{{ entry.tag }}</span>{% endif %}

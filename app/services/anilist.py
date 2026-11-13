@@ -85,6 +85,20 @@ async def get_anime(anilist_id: int) -> Anime | None:
     return _parse(data["Media"]) if data and data.get("Media") else None
 
 
+_SEASON = f"""
+query ($season: MediaSeason, $year: Int, $perPage: Int) {{
+  Page(perPage: $perPage) {{
+    media(season: $season, seasonYear: $year, type: ANIME, format_in: [TV, ONA], sort: POPULARITY_DESC, isAdult: false) {{ {_FIELDS} }}
+  }}
+}}"""
+
+
+async def season_anime(season: str, year: int, per_page: int = 50) -> list[Anime]:
+    """A season's TV and ONA shows, most popular first. season: WINTER / SPRING / SUMMER / FALL."""
+    data = await _query(_SEASON, {"season": season, "year": year, "perPage": per_page})
+    return [_parse(m) for m in data["Page"]["media"]] if data else []
+
+
 _DETAILS = """
 query ($id: Int) {
   Media(id: $id, type: ANIME) {

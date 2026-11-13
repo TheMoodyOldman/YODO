@@ -4,6 +4,18 @@
 {% block content %}
 {% from "_icons.html" import icon %}
 {% include "_explore_tabs.html" %}
+{% if season_banner %}
+  <div class="season-banner" data-season-banner>
+    <a class="season-banner-link" href="/me/season?next=/match">
+      <span class="season-banner-mark" aria-hidden="true">📺</span>
+      <span class="season-banner-text"><strong>{{ season_banner }}新番開播了，這季你在追哪些？</strong><span class="small">點封面勾選，30 秒更新動畫收藏</span></span>
+    </a>
+    <form method="post" action="/me/season/banner/dismiss" class="season-banner-close-form">
+      <input type="hidden" name="next" value="/match">
+      <button type="submit" class="season-banner-close" aria-label="關閉，這一季不再顯示">×</button>
+    </form>
+  </div>
+{% endif %}
 <header class="page-head">
   <p class="eyebrow gradient-text">探索</p>
   <h1>和你品味相近的人</h1>
