@@ -264,6 +264,8 @@ Kobo 原始 SQLite 僅在瀏覽器的本機 WebAssembly 解析，不上傳伺服
 
 `tests/test_kobo.py`：登入保護、批次匯入、重複與跨來源去重、既有資料保留、公開確認、使用者隔離、無效／超量資料、書籍詳情頁。會呼叫 `tests/kobo_reader.cjs`，用虛構 SQLite 驗證實際 WASM 解析、章節過濾、讀完／在讀／未讀及敏感欄位不外傳；執行此套測試需有 Node.js。
 
-目前以虛構資料測試，尚未用真人閱讀器檔案驗證。可用個人閱讀器實測本機解析與狀態；請勿將真實 KoboReader.sqlite 放入 Git repo、issue 或公開測試附件。
+已用實際瀏覽器與虛構 Kobo SQLite 完成選檔 → 本機解析 → 確認 → 公開名片流程，另驗證取消勾選後隱藏、無效檔案錯誤恢復及批次貼上。伺服器請求記錄確認未上傳原始 SQLite 或假敏感欄位；本次書櫃請求僅 345 bytes。驗證紀錄見 `tests/evidence/kobo-feasibility.json`，畫面見 `tests/evidence/kobo-review.jpg`。
+
+目前仍未用真人閱讀器檔案驗證。可用個人閱讀器實測本機解析與狀態；請勿將真實 KoboReader.sqlite 放入 Git repo、issue 或公開測試附件。
 
 參考：[Kobo 官方筆記匯出說明](https://help.kobo.com/hc/en-us/articles/29991333812631-Export-annotations-from-your-books)、[KoboReader 欄位查詢範例](https://gist.github.com/ozgurkalan/730f76e2ca7df552151c09a1df8d36bd)、[sql.js 原始專案](https://github.com/sql-js/sql.js)。

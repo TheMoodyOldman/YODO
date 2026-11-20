@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-20",
+  "environment": "Actual in-app browser against isolated FastAPI server on loopback; fictional SQLite fixtures only",
+  "checks": {
+    "file_chooser_to_private_review": true,
+    "default_started_filter_excludes_unread_and_chapters": true,
+    "read_and_reading_status_preserved": true,
+    "confirmation_persists_selected_book": true,
+    "unchecked_book_hidden": true,
+    "invalid_sqlite_shows_error_and_reenables_input": true,
+    "paste_two_titles_and_author_to_review": true
+  },
+  "upload_audit": [
+    {
+      "request_bytes": 345,
+      "raw_sqlite_uploaded": false,
+      "synthetic_secret_uploaded": false,
+      "metadata_field": true
+    },
+    {
+      "request_bytes": 277,
+      "raw_sqlite_uploaded": false,
+      "synthetic_secret_uploaded": false,
+      "metadata_field": false
+    }
+  ],
+  "fixture_database_bytes": 12288,
+  "limits": [
+    "No physical Kobo or real user library was accessed.",
+    "Firmware compatibility, synchronization completeness and performance under large libraries still need real-device testing.",
+    "No automated reusable browser E2E suite was added; this records the interactive browser validation."
+  ],
+  "evidence": "kobo-review.jpg"
+}
