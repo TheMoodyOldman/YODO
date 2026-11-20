@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-21",
+  "cause": "live demo game cover_url values were empty; real-cover build not applied to live dataset",
+  "repair": {
+    "games_with_verified_covers": 178,
+    "unique_cover_urls_requested_over_public_https": 150,
+    "all_public_image_requests_decodable": true,
+    "accounts_preserved": 26,
+    "database_replaced": false
+  },
+  "tests": {
+    "new_cover_fallback_tests": 4,
+    "new_steam_matching_tests": 4,
+    "local_assets_regression_checks": 23,
+    "recap_regression_checks": 35,
+    "recap_anilist_dependency": "synthetic fixture; live search was unavailable in initial run"
+  },
+  "browser": "visible game thumbnails loaded with positive naturalWidth",
+  "recap_image_dimensions": [
+    1080,
+    1920
+  ]
+}

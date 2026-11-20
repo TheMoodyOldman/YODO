@@ -365,12 +365,38 @@ async def _film_search(session: Session, cache: dict, query: str, kind: str) -> 
 STEAM_SEARCH = "https://store.steampowered.com/api/storesearch/"
 
 
+def _matching_steam_app(items: list[dict], name: str) -> dict | None:
+    """A base game or its named edition; never a sequel / DLC merely ranked first."""
+    import re
+    import unicodedata
+
+    def normal(value):
+        value = str(value).translate(str.maketrans('', '', '™®©'))
+        return ''.join(c for c in unicodedata.normalize('NFKC', value).casefold() if c.isalnum())
+
+    wanted = normal(name)
+    aliases = {normal('Overwatch 2'): normal('Overwatch')}
+    wanted = aliases.get(wanted, wanted)
+    apps = [i for i in items if i.get('type') == 'app' and i.get('id')]
+    for item in apps:
+        if normal(item.get('name', '')) == wanted:
+            return item
+    # Accept an edition suffix, while retaining the complete base title (and sequel number).
+    edition = re.compile(r'\s*[:–—-]\s*(?:The Complete Edition|Definitive Edition|GOTY Edition|Farewell Edition|The Final Cut|Remastered)\s*$', re.I)
+    for item in apps:
+        title = str(item.get('name', '')).translate(str.maketrans('', '', '™®©'))
+        base = edition.sub('', title)
+        if base != title and normal(base) == wanted:
+            return item
+    return None
+
+
 async def _steam_find(client: httpx.AsyncClient, cache: dict, name: str) -> tuple[int, str] | None:
     """(appid, Chinese store name) of the first Steam store result for `name`; looked up once per name."""
     if name in cache:
         return cache[name]
     async def lookup():
-        r = await client.get(STEAM_SEARCH, params={"term": name, "l": "tchinese", "cc": "TW"})
+        r = await client.get(STEAM_SEARCH, params={"term": name, "l": "english", "cc": "TW"})
         if r.status_code == 429:
             raise httpx.HTTPError("Steam rate limit")
         return r.json()
@@ -380,8 +406,8 @@ async def _steam_find(client: httpx.AsyncClient, cache: dict, name: str) -> tupl
     except (httpx.HTTPError, ValueError) as e:
         print(f"Steam store unavailable for {name}: {e}")
         return None  # not cached: a later person may find it
-    items = [i for i in data.get("items", []) if i.get("type") == "app" and i.get("id")]
-    found = (int(items[0]["id"]), items[0]["name"]) if items else None
+    item = _matching_steam_app(data.get("items", []), name)
+    found = (int(item["id"]), item["name"]) if item else None
     await asyncio.sleep(0.4)
     cache[name] = found
     return found
