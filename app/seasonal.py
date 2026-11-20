@@ -13,13 +13,12 @@ from datetime import date, datetime, timedelta
 
 from sqlmodel import Session, col, select
 
-from app import anime_search
+from app import anime_search, catalog
 from app.activity import today
 from app.config import settings
 from app.importers.youtube import TAIPEI
 from app.models import Activity, ActivityKind, Category, CollectionEntry, User, Work, utcnow
 from app.services import anilist
-from app.services.cache import ttl_cache
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ SEASON_LABELS = {"WINTER": "冬季", "SPRING": "春季", "SUMMER": "夏季", "FA
 START_MONTH = {"WINTER": 1, "SPRING": 4, "SUMMER": 7, "FALL": 10}
 BANNER_WEEKS = 8  # the 探索 banner shows during a season's first 8 weeks
 LIST_SIZE = 50
-LIST_CACHE_SECONDS = 12 * 3600
+LIST_MAX_AGE = timedelta(hours=12)  # refreshed after this; an older copy is still used if AniList fails
 FEED_TITLES = 2  # titles named in the feed sentence before 「等 N 部」
 
 
@@ -91,57 +90,99 @@ class SeasonAnime:
     cover_url: str | None
     year: int | None
     format: str | None
+    zh_checked: bool = False  # the Chinese title was looked up (found or not)
 
 
-# AniList id -> Traditional Chinese title (None = looked up, none found). Filled in the background.
+# AniList id -> Traditional Chinese title (None = looked up, none found). Filled in the background
+# and written into the cached list on the next page load.
 _zh_titles: dict[int, str | None] = {}
 _warming: set[int] = set()
 
 
-@ttl_cache(LIST_CACHE_SECONDS)
-async def _fetch(key: str) -> list[anilist.Anime]:
+def _cache_key(key: str) -> str:
+    return f"season:{key}"
+
+
+async def _fetch(key: str) -> list[dict]:
+    """The season from AniList as plain dicts for the cache. "zh" is added once looked up."""
     year, season = parse(key)
-    return await anilist.season_anime(season, year, LIST_SIZE)
-
-
-async def _warm_titles(items: list[anilist.Anime]) -> None:
-    """Look up Chinese titles one by one (Bangumi is rate limited); the next page load shows them."""
     try:
-        for a in items:
-            if a.id in _zh_titles:
-                continue
-            _zh_titles[a.id] = await anime_search.chinese_title(a.original_title)
-            await asyncio.sleep(anime_search.BANGUMI_DELAY)
-    finally:
-        _warming.difference_update(a.id for a in items)
-
-
-async def season_list(session: Session, key: str) -> list[SeasonAnime]:
-    """This season's TV/ONA shows by popularity, with Chinese titles where we know them.
-    Raises anilist.AniListError when AniList is unreachable and nothing is cached."""
-    try:
-        items = await _fetch(key)
+        items = await anilist.season_anime(season, year, LIST_SIZE)
     except anilist.AniListError as e:
         if e.retry_after is None or e.retry_after > 5:
             raise
         await asyncio.sleep(e.retry_after)
-        items = await _fetch(key)
+        items = await anilist.season_anime(season, year, LIST_SIZE)
+    return [{"id": a.id, "title": a.title, "original_title": a.original_title, "cover_url": a.cover_url,
+             "year": a.year, "format": a.format} for a in items]
 
-    ids = [str(a.id) for a in items]
+
+async def _warm_titles(items: list[dict]) -> None:
+    """Look up Chinese titles one by one (Bangumi is rate limited); the next page load shows them."""
+    try:
+        for item in items:
+            if item["id"] not in _zh_titles:
+                _zh_titles[item["id"]] = await anime_search.chinese_title(item["original_title"])
+                await asyncio.sleep(anime_search.BANGUMI_DELAY)
+    finally:
+        _warming.difference_update(i["id"] for i in items)
+
+
+async def _cached_list(session: Session, key: str) -> list[dict]:
+    """The season list from the database cache (refreshed from AniList when old), with every Chinese
+    title learned so far. Raises anilist.AniListError only when AniList fails and nothing is cached."""
+    ckey = _cache_key(key)
+    old = catalog.get(session, ckey)
+    old_zh = {i["id"]: i["zh"] for i in old[0] if "zh" in i} if old else {}
+
+    async def fetch() -> list[dict]:
+        fresh = await _fetch(key)
+        for item in fresh:  # keep titles already looked up
+            if item["id"] in old_zh:
+                item["zh"] = old_zh[item["id"]]
+        return fresh
+
+    items = await catalog.cached(session, ckey, LIST_MAX_AGE, fetch, (anilist.AniListError,))
+    learned = [i for i in items if "zh" not in i and i["id"] in _zh_titles]
+    for item in learned:
+        item["zh"] = _zh_titles[item["id"]]
+    if learned:
+        catalog.put(session, ckey, items, fetched_at=catalog.get(session, ckey)[1])
+    return items
+
+
+async def season_list(session: Session, key: str, *, warm: bool = True) -> list[SeasonAnime]:
+    """This season's TV/ONA shows by popularity, with Chinese titles where we know them.
+    Raises anilist.AniListError when AniList is unreachable and nothing is cached."""
+    items = await _cached_list(session, key)
+    ids = [str(i["id"]) for i in items]
     known = {
         int(w.external_id): w.title
         for w in session.exec(select(Work).where(Work.source == "anilist", col(Work.external_id).in_(ids)))
         if w.zh_checked_at is not None
     }
-    missing = [a for a in items if a.id not in known and a.id not in _zh_titles and a.id not in _warming]
-    if missing and settings.background_jobs:
-        _warming.update(a.id for a in missing)
+    missing = [i for i in items if i["id"] not in known and "zh" not in i and i["id"] not in _warming]
+    if missing and warm and settings.background_jobs:
+        _warming.update(i["id"] for i in missing)
         asyncio.get_running_loop().create_task(_warm_titles(missing))
 
     return [
-        SeasonAnime(a.id, known.get(a.id) or _zh_titles.get(a.id) or a.title, a.original_title, a.cover_url, a.year, a.format)
-        for a in items
+        SeasonAnime(i["id"], known.get(i["id"]) or i.get("zh") or i["title"], i["original_title"], i["cover_url"],
+                    i["year"], i["format"], zh_checked=i["id"] in known or "zh" in i)
+        for i in items
     ]
+
+
+async def prefetch(session: Session, key: str) -> int:
+    """Fetch the season list and look up every Chinese title now (about a second per show), so the
+    pick page needs neither AniList nor Bangumi later. Returns how many shows are cached."""
+    items = await _cached_list(session, key)
+    for item in items:
+        if "zh" not in item:
+            item["zh"] = _zh_titles[item["id"]] = await anime_search.chinese_title(item["original_title"])
+            await asyncio.sleep(anime_search.BANGUMI_DELAY)
+    catalog.put(session, _cache_key(key), items, fetched_at=catalog.get(session, _cache_key(key))[1])
+    return len(items)
 
 
 def _work_for(session: Session, a: SeasonAnime) -> Work:
@@ -153,7 +194,7 @@ def _work_for(session: Session, a: SeasonAnime) -> Work:
         category=Category.anime, source="anilist", external_id=str(a.id), title=a.title,
         original_title=a.original_title, cover_url=a.cover_url, year=a.year,
     )
-    if a.id in _zh_titles:  # looked up already; otherwise the background title pass does it
+    if a.zh_checked or a.id in _zh_titles:  # looked up already; otherwise the background title pass does it
         work.zh_checked_at = utcnow()
     session.add(work)
     session.flush()

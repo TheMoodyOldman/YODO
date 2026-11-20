@@ -1,11 +1,17 @@
 """Public facts about a work for its detail page, from the source it came from. Always best-effort:
-any lookup failure just yields a sparser page."""
+any lookup failure just yields a sparser page.
+
+In demo mode (LOCAL_ASSETS_DIR set) the facts are kept in the database (catalogcache, one row per
+work, filled ahead by scripts.seed_demo), so opening a work page doesn't touch the network."""
 
 import html
 import re
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from urllib.parse import quote
 
+from sqlmodel import Session
+
+from app import catalog, local_assets
 from app.models import Work
 from app.services import anilist, books, lastfm, steam, tmdb
 from app.services.cache import ttl_cache
@@ -154,7 +160,35 @@ async def _book(source: str, external_id: str) -> WorkInfo:
     return info
 
 
-async def get_work_info(work: Work) -> WorkInfo:
+def _cache_key(work: Work) -> str:
+    return f"workinfo:{work.source}:{work.external_id}"
+
+
+def _from_cache(value: dict) -> WorkInfo:
+    info = WorkInfo(**value)
+    info.facts = [tuple(f) for f in info.facts]
+    info.link = tuple(info.link) if info.link else None
+    return info
+
+
+async def cache_work_info(session: Session, work: Work) -> WorkInfo:
+    """Look the work up now and keep the result in the database (empty results aren't kept)."""
+    info = await _lookup(work)
+    if info != WorkInfo():
+        catalog.put(session, _cache_key(work), asdict(info))
+    return info
+
+
+async def get_work_info(work: Work, session: Session | None = None) -> WorkInfo:
+    if session is not None and local_assets.folder() is not None:  # demo mode: database first
+        cached = catalog.get(session, _cache_key(work))
+        if cached is not None:
+            return _from_cache(cached[0])
+        return await cache_work_info(session, work)
+    return await _lookup(work)
+
+
+async def _lookup(work: Work) -> WorkInfo:
     try:
         if work.source == "steam":
             return await _steam(work.external_id)

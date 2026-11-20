@@ -1,30 +1,40 @@
-"""Demo data for local development and the 複賽 demo:
+"""Build the demo database (demo.db) from scratch, for the 複賽 demo:
 
 - account `demo`: rated anime, Steam-style games with monthly hours, songs with monthly plays
   (so Recap has something to show), and 本季新番 picks;
 - a few `demo_` fake people with picks and shared favourites (2 of them friends with demo for the
-  feed and messages, 2 not, for 探索 recommendations), plus a short chat between demo and 小雨.
+  feed and messages, 2 not, for 探索 recommendations), plus a short chat between demo and 小雨;
+- the caches a demo needs filled in advance: this season's list with Chinese titles, and song
+  previews for 猜歌, so the demo doesn't wait on AniList, Bangumi or iTunes.
 
-Safe to run again: it only adds what is missing. Needs the network (AniList, Bangumi, iTunes).
-Usage: .venv\\Scripts\\python.exe -m scripts.seed_demo
+It writes the snapshot demo.seed.db and copies it to demo.db; `python -m scripts.reset_demo` later
+restores demo.db from that snapshot without the network. Real data (app.db) is never touched.
+Needs the network. Usage: .venv\\Scripts\\python.exe -m scripts.seed_demo
 """
 
-import asyncio
-import secrets
-from datetime import date, datetime, timedelta
+import os
 
-import httpx
-from sqlmodel import Session, col, select
+from scripts import demo_db
 
-from app import anime_search, seasonal
-from app.auth import hash_password
-from app.db import engine, init_db
-from app.importers.youtube import TAIPEI
-from app.models import (
+if __name__ == "__main__":  # before any app import: the app reads DATABASE_URL once
+    os.environ["DATABASE_URL"] = demo_db.SNAPSHOT_URL
+
+import asyncio  # noqa: E402
+import secrets  # noqa: E402
+from datetime import date, datetime, timedelta  # noqa: E402
+
+import httpx  # noqa: E402
+from sqlmodel import Session, col, select  # noqa: E402
+
+from app import anime_search, catalog, genres, seasonal, workinfo  # noqa: E402
+from app.auth import hash_password  # noqa: E402
+from app.db import engine, init_db  # noqa: E402
+from app.importers.youtube import TAIPEI  # noqa: E402
+from app.models import (  # noqa: E402
     Category, CollectionEntry, FriendStatus, Friendship, Message, MonthlyPlays, MonthlyPlaytime, User, Work, utcnow,
 )
-from app.services import anilist, lastfm
-from app.services.steam import ASSET_URL
+from app.services import anilist, itunes, lastfm  # noqa: E402
+from app.services.steam import ASSET_URL  # noqa: E402
 
 DEMO_USERNAME = "demo"
 DEMO_PASSWORD = "demo-pass-123"
@@ -58,6 +68,20 @@ CHAT = [  # (from demo?, text, minutes ago)
 # 本季新番 picks are indexes into this season's AniList list (most popular first), so the demo works
 # whatever the season. Fake people: (username, name, bio, region, friend of demo?, picks, tiers for DEMO_ANIME)
 DEMO_PICKS = [0, 1, 3, 6]
+# 本季新番 shows Bangumi has no Chinese name for: their usual Taiwanese titles (AniList id -> title).
+ZH_OVERRIDES = {
+    195539: "電馭叛客：邊緣行者 2",
+    195604: "黑色五葉草 第二季",
+    159042: "轉生就是劍 第二季",
+    210482: "JOJO的奇妙冒險 STEEL BALL RUN",
+    191788: "青之蘆葦 第二季",
+    209872: "亂馬½ 第三季",
+    198727: "千歲同學在彈珠汽水瓶裡 第二季",
+    176314: "佐佐木與文鳥小嗶 第二季",
+    178868: "魔法騎士雷阿斯",
+}
+# Friends who can log in on a second / third phone (same demo password) for 猜歌對戰 and 猜誰是臥底.
+LOGIN_PEOPLE = {"demo_rain", "demo_zhe"}
 FAKE_PEOPLE = [
     ("demo_rain", "小雨", "每季必追新番，週末補番到天亮", "台北市", True, [0, 1, 2, 4, 7], {"Frieren": "must_watch"}),
     ("demo_zhe", "阿哲", "熱血番和機器人派", "台中市", True, [1, 3, 5], {"Mob Psycho 100": "great"}),
@@ -92,9 +116,12 @@ def _work(session: Session, source: str, external_id: str, **fields) -> Work:
 
 def _person(session: Session, username: str, name: str, bio: str, region: str) -> User:
     user = session.exec(select(User).where(User.username == username)).first()
-    if user is None:  # fake people can't log in: random password nobody knows
-        user = User(username=username, display_name=name, password_hash=hash_password(secrets.token_urlsafe(24)),
-                    birth_date=date(2001, 5, 5), bio=bio, region=region, looking_for="anime")
+    if user is None:  # others can't log in: random password nobody knows
+        password = DEMO_PASSWORD if username in LOGIN_PEOPLE else secrets.token_urlsafe(24)
+        user = User(username=username, display_name=name, password_hash=hash_password(password),
+                    birth_date=date(2001, 5, 5), bio=bio, region=region, looking_for="anime",
+                    email=f"{username}@example.com", email_verified_at=utcnow(), tour_state="skipped",
+                    onboarding_hidden=True)
         session.add(user)
         session.flush()
     return user
@@ -170,19 +197,19 @@ def seed_chat(session: Session, demo: User, friend: User) -> None:
 async def seed_season(session: Session, demo: User, demo_works: dict[str, Work]) -> dict[str, User]:
     people = {}
     key = seasonal.current_key()
-    try:
-        listed = await anilist.season_anime(*reversed(seasonal.parse(key)), seasonal.LIST_SIZE)
+    try:  # the whole list with Chinese titles goes into the cache, so the pick page works offline
+        count = await seasonal.prefetch(session, key)
+        cached, fetched_at = catalog.get(session, seasonal._cache_key(key))
+        for item in cached:
+            if not item.get("zh") and item["id"] in ZH_OVERRIDES:
+                item["zh"] = ZH_OVERRIDES[item["id"]]
+        catalog.put(session, seasonal._cache_key(key), cached, fetched_at=fetched_at)
+        listed = await seasonal.season_list(session, key, warm=False)
+        print(f"本季新番 list cached: {count} shows")
     except anilist.AniListError as e:
         print(f"AniList unavailable, skipped 本季新番 picks: {e}")
         listed = []
-    wanted = sorted({i for i in DEMO_PICKS + [i for p in FAKE_PEOPLE for i in p[5]] if i < len(listed)})
-    shows: dict[int, seasonal.SeasonAnime] = {}
-    for i in wanted:  # Chinese titles for the shows we use (Bangumi, gently)
-        a = listed[i]
-        zh = await anime_search.chinese_title(a.original_title)
-        seasonal._zh_titles[a.id] = zh
-        shows[i] = seasonal.SeasonAnime(a.id, zh or a.title, a.original_title, a.cover_url, a.year, a.format)
-        await asyncio.sleep(anime_search.BANGUMI_DELAY)
+    shows = dict(enumerate(listed))
 
     if shows:
         seasonal.save(session, demo, key, [shows[i] for i in DEMO_PICKS if i in shows])
@@ -225,11 +252,50 @@ async def seed_anime(session: Session, user: User) -> dict[str, Work]:
     return demo_works
 
 
+async def seed_previews(session: Session) -> None:
+    """Look up iTunes previews for every demo song now, so 猜歌對戰 starts without waiting on iTunes."""
+    found = 0
+    for work in session.exec(select(Work).where(Work.category == Category.music, col(Work.preview_checked_at).is_(None))).all():
+        try:
+            work.preview_url = await itunes.find_preview(work.creator or "", work.title)
+        except itunes.ItunesUnavailable as e:
+            print(f"iTunes unavailable for {work.title}: {e}")
+            continue
+        work.preview_checked_at = utcnow()
+        found += bool(work.preview_url)
+        session.add(work)
+    session.commit()
+    print(f"song previews: {found} found")
+
+
 async def main() -> None:
+    demo_db.remove(demo_db.SNAPSHOT)  # always build from scratch
     init_db()
     async with httpx.AsyncClient(timeout=10) as client:
         await _seed(client)
-    print(f"Seeded /u/{DEMO_USERNAME}")
+    with Session(engine) as session:
+        await seed_previews(session)
+        # Do the background job's work now (genres for 風格偏好, Chinese titles), so the demo
+        # server has nothing to look up while presenting: no network, no competing writes.
+        while await genres.enrich_batch(session):
+            pass
+        while await anime_search.enrich_titles(session):
+            pass
+        # Work pages' facts and big covers, so opening one during the demo needs no network.
+        works = session.exec(select(Work)).all()
+        filled = 0
+        for work in works:
+            filled += (await workinfo.cache_work_info(session, work)) != workinfo.WorkInfo()
+            await asyncio.sleep(0.5)  # gentle on AniList / Steam / Last.fm
+        print(f"work pages cached: {filled} / {len(works)}")
+    engine.dispose()  # release the snapshot file before copying it
+    demo_db.restore()
+    print(f"Seeded /u/{DEMO_USERNAME}: {demo_db.SNAPSHOT.name} built and copied to {demo_db.DEMO_DB.name}")
+    # local copies of every cover and preview, for a demo without the network (LOCAL_ASSETS_DIR)
+    from scripts import cache_covers
+
+    got, had, failed = await cache_covers.download(cache_covers.collect_urls(demo_db.SNAPSHOT), cache_covers.DEFAULT_DIR)
+    print(f"covers/previews in {cache_covers.DEFAULT_DIR.name}/: {got} downloaded, {had} already there, {len(failed)} failed")
 
 
 async def _seed(client: httpx.AsyncClient) -> None:
@@ -244,6 +310,10 @@ async def _seed(client: httpx.AsyncClient) -> None:
                 looking_for="anime,music,game",
                 password_hash=hash_password(DEMO_PASSWORD),
                 birth_date=date(2000, 1, 1),
+                email="demo@example.com",  # reserved test domain; marked verified so no e-mail banner
+                email_verified_at=utcnow(),
+                tour_state="skipped",  # the tour can still be restarted from 設定
+                onboarding_hidden=True,  # no 新手教學 card on the profile / feed during a demo
             )
             session.add(user)
             session.flush()
@@ -256,6 +326,8 @@ async def _seed(client: httpx.AsyncClient) -> None:
         if rain:
             await seed_music(session, client, rain, [(a, t, 0, n) for a, t, n in RAIN_SONGS])
             seed_chat(session, user, rain)
+        # reset_demo moves every timestamp forward by (reset time - this), so "1 小時前" stays true
+        catalog.put(session, demo_db.SEEDED_AT_KEY, {"note": "when demo.seed.db was built"})
 
 
 if __name__ == "__main__":

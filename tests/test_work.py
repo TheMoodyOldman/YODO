@@ -24,7 +24,7 @@ async def fake_get(i):
     return FAKE.get(i)
 
 
-async def fake_info(work):
+async def fake_info(work, session=None):
     return WorkInfo(description="<desc>", facts=[("開發", "ConcernedApe")], genres=["獨立"], link=("https://x.test/", "外部連結"))
 
 

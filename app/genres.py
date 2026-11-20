@@ -62,56 +62,66 @@ def _save(session: Session, works: list[Work], genres: list[tuple[str, float]]) 
 
 async def enrich_batch(session: Session, limit: int = 20) -> int:
     """Look up genres for up to `limit` works nobody has checked yet, most-collected first.
-    Returns how many works were processed."""
+    Returns how many works were processed.
+
+    No transaction stays open while waiting on the network: route handlers commit synchronously
+    on the same event loop, so a lock held across an `await` here would make them wait for a task
+    that can't run until SQLite gives up ("database is locked"). Each work is looked up first,
+    then written and committed in one go."""
     popularity = func.count(CollectionEntry.id)
-    candidates = session.exec(
-        select(Work)
-        .join(CollectionEntry, col(CollectionEntry.work_id) == Work.id)
-        .where(col(Work.genres_checked_at).is_(None))
-        .group_by(col(Work.id))
-        .order_by(popularity.desc(), col(Work.id))
-        .limit(limit)
-    ).all()
+    candidates = [
+        (w.id, w.source, w.external_id, w.category, w.creator, w.title)
+        for w in session.exec(
+            select(Work)
+            .join(CollectionEntry, col(CollectionEntry.work_id) == Work.id)
+            .where(col(Work.genres_checked_at).is_(None))
+            .group_by(col(Work.id))
+            .order_by(popularity.desc(), col(Work.id))
+            .limit(limit)
+        ).all()
+    ]
+    session.commit()  # end the read transaction before the first await
     done = 0
     artist_tags: dict[str, list[tuple[str, float]]] = {}  # fallback cache for this pass
-    for work in candidates:
+    for work_id, source, external_id, category, creator, title in candidates:
         try:
-            if work.source == "steam":
-                data = await steam.get_app_details(work.external_id)
-                names = [g["description"] for g in (data or {}).get("genres") or [] if g.get("description")]
-                _save(session, [work], [(n, 1.0) for n in names])
+            if source == "steam":
+                data = await steam.get_app_details(external_id)
+                genres = [(g["description"], 1.0) for g in (data or {}).get("genres") or [] if g.get("description")]
                 await asyncio.sleep(DELAY["steam"])
-            elif work.source == "anilist":
-                names = await anilist.get_genres(int(work.external_id)) or []
-                _save(session, [work], [(ANILIST_GENRES.get(n, n), 1.0) for n in names if n != "Hentai"])
+            elif source == "anilist":
+                names = await anilist.get_genres(int(external_id)) or []
+                genres = [(ANILIST_GENRES.get(n, n), 1.0) for n in names if n != "Hentai"]
                 await asyncio.sleep(DELAY["anilist"])
-            elif work.category == Category.music and work.creator:
+            elif category == Category.music and creator:
                 # Song tags first (title disambiguates same-name artists); artist tags only as a fallback.
-                tags = _clean_music_tags(await lastfm.get_track_tags(work.creator, work.title) or [], work.creator)
+                genres = _clean_music_tags(await lastfm.get_track_tags(creator, title) or [], creator)
                 await asyncio.sleep(DELAY["lastfm"])
-                if not tags:
-                    key = work.creator.casefold()
+                if not genres:
+                    key = creator.casefold()
                     if key not in artist_tags:
-                        artist_tags[key] = _clean_music_tags(await lastfm.get_artist_tags(work.creator) or [], work.creator)
+                        artist_tags[key] = _clean_music_tags(await lastfm.get_artist_tags(creator) or [], creator)
                         await asyncio.sleep(DELAY["lastfm"])
-                    tags = artist_tags[key]
-                _save(session, [work], tags)
-            elif work.source == "tmdb":
-                data = await tmdb.get_details(work.external_id)
-                _save(session, [work], [(g["name"], 1.0) for g in (data or {}).get("genres") or [] if g.get("name")])
+                    genres = artist_tags[key]
+            elif source == "tmdb":
+                data = await tmdb.get_details(external_id)
+                genres = [(g["name"], 1.0) for g in (data or {}).get("genres") or [] if g.get("name")]
                 await asyncio.sleep(DELAY["tmdb"])
-            elif work.source in (books.GOOGLE, books.OPENLIBRARY):
-                data = await books.get_details(work.source, work.external_id)
+            elif source in (books.GOOGLE, books.OPENLIBRARY):
+                data = await books.get_details(source, external_id)
                 names = [c for c in (data or {}).get("categories") or [] if ":" not in c][:MAX_BOOK_TAGS]
-                _save(session, [work], [(n if not n.isascii() else n.lower(), 1.0) for n in names])
+                genres = [(n if not n.isascii() else n.lower(), 1.0) for n in names]
                 await asyncio.sleep(DELAY["books"])
             else:
-                _save(session, [work], [])
-            session.commit()
+                genres = []
+            work = session.get(Work, work_id)
+            if work is not None:
+                _save(session, [work], genres)
+            session.commit()  # no await between the writes and this commit
             done += 1
         except Exception:  # one bad lookup mustn't stop the rest; it is retried on a later pass
             session.rollback()
-            log.exception("genre lookup failed for work %s", work.id)
+            log.exception("genre lookup failed for work %s", work_id)
     return done
 
 

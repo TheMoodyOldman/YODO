@@ -16,12 +16,12 @@
 {% set here = "/w/" ~ work.id %}
 
 <div class="work-backdrop" aria-hidden="true"
-     style="--work-color: {{ color }};{% if cover %} --work-cover: url('{{ cover }}');{% endif %}"></div>
+     style="--work-color: {{ color }};{% if cover %} --work-cover: url('{{ cover | local }}');{% endif %}"></div>
 
 <div class="work-page" style="--work-color: {{ color }}">
   <header class="work-hero">
     <div class="work-cover{% if is_music %} square{% endif %}">
-      {% if cover %}<img src="{{ cover }}" alt="" onerror="this.remove()">{% endif %}
+      {% if cover %}<img src="{{ cover | local }}" alt="" onerror="this.remove()">{% endif %}
     </div>
     <div class="work-head">
       <p class="eyebrow">{{ CATEGORY_LABELS[work.category] }}{% if work.year %} · {{ work.year }}{% endif %}</p>

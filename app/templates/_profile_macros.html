@@ -8,7 +8,7 @@
       {% for artist in section.top_artists[:n] %}
         <li>
           <span class="rank">{{ loop.index }}</span>
-          <span class="thumb square">{% if artist.cover_url %}<img src="{{ artist.cover_url }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}</span>
+          <span class="thumb square">{% if artist.cover_url %}<img src="{{ artist.cover_url | local }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}</span>
           <span class="rank-info">
             <span class="card-title">{{ artist.name }}</span>
             <span class="card-sub">{% if artist.plays %}{{ artist.plays }} 次播放{% else %}{{ artist.songs }} 首歌{% endif %}</span>

@@ -47,7 +47,7 @@ async def work_public(request: Request, session: SessionDep, me: CurrentUser, wo
         select(CollectionEntry).where(CollectionEntry.user_id == me.id, CollectionEntry.work_id == work.id)
     ).first() if me else None
     my_review = next((v.review for v in reviews if me and v.author.id == me.id), None)
-    info = await get_work_info(work)
+    info = await get_work_info(work, session)
     return render(
         request,
         "work_public.html",

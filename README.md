@@ -141,14 +141,87 @@ uvicorn app.main:app --reload
 
 AniList 與 Steam 商店頁不需要金鑰。
 
-### 本機測試帳號
+### Demo 環境（demo.db）
+
+Demo 用一個獨立的資料庫 `demo.db`，裡面只有示範帳號 `demo` 和幾個 `demo_` 開頭的假帳號，不會碰到真實使用者的 `app.db`。
+
+**第一次建立**（需要網路，約 2 分鐘）：
 
 ```powershell
-python -m scripts.seed_demo
+.venv\Scripts\python.exe -m scripts.seed_demo
 ```
 
-會建立帳號 `demo` 並加入幾部動畫，密碼寫在 `scripts/seed_demo.py`，只適合本機開發使用。
-也會加入本季新番的勾選，以及幾個 `demo_` 開頭的假帳號（部分是 demo 的好友），讓動態、個人頁和探索推薦都看得到「本季在追」。
+會從頭建立快照 `demo.seed.db`，再複製成 `demo.db`。內容包括：
+- `demo` 帳號的動畫評價、遊戲時數、音樂播放次數（Recap 有資料）、本季新番勾選，和小雨的私訊。
+- 4 個 `demo_` 假帳號：小雨、阿哲是 demo 的好友（動態、私訊、猜歌），小光、奈奈不是（探索推薦）。
+- 事先存好的快取：本季新番清單和中文片名、猜歌的試聽片段，Demo 時不用等 AniList、Bangumi、iTunes。
+
+`demo` 的密碼寫在 `scripts/seed_demo.py`，只適合本機和 Demo 使用。
+
+**一鍵啟動 Demo**（建議）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_demo.ps1
+```
+
+腳本會依序：
+1. 停掉佔用 port 8000 的 Python 伺服器，包括上一次的 Demo，以及開在 `127.0.0.1:8000` 的開發伺服器（含 `--reload` 的子程序）。**port 8000 保留給 Demo**：開發伺服器請改用其他 port；不停掉的話，筆電上的 `localhost:8000` 會打開開發伺服器而不是 Demo。停不掉時腳本會直接結束、不啟動。
+2. 重置 `demo.db`。
+3. 用 `demo.db` 和本機封面，在 `0.0.0.0:8000` 啟動，讓同一個 Wi-Fi 的手機連得進來。
+4. 印出筆電的區網 IP 和手機要開的網址，例如 `http://192.168.50.183:8000/login`。
+
+按 Ctrl+C 停止。
+
+**手機連不上時（Windows 防火牆）**：
+
+Windows 會擋掉「公用網路」上別人連進筆電的連線，學校、咖啡廳的 Wi-Fi 通常都被設成公用網路。依序試：
+
+1. 第一次執行時如果跳出「Windows 安全性警示」，勾選允許存取後按「允許」。
+2. 把這個 Wi-Fi 改成私人網路：設定 → 網路和網際網路 → Wi-Fi → 點目前連線的網路 → 網路設定檔類型選「私人網路」。
+3. 還是不行的話，用**系統管理員身分**開 PowerShell，只開放同一個網段連 port 8000：
+
+   ```powershell
+   New-NetFirewallRule -DisplayName "YODO Demo 8000" -Direction Inbound -Protocol TCP -LocalPort 8000 -RemoteAddress LocalSubnet -Action Allow
+   ```
+
+   Demo 結束後刪掉這條規則：
+
+   ```powershell
+   Remove-NetFirewallRule -DisplayName "YODO Demo 8000"
+   ```
+
+4. 有些場地的 Wi-Fi 會隔離裝置，手機彼此、手機和筆電都連不到，這時防火牆設定也沒用。改用一支手機開熱點，讓筆電和其他手機都連這個熱點，再執行一次 `start_demo.ps1`（IP 會變）。
+
+先在現場用一支手機打開印出的網址測試一次。
+
+**手動啟動**（不重置、只開給本機）：
+
+```powershell
+$env:DATABASE_URL = "sqlite:///demo.db"; $env:LOCAL_ASSETS_DIR = "demo_assets"; .venv\Scripts\uvicorn.exe app.main:app --port 8000
+```
+
+封面和試聽片段在 `seed_demo` 時會一起下載到 `demo_assets/`（約 13 MB，不進 git）。只想重新下載時：
+
+```powershell
+.venv\Scripts\python.exe -m scripts.cache_covers
+```
+
+本機找不到的檔案會照常連網讀取，所以就算少了幾張也不會壞掉。手機透過 Cloudflare 臨時網址連進來時，通道本身仍需要網路；現場沒有網路的話，改用同一個 Wi-Fi 的區網網址。
+
+**每次 Demo 前重置**（不需要網路，一秒內完成；先按 Ctrl+C 停掉伺服器）：
+
+```powershell
+.venv\Scripts\python.exe -m scripts.reset_demo
+```
+
+會把 `demo.db` 還原成快照的狀態：上次 Demo 新增的勾選、訊息、照片、遊戲房間都會清掉，demo 帳號關掉的本季新番橫幅也會重新出現。
+
+**清掉其他資料庫裡的假帳號**：如果不小心把 `demo_` 假帳號加進了其他資料庫，可以先預覽、確認後再刪除（只刪 `demo_` 開頭的帳號和連到它們的資料，作品本身保留；請先備份）：
+
+```powershell
+.venv\Scripts\python.exe -m scripts.remove_demo_people           # 預覽會刪掉什麼
+.venv\Scripts\python.exe -m scripts.remove_demo_people --apply   # 真的刪除
+```
 
 ### 執行測試
 
@@ -184,6 +257,8 @@ app/
 ├── contacts.py        LINE／Discord／Instagram 聯絡方式
 ├── onboarding.py      新手教學清單
 ├── seasonal.py        本季新番快速勾選（AniList 當季清單、勾選、季別標籤）
+├── catalog.py         外部清單的資料庫快取（重開伺服器或 API 失敗時沿用）
+├── local_assets.py    Demo 模式：封面與試聽片段優先從本機資料夾讀取（LOCAL_ASSETS_DIR）
 ├── anime_search.py    中文動畫搜尋與中文片名（Bangumi → AniList）
 ├── zh.py              繁簡轉換（OpenCC）
 ├── music.py           音樂匯入、排行計算
@@ -197,7 +272,7 @@ app/
 ├── routers/           各頁面路由
 ├── templates/         Jinja 模板
 └── static/            CSS 與 JS
-scripts/seed_demo.py   本機測試帳號
+scripts/               Demo 環境：seed_demo（建立 demo.db）、reset_demo（重置）、cache_covers（下載封面）、remove_demo_people
 tests/                 整合測試（run_all.py 一次跑完）
 ```
 
@@ -290,3 +365,21 @@ Google 書櫃則提供一次性的 OAuth 授權入口。一般使用者只要登
 Google Books 僅提供 `https://www.googleapis.com/auth/books` 授權範圍，包含管理書櫃的權限；頁面會明確說明，本實作只呼叫 GET 書櫃讀取，不新增或刪除遠端書籍。官方參考：[授權與書架 ID](https://developers.google.com/books/docs/v1/using)、[分頁讀取私人書架](https://developers.google.com/books/docs/v1/reference/mylibrary/bookshelves/volumes/list)。
 
 驗證：`tests/test_book_import.py` 使用獨立虛構資料庫與模擬 Google OAuth/API 回應，涵蓋分頁、來源重複、閱讀狀態、授權失效、重放及失敗不寫入。尚未設定正式 Google OAuth 用戶端，真人 Google 帳號授權與 Play 圖書涵蓋程度仍待實測；不將模擬測試當成實際帳號連線成功。
+
+
+## 容器部署與上線驗收
+
+提供 `Dockerfile`、`compose.yaml` 與 `scripts/serve.py`。容器只複製程式，不帶入本機 .env、資料庫、測試帳號或 Kobo 檔案。使用 Python 3.12、非 root 使用者、中文字型、單一 SQLite worker，健康檢查為 `/health`。照片保存在資料庫，SQLite 與照片都需保留 `/data` 的持久化磁碟；**不要使用會在重啟後清空檔案的主機方案**。Render 的持久化磁碟目前需付費服務，這份變更沒有建立或購買任何主機。
+
+在支援持久化磁碟的容器主機設定：
+
+- `SECRET_KEY`：管理者建立至少 32 字元的隨機值並穩定保存；啟動程式拒絕空值或短值，不會輸出金鑰。
+- `PUBLIC_URL=https://正式網址`、`SESSION_HTTPS_ONLY=true`；單機 HTTP 驗收才設為 false。
+- `DATABASE_URL=sqlite:////data/app.db`（容器預設），將 `/data` 掛載為持久化磁碟，維持單個服務實例。增加實例前須另處理 SQLite 與遊戲狀態同步。
+- Google 的三個 OAuth 設定如上節；先註冊正式 callback，再在後台填入 secret，不將 secret 交給一般用戶。反向代理的來源只有在確認可信時才設定 `FORWARDED_ALLOW_IPS`；不要直接信任任意外部請求。
+
+本機 Docker 可執行 `docker compose up --build -d`；先在管理者的私有環境設定上述值。Compose 只綁定 127.0.0.1:8000，正式對外服務另接 HTTPS 反向代理。Google callback 使用同一個網域登入及返回，避免 localhost/127.0.0.1 混用。啟動停用 access log，避免 OAuth callback 的 code 出現在請求紀錄；主機或反向代理也應遮蔽此路徑的查詢參數。
+
+驗收順序：`/health` → 註冊／登入 → 貼上書單 → 隱私確認 → 名片 → Google 授權讀取 → 重複匯入 → 取消授權 → 服務重啟後收藏仍在。Google 未提供用戶端與可登入測試者前只能完成模擬驗證；Kobo 未提供閱讀器時使用合成 SQLite 測試，不宣稱已驗證所有實體韌體。此次 Windows Docker 引擎未啟動，映像建置需在有 Linux 容器引擎的主機補驗。
+
+部署文件參考：[Google Web OAuth](https://developers.google.com/identity/protocols/oauth2/web-server)、[Render 持久化磁碟](https://render.com/docs/disks)。

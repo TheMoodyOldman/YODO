@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 from app.anime import TIER_COLORS, TIER_LABELS
 from app.cards import RecapStats
 from app.config import settings
+from app.local_assets import local_path
 from app.models import Category
 
 W, H = 1080, 1920
@@ -52,10 +53,17 @@ def font(weight: str, size: int) -> ImageFont.FreeTypeFont:
 async def fetch_images(urls: set[str]) -> dict[str, Image.Image]:
     async def one(client: httpx.AsyncClient, url: str) -> tuple[str, Image.Image | None]:
         try:
-            r = await client.get(url)
-            if r.status_code != 200 or len(r.content) > MAX_IMAGE_BYTES:
+            local = local_path(url)  # demo mode: the downloaded copy, no network
+            if local is not None:
+                data = local.read_bytes()
+            else:
+                r = await client.get(url)
+                if r.status_code != 200:
+                    return url, None
+                data = r.content
+            if len(data) > MAX_IMAGE_BYTES:
                 return url, None
-            img = Image.open(io.BytesIO(r.content))
+            img = Image.open(io.BytesIO(data))
             img.load()
             return url, img.convert("RGB")
         except Exception:  # bad URL, timeout, undecodable image: draw a placeholder instead
@@ -141,7 +149,9 @@ def wrap(text: str, f: ImageFont.FreeTypeFont, max_width: float, max_lines: int)
 
 def _hours(minutes: int) -> str:
     h = minutes / 60
-    return f"{h:.1f} 小時" if h < 10 else f"{round(h)} 小時"
+    if h >= 10:
+        return f"{round(h)} 小時"
+    return f"{h:.1f}".removesuffix(".0") + " 小時"  # 9 小時, 1.5 小時
 
 
 # ---------- sections: each returns its height, and draws when given a canvas ----------

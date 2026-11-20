@@ -18,7 +18,7 @@
       <label for="guess"><strong>先猜猜看，你們有多合？</strong></label>
       <output class="guess-out" id="guess-out">50%</output>
       <input type="range" id="guess" name="guess" min="0" max="100" value="50"
-             oninput="document.getElementById('guess-out').textContent = this.value + '%'">
+             oninput="document.getElementById('guess-out').textContent = this.value + '%'; this.style.setProperty('--fill', this.value + '%')">
       <button type="submit" class="btn">揭曉答案</button>
     </form>
     <p class="center"><a class="small muted" href="?guess=skip">不猜了，直接看</a></p>
@@ -29,7 +29,7 @@
     <p class="compat-label">{{ result.label }}</p>
     {% if guessed is not none %}
       <p class="muted">你猜 {{ guessed }}%，
-        {% if off_by <= 5 %}幾乎命中，太懂了！{% elif off_by <= 15 %}差了 {{ off_by }}%，很接近。{% else %}差了 {{ off_by }}%，{{ "你們比你以為的更合" if result.pct > guessed else "還有很多可以聊的" }}。{% endif %}
+        {%- if off_by <= 5 %}幾乎命中，太懂了！{% elif off_by <= 15 %}差了 {{ off_by }}%，很接近。{% else %}差了 {{ off_by }}%，{{ "你們比你以為的更合" if result.pct > guessed else "還有很多可以聊的" }}。{% endif %}
       </p>
     {% endif %}
     {% if result.per_category %}

@@ -51,7 +51,7 @@
     {% set acted = mine in state.acted %}
     <div class="round-dots" aria-label="第 {{ state.i + 1 }} / {{ ROUNDS }} 首">{% for n in range(ROUNDS) %}<span class="{{ 'done' if n < state.i else ('on' if n == state.i) }}"></span>{% endfor %}</div>
     <div class="song-player-box">
-      <button type="button" class="song-play" data-clip="{{ rnd.p }}" data-seconds="{{ STAGES[stage] }}" aria-label="播放 {{ STAGES[stage] }} 秒">
+      <button type="button" class="song-play" data-clip="{{ rnd.p | local }}" data-seconds="{{ STAGES[stage] }}" aria-label="播放 {{ STAGES[stage] }} 秒">
         <span class="song-play-icon">{{ icon("play", 34) }}</span><span class="song-play-label">播放 {{ STAGES[stage] }} 秒</span>
       </button>
       <p class="song-stage-info">第 {{ state.i + 1 }} / {{ ROUNDS }} 首 · 現在猜中 <strong>+{{ POINTS[stage] }}</strong> 分</p>
