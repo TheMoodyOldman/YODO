@@ -149,7 +149,9 @@ def wrap(text: str, f: ImageFont.FreeTypeFont, max_width: float, max_lines: int)
 
 def _hours(minutes: int) -> str:
     h = minutes / 60
-    return f"{h:.1f} 小時" if h < 10 else f"{round(h)} 小時"
+    if h >= 10:
+        return f"{round(h)} 小時"
+    return f"{h:.1f}".removesuffix(".0") + " 小時"  # 9 小時, 1.5 小時
 
 
 # ---------- sections: each returns its height, and draws when given a canvas ----------

@@ -29,7 +29,7 @@
     <p class="compat-label">{{ result.label }}</p>
     {% if guessed is not none %}
       <p class="muted">你猜 {{ guessed }}%，
-        {% if off_by <= 5 %}幾乎命中，太懂了！{% elif off_by <= 15 %}差了 {{ off_by }}%，很接近。{% else %}差了 {{ off_by }}%，{{ "你們比你以為的更合" if result.pct > guessed else "還有很多可以聊的" }}。{% endif %}
+        {%- if off_by <= 5 %}幾乎命中，太懂了！{% elif off_by <= 15 %}差了 {{ off_by }}%，很接近。{% else %}差了 {{ off_by }}%，{{ "你們比你以為的更合" if result.pct > guessed else "還有很多可以聊的" }}。{% endif %}
       </p>
     {% endif %}
     {% if result.per_category %}

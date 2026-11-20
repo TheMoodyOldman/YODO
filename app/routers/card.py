@@ -13,6 +13,10 @@ from app.models import CardEvent, Category, Visibility
 from app.privacy import get_privacy
 from app.templating import render
 
+# Printed at the bottom of every Recap card: the product site (the request's own address would be
+# localhost or a random tunnel URL during a demo).
+RECAP_FOOTER = "https://qwqohmy.github.io/yodo-site/"
+
 router = APIRouter(prefix="/me/card")
 
 ACTIONS = {"share", "download"}
@@ -104,7 +108,7 @@ async def card_image(
         raise HTTPException(status_code=404)
 
     images = await fetch_images(image_urls(stats, categories))
-    footer = f"{request.url.netloc}/u/{me.username}"
+    footer = RECAP_FOOTER
     data = await run_in_threadpool(render_card, stats, me.display_name, footer, categories, images)
     return Response(
         data,

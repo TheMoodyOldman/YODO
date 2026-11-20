@@ -47,7 +47,7 @@ def match_page(request: Request, session: SessionDep, me: RequiredUser):
         me=me,
         matches=matches,
         empty=None if matches else empty_reason(session, me),
-        newcomers=newcomers(session, me) if len(matches) < 3 else [],
+        newcomers=[u for u in newcomers(session, me) if u.id not in {m.user.id for m in matches}] if len(matches) < 3 else [],
         needs_profile=not me.region and not looking_keys(me),
         MIN_ENTRIES=MIN_ENTRIES,
         Relation=Relation,
