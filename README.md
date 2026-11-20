@@ -154,7 +154,7 @@ AniList 與 Steam 商店頁不需要金鑰。
 
 Demo 用一個獨立的資料庫 `demo.db`，裡面只有示範帳號 `demo` 和幾個 `demo_` 開頭的假帳號，不會碰到真實使用者的 `app.db`。
 
-**第一次建立**（需要網路，約 2 分鐘）：
+**第一次建立**（需要網路，約 30～60 分鐘；網路斷線會自動等待恢復）：
 
 ```powershell
 .venv\Scripts\python.exe -m scripts.seed_demo
@@ -162,10 +162,12 @@ Demo 用一個獨立的資料庫 `demo.db`，裡面只有示範帳號 `demo` 和
 
 會從頭建立快照 `demo.seed.db`，再複製成 `demo.db`。內容包括：
 - `demo` 帳號的動畫評價、遊戲時數、音樂播放次數（Recap 有資料）、本季新番勾選，和小雨的私訊。
-- 4 個 `demo_` 假帳號：小雨、阿哲是 demo 的好友（動態、私訊、猜歌），小光、奈奈不是（探索推薦）。
+- 24 個 `demo_` 假帳號（`scripts/demo_people.py`）：每人有自介、照片、聯絡方式，動畫／影視／書／遊戲／音樂各 30 筆以上，依各自口味產生。小雨、阿哲是 demo 的好友（動態、私訊、猜歌），麻糬、雪乃、Ivy 送了好友邀請，其他人是陌生人（探索推薦）。全部可用 demo 的密碼登入。影視需要 `.env` 的 `TMDB_API_KEY`。
 - 事先存好的快取：本季新番清單和中文片名、猜歌的試聽片段，Demo 時不用等 AniList、Bangumi、iTunes。
 
 `demo` 的密碼寫在 `scripts/seed_demo.py`，只適合本機和 Demo 使用。
+
+帳號和收藏建好後中斷了：`python -m scripts.seed_demo --finish` 只重跑後面的步驟。iTunes 擋下試聽查詢時：過一陣子執行 `python -m scripts.fill_previews` 補上。
 
 **一鍵啟動 Demo**（建議）：
 

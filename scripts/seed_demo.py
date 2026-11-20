@@ -2,14 +2,17 @@
 
 - account `demo`: rated anime, Steam-style games with monthly hours, songs with monthly plays
   (so Recap has something to show), and 本季新番 picks;
-- a few `demo_` fake people with picks and shared favourites (2 of them friends with demo for the
-  feed and messages, 2 not, for 探索 recommendations), plus a short chat between demo and 小雨;
+- 24 `demo_` fake people (scripts.demo_people), each with a bio, friends-only contacts, two illustrated
+  photos, some private categories, and anime, films, books, games and songs to their own taste;
+  2 of them are demo's friends (feed, messages), 3 have sent demo a friend request, the rest are
+  strangers for 探索; all can log in with the demo password. Plus a short chat between demo and 小雨;
 - the caches a demo needs filled in advance: this season's list with Chinese titles, and song
   previews for 猜歌, so the demo doesn't wait on AniList, Bangumi or iTunes.
 
 It writes the snapshot demo.seed.db and copies it to demo.db; `python -m scripts.reset_demo` later
 restores demo.db from that snapshot without the network. Real data (app.db) is never touched.
-Needs the network. Usage: .venv\\Scripts\\python.exe -m scripts.seed_demo
+Needs the network. Usage: .venv\\Scripts\\python.exe -m scripts.seed_demo [--finish]
+(--finish: the accounts are already built; only redo previews, genres, work pages and covers)
 """
 
 import os
@@ -20,21 +23,28 @@ if __name__ == "__main__":  # before any app import: the app reads DATABASE_URL 
     os.environ["DATABASE_URL"] = demo_db.SNAPSHOT_URL
 
 import asyncio  # noqa: E402
+import io  # noqa: E402
+import json  # noqa: E402
 import secrets  # noqa: E402
+import socket  # noqa: E402
 from datetime import date, datetime, timedelta  # noqa: E402
 
 import httpx  # noqa: E402
+from PIL import Image, ImageDraw  # noqa: E402
 from sqlmodel import Session, col, select  # noqa: E402
 
-from app import anime_search, catalog, genres, quickpick, seasonal, workinfo  # noqa: E402
+from app import anime_search, card_render, catalog, genres, photos, quickpick, seasonal, workinfo  # noqa: E402
 from app.auth import hash_password  # noqa: E402
 from app.db import engine, init_db  # noqa: E402
 from app.importers.youtube import TAIPEI  # noqa: E402
 from app.models import (  # noqa: E402
-    Category, CollectionEntry, FriendStatus, Friendship, Message, MonthlyPlays, MonthlyPlaytime, User, Work, utcnow,
+    Category, CollectionEntry, FriendStatus, Friendship, Message, MonthlyPlays, MonthlyPlaytime, User, Visibility, Work,
+    utcnow,
 )
-from app.services import anilist, itunes, lastfm  # noqa: E402
+from app.privacy import set_privacy  # noqa: E402
+from app.services import anilist, books, itunes, lastfm, tmdb  # noqa: E402
 from app.services.steam import ASSET_URL  # noqa: E402
+from scripts import demo_people  # noqa: E402
 
 DEMO_USERNAME = "demo"
 DEMO_PASSWORD = "demo-pass-123"
@@ -80,14 +90,48 @@ ZH_OVERRIDES = {
     176314: "佐佐木與文鳥小嗶 第二季",
     178868: "魔法騎士雷阿斯",
 }
-# Friends who can log in on a second / third phone (same demo password) for 猜歌對戰 and 猜誰是臥底.
-LOGIN_PEOPLE = {"demo_rain", "demo_zhe"}
 FAKE_PEOPLE = [
     ("demo_rain", "小雨", "每季必追新番，週末補番到天亮", "台北市", True, [0, 1, 2, 4, 7], {"Frieren": "must_watch"}),
     ("demo_zhe", "阿哲", "熱血番和機器人派", "台中市", True, [1, 3, 5], {"Mob Psycho 100": "great"}),
     ("demo_hikari", "小光", "日常系、音樂番都愛，想找人一起聊", "新北市", False, [0, 3, 6, 8, 9], {"Bocchi the Rock": "must_watch", "Frieren": "great"}),
     ("demo_nana", "奈奈", "冷門番挖掘中", "高雄市", False, [2, 6, 10, 11], {"Cowboy Bebop": "great"}),
+    # 20 more strangers for 探索: overlaps with demo range from strong (shared rated anime, the same
+    # games and songs) to none, so recommendations show a real spread instead of four people.
+    ("demo_mochi", "麻糬", "星露谷種田中，週末想找人一起開農場", "台南市", False, [0, 4], {"Frieren": "great"}),
+    ("demo_kai", "阿凱", "魂系受苦愛好者，交界地死了三百次", "桃園市", False, [1, 5], {"Mob Psycho 100": "good"}),
+    ("demo_yuki", "雪乃", "J-POP 重度使用者，YOASOBI 每首都會唱", "台北市", False, [0, 2, 6], {"Bocchi the Rock": "great"}),
+    ("demo_bean", "豆豆", "下班就是要玩 Hades 一輪", "新竹市", False, [3], {}),
+    ("demo_lulu", "露露", "演唱會常客，想找一起排隊的朋友", "台中市", False, [0, 1], {"Bocchi the Rock": "must_watch"}),
+    ("demo_ken", "Ken", "經典番收藏家，星際牛仔看了五遍", "新北市", False, [6, 10], {"Cowboy Bebop": "must_watch", "Frieren": "good"}),
+    ("demo_cat", "貓咪隊長", "養貓、彈吉他、聽樂團", "高雄市", False, [2, 7], {"Bocchi the Rock": "great"}),
+    ("demo_jun", "小俊", "RPG 和策略遊戲，最近在玩柏德之門 3", "台北市", False, [5, 9], {}),
+    ("demo_mei", "小美", "週末補番、平日通勤聽歌", "彰化縣", False, [0, 1, 3], {"Frieren": "must_watch"}),
+    ("demo_hao", "阿豪", "Minecraft 建築派，也玩泰拉瑞亞", "台中市", False, [4], {}),
+    ("demo_sora", "空", "Vaundy 和 King Gnu 的粉，求同好", "新北市", False, [1, 8], {"Mob Psycho 100": "great"}),
+    ("demo_pudding", "布丁", "雙人遊戲找隊友中，一起玩雙人成行吧", "桃園市", False, [0, 3], {"Frieren": "great"}),
+    ("demo_wen", "小文", "台灣獨立樂團愛好者，草東、落日飛車必聽", "台南市", False, [], {}),
+    ("demo_leo", "Leo", "什麼都玩一點，找人聊天", "宜蘭縣", False, [2, 4, 6], {"Mob Psycho 100": "good", "Cowboy Bebop": "good"}),
+    ("demo_ivy", "Ivy", "治癒系動畫和療癒遊戲", "花蓮縣", False, [0, 6], {"Frieren": "must_watch", "Bocchi the Rock": "great"}),
+    ("demo_tom", "湯姆", "殺戮尖塔一千小時，卡牌遊戲同好來", "新竹縣", False, [7], {}),
+    ("demo_ann", "安安", "華語流行和周杰倫，偶爾看動畫", "嘉義市", False, [1], {}),
+    ("demo_rex", "雷克斯", "魔物獵人老獵人，徵四人隊", "高雄市", False, [3, 5, 11], {"Mob Psycho 100": "must_watch"}),
+    ("demo_hana", "花子", "動畫歌曲收藏中，最愛 LiSA 和 Aimer", "台北市", False, [0, 1, 2], {"Frieren": "great", "Bocchi the Rock": "good"}),
+    ("demo_owen", "歐文", "剛開始玩 Undertale，求不劇透", "屏東縣", False, [8], {}),
 ]
+# Every fake person can log in with the demo password (on a second phone, for 猜歌對戰, 猜誰是臥底,
+# messages and friend requests). They only exist in demo.db, never in real data (app.db).
+LOGIN_PEOPLE = {p[0] for p in FAKE_PEOPLE}
+# What each person is looking for (app.matching.LOOKING_FOR keys).
+LOOKING = {
+    "demo_rain": "anime,music", "demo_zhe": "game,anime", "demo_hikari": "anime,music,chat", "demo_nana": "anime,chat",
+    "demo_mochi": "game,chat", "demo_kai": "game", "demo_yuki": "music,live", "demo_bean": "game",
+    "demo_lulu": "live,music", "demo_ken": "anime", "demo_cat": "music,chat", "demo_jun": "game,chat",
+    "demo_mei": "anime,music", "demo_hao": "game", "demo_sora": "music,live", "demo_pudding": "game,chat",
+    "demo_wen": "music,live", "demo_leo": "chat", "demo_ivy": "anime,game", "demo_tom": "game",
+    "demo_ann": "music,chat", "demo_rex": "game", "demo_hana": "anime,music", "demo_owen": "game,chat",
+}
+# New people who have already sent demo a friend request, so 好友邀請 has something to accept.
+REQUESTS_TO_DEMO = ["demo_mochi", "demo_yuki", "demo_ivy"]
 
 
 def _months() -> tuple[str, str]:
@@ -116,10 +160,10 @@ def _work(session: Session, source: str, external_id: str, **fields) -> Work:
 
 def _person(session: Session, username: str, name: str, bio: str, region: str) -> User:
     user = session.exec(select(User).where(User.username == username)).first()
-    if user is None:  # others can't log in: random password nobody knows
+    if user is None:  # anyone outside LOGIN_PEOPLE gets a random password nobody knows
         password = DEMO_PASSWORD if username in LOGIN_PEOPLE else secrets.token_urlsafe(24)
         user = User(username=username, display_name=name, password_hash=hash_password(password),
-                    birth_date=date(2001, 5, 5), bio=bio, region=region, looking_for="anime",
+                    birth_date=date(2001, 5, 5), bio=bio, region=region, looking_for=LOOKING.get(username, "anime"),
                     email=f"{username}@example.com", email_verified_at=utcnow(), tour_state="skipped",
                     onboarding_hidden=True)
         session.add(user)
@@ -138,9 +182,10 @@ def _befriend(session: Session, a: User, b: User) -> None:
 
 
 async def _song_cover(client: httpx.AsyncClient, artist: str, title: str) -> str | None:
+    await asyncio.sleep(0.8)  # iTunes allows roughly 20 searches a minute before it starts refusing
     try:
-        r = await client.get("https://itunes.apple.com/search",
-                             params={"term": f"{artist} {title}", "entity": "song", "country": "JP", "limit": 1})
+        r = await _retrying(lambda: client.get("https://itunes.apple.com/search", params={
+            "term": f"{artist} {title}", "entity": "song", "country": "JP", "limit": 1}), title, (httpx.HTTPError,))
         art = (r.json().get("results") or [{}])[0].get("artworkUrl100")
         return art.replace("100x100bb", "600x600bb") if art else None
     except (httpx.HTTPError, ValueError):
@@ -149,6 +194,8 @@ async def _song_cover(client: httpx.AsyncClient, artist: str, title: str) -> str
 
 async def seed_music(session: Session, client: httpx.AsyncClient, user: User, songs: list[tuple]) -> None:
     """Songs with monthly plays (Recap, rankings, 猜歌). songs: (artist, title, plays...) per month, oldest first."""
+    if not songs:
+        return
     months = _months()[-(len(songs[0]) - 2):]
     for artist, title, *plays in songs:
         key = lastfm.song_key(artist, title)
@@ -164,6 +211,298 @@ async def seed_music(session: Session, client: httpx.AsyncClient, user: User, so
         entry.play_count = sum(plays)
         session.add(entry)
     session.commit()
+
+
+def seed_person_games(session: Session, user: User, games: list[tuple[int, str, int, int]]) -> None:
+    """A fake person's Steam games: (appid, name, total hours, hours this month)."""
+    this = _months()[1]
+    for appid, name, total_h, this_h in games:
+        work = _work(session, "steam", str(appid), category=Category.game, title=name,
+                     cover_url=f"{ASSET_URL}/{appid}/library_600x900.jpg")
+        entry = _entry(session, user, work)
+        if this_h and not session.exec(select(MonthlyPlaytime).where(
+                MonthlyPlaytime.user_id == user.id, MonthlyPlaytime.work_id == work.id, MonthlyPlaytime.month == this)).first():
+            session.add(MonthlyPlaytime(user_id=user.id, work_id=work.id, month=this,
+                                        start_minutes=(total_h - this_h) * 60, end_minutes=total_h * 60))
+        entry.playtime_minutes = total_h * 60
+        session.add(entry)
+    session.commit()
+
+
+def request_friendship(session: Session, sender: User, recipient: User) -> None:
+    """A pending request from sender, unless the two already have one either way."""
+    if session.exec(select(Friendship).where(
+            ((Friendship.requester_id == sender.id) & (Friendship.addressee_id == recipient.id))
+            | ((Friendship.requester_id == recipient.id) & (Friendship.addressee_id == sender.id)))).first():
+        return
+    session.add(Friendship(requester_id=sender.id, addressee_id=recipient.id, status=FriendStatus.pending))
+    session.commit()
+
+
+# ---------- riding out Wi-Fi drops: wait for the network instead of losing the lookup ----------
+
+NET_HOSTS = ("graphql.anilist.co", "store.steampowered.com", "itunes.apple.com", "api.themoviedb.org")
+
+
+def _online() -> bool:
+    for host in NET_HOSTS:
+        try:
+            socket.getaddrinfo(host, 443)
+            return True
+        except OSError:
+            continue
+    return False
+
+
+async def wait_for_network() -> None:
+    """Return at once when online; otherwise print a note and check every 15 s until the network is back."""
+    if await asyncio.to_thread(_online):
+        return
+    print("  ⚠ 網路斷線了（getaddrinfo failed），等網路恢復後自動繼續…", flush=True)
+    waited = 0
+    while not await asyncio.to_thread(_online):
+        await asyncio.sleep(15)
+        waited += 15
+        if waited % 120 == 0:
+            print(f"  …還在等網路（{waited // 60} 分鐘）", flush=True)
+    print("  ✓ 網路恢復，繼續", flush=True)
+
+
+async def _retrying(call, label: str, errors: tuple = (Exception,), attempts: int = 4):
+    """call() with retries: after a failure, wait for the network (and a little longer each time)."""
+    for attempt in range(attempts):
+        try:
+            return await call()
+        except errors as e:
+            if attempt == attempts - 1:
+                raise
+            retry_after = getattr(e, "retry_after", None)
+            await wait_for_network()
+            await asyncio.sleep(retry_after + 1 if retry_after else 3 * (attempt + 1))
+    raise AssertionError("unreachable")
+
+
+# ---------- the fake people's profiles and collections (scripts.demo_people) ----------
+
+async def _anime_work(session: Session, cache: dict[str, Work | None], query: str) -> Work | None:
+    """The anime AniList finds first for `query`, with its Chinese title; looked up once per query."""
+    if query in cache:
+        return cache[query]
+    work = None
+    try:
+        results = await _retrying(lambda: anilist.search_anime(query), query, (anilist.AniListError,))
+    except anilist.AniListError as e:
+        print(f"AniList unavailable for {query}: {e}")
+        return None  # not cached: a later person may find it
+    if results:
+        a = results[0]
+        work = session.exec(select(Work).where(Work.source == "anilist", Work.external_id == str(a.id))).first()
+        if work is None:
+            zh = await anime_search.chinese_title(a.original_title)
+            work = _work(session, "anilist", str(a.id), category=Category.anime, title=zh or a.title,
+                         original_title=a.original_title, cover_url=a.cover_url, year=a.year, zh_checked_at=utcnow())
+            await asyncio.sleep(anime_search.BANGUMI_DELAY)
+    cache[query] = work
+    return work
+
+
+async def _book_work(session: Session, cache: dict[str, Work | None], query: str) -> Work | None:
+    """The first book Google Books / Open Library finds for `query`; looked up once per query."""
+    if query in cache:
+        return cache[query]
+    work = None
+    try:
+        found = await _retrying(lambda: books.search(query), query, (books.BooksError,))
+    except books.BooksError as e:
+        print(f"book search unavailable for {query}: {e}")
+        return None  # not cached: a later person may find it
+    if found:
+        b = found[0]
+        work = _work(session, b.source, b.external_id, category=Category.book, title=b.title,
+                     creator=b.authors or None, cover_url=b.cover_url, year=b.year)
+    await asyncio.sleep(0.5)  # gentle on Open Library
+    cache[query] = work
+    return work
+
+
+async def _film_work(session: Session, key: str) -> Work:
+    """A film or series by TMDB id: TMDB's own title and poster when TMDB_API_KEY is set, else ours."""
+    zh, original, year = demo_people.FILMS[key]
+    title = None
+    if tmdb.configured():
+        try:
+            title = await _retrying(lambda: tmdb.get_title(key), key, (tmdb.TmdbError,))
+        except tmdb.TmdbError as e:
+            print(f"TMDB unavailable for {key}: {e}")
+    if title:
+        return _work(session, "tmdb", key, category=Category.film, title=title.title or zh,
+                     original_title=title.original_title, cover_url=title.cover_url, year=title.year)
+    return _work(session, "tmdb", key, category=Category.film, title=zh,
+                 original_title=original if original != zh else None, year=year)
+
+
+async def _film_search(session: Session, cache: dict, query: str, kind: str) -> Work | None:
+    """The first live-action TMDB result for `query` (needs TMDB_API_KEY); looked up once per query."""
+    if (query, kind) in cache:
+        return cache[(query, kind)]
+    work = None
+    if tmdb.configured():
+        try:
+            found = [t for t in await _retrying(lambda: tmdb.search(query, prefer=kind), query, (tmdb.TmdbError,))
+                     if not t.is_anime]
+        except tmdb.TmdbError as e:
+            print(f"TMDB unavailable for {query}: {e}")
+            return None  # not cached: a later person may find it
+        if found:
+            t = found[0]
+            work = _work(session, "tmdb", t.external_id, category=Category.film, title=t.title,
+                         original_title=t.original_title, cover_url=t.cover_url, year=t.year)
+        await asyncio.sleep(0.25)
+    cache[(query, kind)] = work
+    return work
+
+
+STEAM_SEARCH = "https://store.steampowered.com/api/storesearch/"
+
+
+async def _steam_find(client: httpx.AsyncClient, cache: dict, name: str) -> tuple[int, str] | None:
+    """(appid, Chinese store name) of the first Steam store result for `name`; looked up once per name."""
+    if name in cache:
+        return cache[name]
+    async def lookup():
+        r = await client.get(STEAM_SEARCH, params={"term": name, "l": "tchinese", "cc": "TW"})
+        if r.status_code == 429:
+            raise httpx.HTTPError("Steam rate limit")
+        return r.json()
+
+    try:
+        data = await _retrying(lookup, name, (httpx.HTTPError, ValueError), attempts=5)
+    except (httpx.HTTPError, ValueError) as e:
+        print(f"Steam store unavailable for {name}: {e}")
+        return None  # not cached: a later person may find it
+    items = [i for i in data.get("items", []) if i.get("type") == "app" and i.get("id")]
+    found = (int(items[0]["id"]), items[0]["name"]) if items else None
+    await asyncio.sleep(0.4)
+    cache[name] = found
+    return found
+
+
+def _rate(session: Session, user: User, work: Work | None, tier: str | None, tag: str | None,
+          status: str | None = None) -> None:
+    if work is None:
+        return
+    entry = _entry(session, user, work)
+    entry.tier = entry.tier or tier
+    entry.tag = entry.tag or tag
+    if status:
+        entry.status = status
+    session.add(entry)
+
+
+def profile_photos(name: str, tagline: str, palette: tuple[str, str]) -> list[bytes]:
+    """Two illustrated 4:5 cards (no real faces): the name's first character, and the person's tagline."""
+    images = []
+    for i, text in enumerate(([name[:1]], [name, tagline])):
+        top, bottom = palette if i == 0 else palette[::-1]
+        img = Image.new("RGB", photos.SIZE, top)
+        draw = ImageDraw.Draw(img, "RGBA")
+        w, h = photos.SIZE
+        c1, c2 = Image.new("RGB", (1, 1), top).getpixel((0, 0)), Image.new("RGB", (1, 1), bottom).getpixel((0, 0))
+        for y in range(h):  # vertical gradient
+            t = y / h
+            draw.line([(0, y), (w, y)], fill=tuple(round(a + (b - a) * t) for a, b in zip(c1, c2)))
+        for k, (cx, cy, r) in enumerate(((0.15, 0.2, 260), (0.9, 0.75, 340), (0.7, 0.1, 140), (0.2, 0.9, 180))):
+            draw.ellipse([cx * w - r, cy * h - r, cx * w + r, cy * h + r], fill=(255, 255, 255, 28 + 10 * (k % 2)))
+        if i == 0:
+            f = card_render.font("bold", 460)
+            draw.text((w / 2, h / 2), text[0], font=f, fill=(255, 255, 255, 235), anchor="mm")
+        else:
+            draw.text((w / 2, h * 0.42), text[0], font=card_render.font("bold", 150), fill=(255, 255, 255, 240), anchor="mm")
+            draw.text((w / 2, h * 0.58), text[1], font=card_render.font("regular", 72), fill=(255, 255, 255, 220), anchor="mm")
+        out = io.BytesIO()
+        img.save(out, "JPEG", quality=88)
+        images.append(out.getvalue())
+    return images
+
+
+async def seed_profiles(session: Session, client: httpx.AsyncClient, people: dict[str, User],
+                        demo_works: dict[str, Work]) -> None:
+    """Bios, contacts, privacy, photos and the five collections of every fake person.
+
+    Each collection follows demo_people.plan() (30+ per category); when a lookup finds nothing, the next
+    items from demo_people.spare() fill the gap so nobody ends up under demo_people.MIN_PER_CATEGORY."""
+    anime_cache: dict[str, Work | None] = dict(demo_works)  # demo's anime, already looked up by the same query
+    book_cache: dict[str, Work | None] = {}
+    film_cache: dict = {}
+    steam_cache: dict = {}
+    counts = {"anime": 0, "films": 0, "books": 0, "games": 0, "songs": 0}
+    total = len(demo_people.PROFILES)
+    for n, (username, p) in enumerate(demo_people.PROFILES.items(), 1):
+        user = people.get(username)
+        if user is None:
+            continue
+        print(f"  [{n}/{total}] {username} ({user.display_name})…", flush=True)
+        user.bio = p["bio"]
+        contacts = {k: {"v": v, "vis": "friends"} for k, v in p["contacts"].items()}  # app.contacts format
+        user.contacts = json.dumps(contacts) if contacts else None
+        session.add(user)
+        for category, visibility in p["privacy"].items():
+            set_privacy(session, user.id, Category(category), Visibility(visibility))
+        if not photos.photo_ids(session, user.id):
+            for data in profile_photos(user.display_name, p["tagline"], p["palette"]):
+                photos.add_photo(session, user, data)
+
+        plan = demo_people.plan(username)
+        mine = {k: set() for k in counts}
+
+        async def add_anime(item) -> None:
+            query, tier, tag = item
+            work = await _anime_work(session, anime_cache, query)
+            if work and work.id not in mine["anime"]:
+                mine["anime"].add(work.id)
+                _rate(session, user, work, tier, tag)
+
+        async def add_film(item) -> None:
+            how, tier, tag = item
+            if how[0] == "tmdb":
+                work = await _film_work(session, how[1])
+            else:
+                work = await _film_search(session, film_cache, how[1], how[2])
+            if work and work.id not in mine["films"]:
+                mine["films"].add(work.id)
+                _rate(session, user, work, tier, tag)
+
+        async def add_book(item) -> None:
+            query, status, tier, tag = item
+            work = await _book_work(session, book_cache, query)
+            if work and work.id not in mine["books"]:
+                mine["books"].add(work.id)
+                _rate(session, user, work, tier, tag, status)
+
+        games: list[tuple[int, str, int, int]] = []
+
+        async def add_game(item) -> None:
+            how, total_h, this_h = item
+            found = (how[1], demo_people.GAMES[how[1]]) if how[0] == "appid" else await _steam_find(client, steam_cache, how[1])
+            if found and found[0] not in mine["games"]:
+                mine["games"].add(found[0])
+                games.append((found[0], found[1], total_h, this_h))
+
+        for category, add in (("anime", add_anime), ("films", add_film), ("books", add_book), ("games", add_game)):
+            for item in plan[category]:
+                await add(item)
+            for item in demo_people.spare(username, category):
+                if len(mine[category]) >= demo_people.MIN_PER_CATEGORY:
+                    break
+                await add(item)
+            session.commit()
+        seed_person_games(session, user, games)
+        await seed_music(session, client, user, plan["songs"])
+        mine["songs"] = set(range(len(plan["songs"])))
+        for k in counts:
+            counts[k] += len(mine[k])
+        print("      " + ", ".join(f"{len(mine[k])} {k}" for k in counts), flush=True)
+    print("fake people's collections: " + ", ".join(f"{n} {k}" for k, n in counts.items()))
 
 
 def seed_games(session: Session, user: User) -> None:
@@ -253,38 +592,74 @@ async def seed_anime(session: Session, user: User) -> dict[str, Work]:
 
 
 async def seed_previews(session: Session) -> None:
-    """Look up iTunes previews for every demo song now, so 猜歌對戰 starts without waiting on iTunes."""
-    found = 0
-    for work in session.exec(select(Work).where(Work.category == Category.music, col(Work.preview_checked_at).is_(None))).all():
+    """Look up iTunes previews for every demo song now, so 猜歌對戰 starts without waiting on iTunes.
+
+    When iTunes starts refusing (HTTP 403/429 several times in a row) the rest is skipped instead of
+    waiting it out: those songs stay unchecked, and `python -m scripts.fill_previews` fills them later."""
+    found, refused = 0, 0
+    todo = session.exec(select(Work).where(Work.category == Category.music, col(Work.preview_checked_at).is_(None))).all()
+    for n, work in enumerate(todo, 1):
+        await wait_for_network()
         try:
             work.preview_url = await itunes.find_preview(work.creator or "", work.title)
         except itunes.ItunesUnavailable as e:
+            refused += 1
             print(f"iTunes unavailable for {work.title}: {e}")
+            if refused >= 5:
+                print(f"⚠ iTunes 暫時封鎖了查詢，先跳過剩下 {len(todo) - n} 首的試聽。"
+                      "跑完後過 30 分鐘以上，再執行 python -m scripts.fill_previews 補上。")
+                break
+            await asyncio.sleep(10)
             continue
+        refused = 0
         work.preview_checked_at = utcnow()
         found += bool(work.preview_url)
         session.add(work)
+        session.commit()
+        await asyncio.sleep(1.5)  # stay under iTunes' limit
     session.commit()
     print(f"song previews: {found} found")
 
 
-async def main() -> None:
-    demo_db.remove(demo_db.SNAPSHOT)  # always build from scratch
-    init_db()
-    async with httpx.AsyncClient(timeout=10) as client:
-        await _seed(client)
+async def main(finish: bool = False) -> None:
+    """finish=True (--finish): keep the accounts and collections already in demo.seed.db and only
+    redo the steps after them (previews, genres, work pages, copying to demo.db, covers)."""
+    if finish:
+        import sqlite3
+
+        try:
+            with sqlite3.connect(demo_db.SNAPSHOT) as con:
+                done = con.execute("SELECT 1 FROM catalogcache WHERE key = ?", (demo_db.SEEDED_AT_KEY,)).fetchone()
+        except sqlite3.DatabaseError:
+            done = None
+        if not done:
+            print("demo.seed.db 還沒建完帳號和收藏，請改跑完整的 python -m scripts.seed_demo")
+            return
+        print("--finish: 保留已建好的帳號和收藏，只跑後面的步驟")
+    else:
+        demo_db.remove(demo_db.SNAPSHOT)  # always build from scratch
+        init_db()
+        async with httpx.AsyncClient(timeout=10) as client:
+            await _seed(client)
     with Session(engine) as session:
         await seed_previews(session)
         # Do the background job's work now (genres for 風格偏好, Chinese titles), so the demo
         # server has nothing to look up while presenting: no network, no competing writes.
-        while await genres.enrich_batch(session):
-            pass
-        while await anime_search.enrich_titles(session):
-            pass
+        print("looking up genres…", flush=True)
+        while True:  # a batch that fails because the Wi-Fi dropped is simply tried again
+            await wait_for_network()
+            if not await genres.enrich_batch(session) and await asyncio.to_thread(_online):
+                break
+        while True:
+            await wait_for_network()
+            if not await anime_search.enrich_titles(session) and await asyncio.to_thread(_online):
+                break
+        print("caching work pages…", flush=True)
         # Work pages' facts and big covers, so opening one during the demo needs no network.
         works = session.exec(select(Work)).all()
         filled = 0
         for work in works:
+            await wait_for_network()
             filled += (await workinfo.cache_work_info(session, work)) != workinfo.WorkInfo()
             await asyncio.sleep(0.5)  # gentle on AniList / Steam / Last.fm
         print(f"work pages cached: {filled} / {len(works)}")
@@ -300,6 +675,7 @@ async def main() -> None:
     # local copies of every cover and preview, for a demo without the network (LOCAL_ASSETS_DIR)
     from scripts import cache_covers
 
+    await wait_for_network()
     got, had, failed = await cache_covers.download(cache_covers.collect_urls(demo_db.SNAPSHOT), cache_covers.DEFAULT_DIR)
     print(f"covers/previews in {cache_covers.DEFAULT_DIR.name}/: {got} downloaded, {had} already there, {len(failed)} failed")
 
@@ -332,9 +708,16 @@ async def _seed(client: httpx.AsyncClient) -> None:
         if rain:
             await seed_music(session, client, rain, [(a, t, 0, n) for a, t, n in RAIN_SONGS])
             seed_chat(session, user, rain)
+        await seed_profiles(session, client, people, demo_works)
+        for username in REQUESTS_TO_DEMO:
+            if username in people:
+                request_friendship(session, people[username], user)
+        print(f"{len(REQUESTS_TO_DEMO)} friend requests waiting for demo")
         # reset_demo moves every timestamp forward by (reset time - this), so "1 小時前" stays true
         catalog.put(session, demo_db.SEEDED_AT_KEY, {"note": "when demo.seed.db was built"})
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import sys
+
+    asyncio.run(main(finish="--finish" in sys.argv[1:]))
