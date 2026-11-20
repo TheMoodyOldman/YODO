@@ -6,6 +6,7 @@ import io
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -52,22 +53,29 @@ def font(weight: str, size: int) -> ImageFont.FreeTypeFont:
 
 async def fetch_images(urls: set[str]) -> dict[str, Image.Image]:
     async def one(client: httpx.AsyncClient, url: str) -> tuple[str, Image.Image | None]:
-        try:
-            local = local_path(url)  # demo mode: the downloaded copy, no network
-            if local is not None:
-                data = local.read_bytes()
-            else:
-                r = await client.get(url)
-                if r.status_code != 200:
-                    return url, None
-                data = r.content
-            if len(data) > MAX_IMAGE_BYTES:
-                return url, None
-            img = Image.open(io.BytesIO(data))
-            img.load()
-            return url, img.convert("RGB")
-        except Exception:  # bad URL, timeout, undecodable image: draw a placeholder instead
-            return url, None
+        candidates = [url]
+        parsed = urlparse(url)
+        if (parsed.hostname or "").endswith(".steamstatic.com") and parsed.path.endswith("/library_600x900.jpg"):
+            candidates.append(url.replace("library_600x900.jpg", "header.jpg"))
+        for candidate in candidates:
+            try:
+                local = local_path(candidate)  # demo mode: prefer the downloaded copy
+                if local is not None:
+                    data = local.read_bytes()
+                else:
+                    r = await client.get(candidate)
+                    if r.status_code != 200:
+                        continue
+                    data = r.content
+                if len(data) > MAX_IMAGE_BYTES:
+                    continue
+                img = Image.open(io.BytesIO(data))
+                img.load()
+                # Keep the original key: the renderer indexes by work.cover_url.
+                return url, img.convert("RGB")
+            except Exception:  # try the Steam header after a bad / missing portrait
+                continue
+        return url, None
 
     async with httpx.AsyncClient(timeout=6, follow_redirects=True) as client:
         results = await asyncio.gather(*(one(client, u) for u in urls if u))
