@@ -17,24 +17,41 @@ if (-not (Test-Path $Python)) {
     exit 1
 }
 
-# 1. stop whatever Python is serving port 8000 (an earlier demo run)
-$listeners = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-    Select-Object -ExpandProperty OwningProcess -Unique)
-foreach ($procId in $listeners) {
-    $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
-    if ($null -eq $proc) { continue }
-    if ($proc.ProcessName -match '^(python|pythonw|uvicorn)$') {
-        Write-Host "停止舊的 Demo 伺服器（PID $procId）..."
-        Stop-Process -Id $procId -Force
-    } else {
-        Write-Host "port $Port 被 $($proc.ProcessName)（PID $procId）佔用，不是 Demo 伺服器，請先關掉它再執行。" -ForegroundColor Red
-        exit 1
+# 1. stop every Python server on port 8000 (an earlier demo run, or a dev server on 127.0.0.1:8000,
+#    which would otherwise answer http://localhost:8000 instead of the demo). uvicorn --reload and
+#    multiprocessing workers keep listening after their parent exits, so children are stopped too.
+function Get-PortServers {
+    $owners = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique)
+    if ($owners.Count -eq 0) { return @() }
+    return @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $p = $_
+        @($owners | Where-Object { $p.ProcessId -eq $_ -or $p.ParentProcessId -eq $_ -or $p.CommandLine -match "parent_pid=$_\b" }).Count -gt 0
+    })
+}
+
+for ($round = 0; $round -lt 3; $round++) {
+    $servers = Get-PortServers
+    if ($servers.Count -eq 0 -and -not (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)) { break }
+    foreach ($p in $servers) {
+        if ($p.Name -notmatch '^(python|pythonw|uvicorn)(\.exe)?$') {
+            Write-Host "port $Port 被 $($p.Name)（PID $($p.ProcessId)）佔用，不是 Python 伺服器，請先關掉它再執行。" -ForegroundColor Red
+            exit 1
+        }
+    }
+    foreach ($p in $servers) {
+        Write-Host "停止 port $Port 上的伺服器（PID $($p.ProcessId)）..."
+        Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    # give Windows a moment to release the port and demo.db
+    for ($i = 0; $i -lt 20; $i++) {
+        if (-not (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)) { break }
+        Start-Sleep -Milliseconds 250
     }
 }
-# give Windows a moment to release demo.db
-for ($i = 0; $i -lt 20; $i++) {
-    if (-not (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)) { break }
-    Start-Sleep -Milliseconds 250
+if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) {
+    Write-Host "port $Port 還是被佔用，沒有啟動。請關掉其他開在 port $Port 的伺服器（或重開機）後再執行。" -ForegroundColor Red
+    exit 1
 }
 
 # 2. reset demo.db

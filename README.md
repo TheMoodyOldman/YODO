@@ -165,7 +165,7 @@ powershell -ExecutionPolicy Bypass -File .\start_demo.ps1
 ```
 
 腳本會依序：
-1. 停掉佔用 port 8000 的 Python（上一次的 Demo 伺服器）。**port 8000 保留給 Demo**：如果你平常的開發伺服器也開在 8000，會一起被停掉。
+1. 停掉佔用 port 8000 的 Python 伺服器，包括上一次的 Demo，以及開在 `127.0.0.1:8000` 的開發伺服器（含 `--reload` 的子程序）。**port 8000 保留給 Demo**：開發伺服器請改用其他 port；不停掉的話，筆電上的 `localhost:8000` 會打開開發伺服器而不是 Demo。停不掉時腳本會直接結束、不啟動。
 2. 重置 `demo.db`。
 3. 用 `demo.db` 和本機封面，在 `0.0.0.0:8000` 啟動，讓同一個 Wi-Fi 的手機連得進來。
 4. 印出筆電的區網 IP 和手機要開的網址，例如 `http://192.168.50.183:8000/login`。

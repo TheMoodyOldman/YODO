@@ -245,7 +245,9 @@ check("start_demo.ps1 resets, then serves demo.db + local assets on 0.0.0.0:8000
       and '$env:DATABASE_URL = "sqlite:///demo.db"' in text and '$env:LOCAL_ASSETS_DIR = "demo_assets"' in text
       and "--host 0.0.0.0 --port $Port" in text and "$Port = 8000" in text)
 check("start_demo.ps1 only stops Python processes, and stops if the reset fails",
-      "-match '^(python|pythonw|uvicorn)$'" in text and "if ($LASTEXITCODE -ne 0)" in text)
+      r"-notmatch '^(python|pythonw|uvicorn)(\.exe)?$'" in text and "if ($LASTEXITCODE -ne 0)" in text)
+check("start_demo.ps1 also stops reload / multiprocessing children and refuses to start while 8000 is busy",
+      "$p.ParentProcessId -eq $_" in text and 'parent_pid=$_' in text and "還是被佔用，沒有啟動" in text)
 check("start_demo.ps1 prints private LAN addresses only", r"'^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)'" in text)
 
 print(f"\n{'ALL PASS' if not fails else f'{fails} FAILED'}")
