@@ -234,4 +234,18 @@ if real_snapshot.exists():
 else:
     print("SKIP demo.seed.db checks (build it with python -m scripts.seed_demo)")
 
+# start_demo.ps1: Windows PowerShell 5.1 needs a BOM to read the Chinese text; it must reset first,
+# serve demo.db with local assets on all interfaces, and only ever stop Python on its own port.
+ps1 = pathlib.Path(__file__).resolve().parent.parent / "start_demo.ps1"
+raw = ps1.read_bytes()
+text = raw.decode("utf-8-sig")
+check("start_demo.ps1 saved with a UTF-8 BOM", raw.startswith(b"\xef\xbb\xbf"))
+check("start_demo.ps1 resets, then serves demo.db + local assets on 0.0.0.0:8000",
+      text.index("scripts.reset_demo") < text.index("uvicorn app.main:app")
+      and '$env:DATABASE_URL = "sqlite:///demo.db"' in text and '$env:LOCAL_ASSETS_DIR = "demo_assets"' in text
+      and "--host 0.0.0.0 --port $Port" in text and "$Port = 8000" in text)
+check("start_demo.ps1 only stops Python processes, and stops if the reset fails",
+      "-match '^(python|pythonw|uvicorn)$'" in text and "if ($LASTEXITCODE -ne 0)" in text)
+check("start_demo.ps1 prints private LAN addresses only", r"'^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)'" in text)
+
 print(f"\n{'ALL PASS' if not fails else f'{fails} FAILED'}")

@@ -158,7 +158,43 @@ Demo 用一個獨立的資料庫 `demo.db`，裡面只有示範帳號 `demo` 和
 
 `demo` 的密碼寫在 `scripts/seed_demo.py`，只適合本機和 Demo 使用。
 
-**用 demo.db 啟動**（`LOCAL_ASSETS_DIR` 讓作品封面和猜歌試聽都從本機讀取，不用等網路）：
+**一鍵啟動 Demo**（建議）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_demo.ps1
+```
+
+腳本會依序：
+1. 停掉佔用 port 8000 的 Python（上一次的 Demo 伺服器）。**port 8000 保留給 Demo**：如果你平常的開發伺服器也開在 8000，會一起被停掉。
+2. 重置 `demo.db`。
+3. 用 `demo.db` 和本機封面，在 `0.0.0.0:8000` 啟動，讓同一個 Wi-Fi 的手機連得進來。
+4. 印出筆電的區網 IP 和手機要開的網址，例如 `http://192.168.50.183:8000/login`。
+
+按 Ctrl+C 停止。
+
+**手機連不上時（Windows 防火牆）**：
+
+Windows 會擋掉「公用網路」上別人連進筆電的連線，學校、咖啡廳的 Wi-Fi 通常都被設成公用網路。依序試：
+
+1. 第一次執行時如果跳出「Windows 安全性警示」，勾選允許存取後按「允許」。
+2. 把這個 Wi-Fi 改成私人網路：設定 → 網路和網際網路 → Wi-Fi → 點目前連線的網路 → 網路設定檔類型選「私人網路」。
+3. 還是不行的話，用**系統管理員身分**開 PowerShell，只開放同一個網段連 port 8000：
+
+   ```powershell
+   New-NetFirewallRule -DisplayName "YODO Demo 8000" -Direction Inbound -Protocol TCP -LocalPort 8000 -RemoteAddress LocalSubnet -Action Allow
+   ```
+
+   Demo 結束後刪掉這條規則：
+
+   ```powershell
+   Remove-NetFirewallRule -DisplayName "YODO Demo 8000"
+   ```
+
+4. 有些場地的 Wi-Fi 會隔離裝置，手機彼此、手機和筆電都連不到，這時防火牆設定也沒用。改用一支手機開熱點，讓筆電和其他手機都連這個熱點，再執行一次 `start_demo.ps1`（IP 會變）。
+
+先在現場用一支手機打開印出的網址測試一次。
+
+**手動啟動**（不重置、只開給本機）：
 
 ```powershell
 $env:DATABASE_URL = "sqlite:///demo.db"; $env:LOCAL_ASSETS_DIR = "demo_assets"; .venv\Scripts\uvicorn.exe app.main:app --port 8000
