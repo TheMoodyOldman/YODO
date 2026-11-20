@@ -68,6 +68,18 @@ CHAT = [  # (from demo?, text, minutes ago)
 # 本季新番 picks are indexes into this season's AniList list (most popular first), so the demo works
 # whatever the season. Fake people: (username, name, bio, region, friend of demo?, picks, tiers for DEMO_ANIME)
 DEMO_PICKS = [0, 1, 3, 6]
+# 本季新番 shows Bangumi has no Chinese name for: their usual Taiwanese titles (AniList id -> title).
+ZH_OVERRIDES = {
+    195539: "電馭叛客：邊緣行者 2",
+    195604: "黑色五葉草 第二季",
+    159042: "轉生就是劍 第二季",
+    210482: "JOJO的奇妙冒險 STEEL BALL RUN",
+    191788: "青之蘆葦 第二季",
+    209872: "亂馬½ 第三季",
+    198727: "千歲同學在彈珠汽水瓶裡 第二季",
+    176314: "佐佐木與文鳥小嗶 第二季",
+    178868: "魔法騎士雷阿斯",
+}
 # Friends who can log in on a second / third phone (same demo password) for 猜歌對戰 and 猜誰是臥底.
 LOGIN_PEOPLE = {"demo_rain", "demo_zhe"}
 FAKE_PEOPLE = [
@@ -187,6 +199,11 @@ async def seed_season(session: Session, demo: User, demo_works: dict[str, Work])
     key = seasonal.current_key()
     try:  # the whole list with Chinese titles goes into the cache, so the pick page works offline
         count = await seasonal.prefetch(session, key)
+        cached, fetched_at = catalog.get(session, seasonal._cache_key(key))
+        for item in cached:
+            if not item.get("zh") and item["id"] in ZH_OVERRIDES:
+                item["zh"] = ZH_OVERRIDES[item["id"]]
+        catalog.put(session, seasonal._cache_key(key), cached, fetched_at=fetched_at)
         listed = await seasonal.season_list(session, key, warm=False)
         print(f"本季新番 list cached: {count} shows")
     except anilist.AniListError as e:

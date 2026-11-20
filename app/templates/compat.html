@@ -18,7 +18,7 @@
       <label for="guess"><strong>先猜猜看，你們有多合？</strong></label>
       <output class="guess-out" id="guess-out">50%</output>
       <input type="range" id="guess" name="guess" min="0" max="100" value="50"
-             oninput="document.getElementById('guess-out').textContent = this.value + '%'">
+             oninput="document.getElementById('guess-out').textContent = this.value + '%'; this.style.setProperty('--fill', this.value + '%')">
       <button type="submit" class="btn">揭曉答案</button>
     </form>
     <p class="center"><a class="small muted" href="?guess=skip">不猜了，直接看</a></p>

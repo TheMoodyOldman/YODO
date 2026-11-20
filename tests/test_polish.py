@@ -101,4 +101,20 @@ check("J: no space after the full-width comma", "你猜 0%，差了" in text and
 css = (pathlib.Path(__file__).resolve().parent.parent / "app/static/css/style.css").read_text(encoding="utf-8")
 check("M: 我的 sub-menu wraps on phones", re.search(r"@media \(max-width: 640px\) \{\s*\.my-nav \{ flex-wrap: wrap;", css) is not None)
 
+# group 4
+prof = viewer.get("/u/viewer").text
+check("C: no photo -> small initial tile", 'class="hero-photos empty"' in prof and ".hero-photos.empty { width: min(44vw, 180px); aspect-ratio: 1;" in css)
+check("H: chat header's name rule no longer applies to the avatar",
+      ".chat-who > span:not(.avatar) {" in css and ".chat-who > span {" not in css)
+compat = viewer.get("/games/compat/ana").text
+check("I: slider keeps its fill in sync and gets a light track",
+      "this.style.setProperty('--fill', this.value + '%')" in compat and "compat-guess input[type=\"range\"]::-webkit-slider-thumb" in css
+      and ".compat-head + .eyebrow { margin-top: 14px; }" in css)
+check("K: one cover shape in 猜猜是誰", ".guess-items .cover, .guess-items .cover.square-cover { aspect-ratio: 3 / 4; overflow: hidden;" in css)
+
+from scripts import seed_demo  # noqa: E402
+
+check("L: Chinese names for shows Bangumi doesn't know", seed_demo.ZH_OVERRIDES.get(195604) == "黑色五葉草 第二季"
+      and all(isinstance(k, int) and v for k, v in seed_demo.ZH_OVERRIDES.items()))
+
 print(f"\n{'ALL PASS' if not fails else f'{fails} FAILED'}")
