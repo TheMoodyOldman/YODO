@@ -30,7 +30,7 @@ async def fake_owned(sid):
     return GAMES["v"]
 
 
-async def fake_info(work):
+async def fake_info(work, session=None):
     return WorkInfo()
 
 

@@ -19,7 +19,7 @@ from app.models import Category, CollectionEntry, Post, Report, Review, User, Vi
 from app.privacy import set_privacy  # noqa: E402
 
 
-async def no_info(work):
+async def no_info(work, session=None):
     return workinfo.WorkInfo()
 
 

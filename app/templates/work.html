@@ -16,14 +16,14 @@
 {% set is_music = work.category == Category.music %}
 
 <div class="work-backdrop" aria-hidden="true"
-     style="--work-color: {{ color }};{% if cover %} --work-cover: url('{{ cover }}');{% endif %}"></div>
+     style="--work-color: {{ color }};{% if cover %} --work-cover: url('{{ cover | local }}');{% endif %}"></div>
 
 <div class="work-page" style="--work-color: {{ color }}">
   <a class="back-btn" href="{{ back_href }}"><span class="arrow" aria-hidden="true">←</span> {{ owner.display_name }} 的{{ CATEGORY_LABELS[work.category] }}</a>
 
   <header class="work-hero">
     <div class="work-cover{% if is_music %} square{% endif %}">
-      {% if cover %}<img src="{{ cover }}" alt="" onerror="this.remove()">{% endif %}
+      {% if cover %}<img src="{{ cover | local }}" alt="" onerror="this.remove()">{% endif %}
     </div>
     <div class="work-head">
       <p class="eyebrow">{{ CATEGORY_LABELS[work.category] }} · 第 {{ rank }} / {{ total }} {{ UNITS[work.category] }}</p>

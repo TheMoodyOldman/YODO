@@ -26,7 +26,7 @@ from datetime import date, datetime, timedelta  # noqa: E402
 import httpx  # noqa: E402
 from sqlmodel import Session, col, select  # noqa: E402
 
-from app import anime_search, catalog, genres, seasonal  # noqa: E402
+from app import anime_search, catalog, genres, seasonal, workinfo  # noqa: E402
 from app.auth import hash_password  # noqa: E402
 from app.db import engine, init_db  # noqa: E402
 from app.importers.youtube import TAIPEI  # noqa: E402
@@ -281,6 +281,13 @@ async def main() -> None:
             pass
         while await anime_search.enrich_titles(session):
             pass
+        # Work pages' facts and big covers, so opening one during the demo needs no network.
+        works = session.exec(select(Work)).all()
+        filled = 0
+        for work in works:
+            filled += (await workinfo.cache_work_info(session, work)) != workinfo.WorkInfo()
+            await asyncio.sleep(0.5)  # gentle on AniList / Steam / Last.fm
+        print(f"work pages cached: {filled} / {len(works)}")
     engine.dispose()  # release the snapshot file before copying it
     demo_db.restore()
     print(f"Seeded /u/{DEMO_USERNAME}: {demo_db.SNAPSHOT.name} built and copied to {demo_db.DEMO_DB.name}")

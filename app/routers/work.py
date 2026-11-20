@@ -86,7 +86,7 @@ async def work_page(request: Request, username: str, work_id: int, session: Sess
         )
     history = sorted(history, reverse=True)[:HISTORY_MONTHS]
 
-    info = await get_work_info(work)
+    info = await get_work_info(work, session)
     base = f"/u/{owner.username}/w/"
     return render(
         request,

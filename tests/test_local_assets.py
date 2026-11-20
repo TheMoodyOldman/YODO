@@ -152,6 +152,68 @@ check("files named like the pages expect", (out / local_assets.file_name("https:
 got, had, failed = asyncio.run(run_download())
 check("second run skips what's already there", got == 0 and had == 5 and len(failed) == 1)
 
+# Work pages in demo mode: facts come from the database after the first lookup, covers are local
+from app import workinfo  # noqa: E402
+from app.models import CatalogCache  # noqa: E402
+from app.services import anilist as anilist_service  # noqa: E402
+
+BIG = "https://img.test/covers/big.jpg"
+(assets / local_assets.file_name(BIG)).write_bytes(jpeg("green"))
+lookups = []
+
+
+async def fake_details(anilist_id):
+    lookups.append(anilist_id)
+    return {"description": "一段介紹", "genres": ["Drama"], "episodes": 12, "seasonYear": 2026,
+            "coverImage": {"extraLarge": BIG, "color": "#e4a15d"}, "siteUrl": "https://anilist.test/x"}
+
+
+anilist_service.get_details = fake_details
+with Session(engine) as s:
+    have = s.exec(select(Work).where(Work.cover_url == HAVE)).one()
+    work_id, ext = have.id, have.external_id
+url = f"/u/alice/w/{work_id}"
+page = c.get(url).text
+check("work page: first visit looks the work up once and keeps it", lookups == [int(ext)] and "一段介紹" in page)
+with Session(engine) as s:
+    check("work page facts stored in the database", s.get(CatalogCache, f"workinfo:anilist:{ext}") is not None)
+
+
+async def offline(*a, **k):
+    raise AssertionError("work page must not call AniList in demo mode once cached")
+
+
+anilist_service.get_details = offline
+page = c.get(url).text
+check("work page: later visits need no network (served from the database)", "一段介紹" in page and lookups == [int(ext)])
+big_local = f"/local-assets/{local_assets.file_name(BIG)}"
+check("work page: big cover and backdrop use the local copy", f'src="{big_local}"' in page and f"url('{big_local}')" in page
+      and "https://img.test/" not in page.split("<body", 1)[1].replace('content="https://img.test', ""))
+pub = c.get(f"/w/{work_id}").text
+check("public work page uses the local copy too", f'src="{big_local}"' in pub)
+
+# a new server process has an empty in-memory cache: the database copy still answers
+async def no_network_lookup(work):
+    raise AssertionError("lookup called")
+
+
+real_lookup = workinfo._lookup
+workinfo._lookup = no_network_lookup
+try:
+    with Session(engine) as s:
+        info = asyncio.run(workinfo.get_work_info(s.get(Work, work_id), s))
+    check("restart-safe: database copy used without any lookup", info.description == "一段介紹" and info.image == BIG
+          and isinstance(info.facts[0], tuple))
+finally:
+    workinfo._lookup = real_lookup
+
+# cache_covers also downloads the work pages' big covers
+con = sqlite3.connect(src_db)
+con.execute("INSERT INTO catalogcache VALUES ('workinfo:anilist:9', ?, '2026-11-20')", (json.dumps({"image": "https://a.test/big9.jpg"}),))
+con.commit()
+con.close()
+check("cache_covers collects work-page covers", "https://a.test/big9.jpg" in cache_covers.collect_urls(src_db))
+
 for p in (src_db,):
     p.unlink(missing_ok=True)
 shutil.rmtree(out, ignore_errors=True)
