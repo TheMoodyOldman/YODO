@@ -152,6 +152,7 @@ async def matching_books(q):
 books.search = matching_books
 alice.post("/me/start", data={"pick": ["book|lookup|白夜行／東野圭吾"], "shown": []})
 check("built-in book matched to the real record when the title matches", f"book|{books.OPENLIBRARY}|OL9W" in entries("alice"))
+check("matched built-in book keeps the list's Traditional Chinese title", entries("alice")[f"book|{books.OPENLIBRARY}|OL9W"][1].title == "白夜行")
 
 # un-tick: untouched quick picks go, rated ones and non-quick-pick entries stay
 with Session(engine) as s:
@@ -223,6 +224,23 @@ page = alice.get("/u/alice").text
 check("profile shows 喜歡的歌手", "喜歡的歌手" in page and "YOASOBI" in page)
 coll = alice.get("/me/collection").text
 check("collection lists favourite artists apart from songs", "喜歡的歌手" in coll and 'data-title="YOASOBI"' not in coll)
+
+# built-in books: only the book itself (or an edition of it) counts, as seen with Google Books
+for wanted, found, ok in [
+    ("三體", "三體（全球突破三千萬冊燙銀簽名版）", True), ("我可能錯了", "我可能錯了：森林智者的最後一堂人生課", True),
+    ("那些年，我們一起追的女孩", "那些年我们一起追的女孩", True), ("解憂雜貨店", "解憂雜貨店", True),
+    ("單車失竊記", "吳明益“單車失竊記”中臺語文化詞英譯的翻譯策略探討", False), ("1Q84", "村上春樹『1Q84』をどう読むか", False),
+    ("你的名字。", "你的名字。Another Side:Earthbound", False), ("82年生的金智英", "讓我成為妳：《82年生的金智英》趙南柱作家", False),
+    ("原子習慣", "基于詹姆斯•克利尔所著图书 原子习惯", False), ("撒哈拉的故事", "三毛流浪記: 撒哈拉的故事", False),
+    ("被討厭的勇氣", "被討厭的勇氣 二部曲完結篇", False),
+]:
+    check(f"book match {'accepts' if ok else 'rejects'}: {wanted} -> {found[:16]}", bool(quickpick._book_score(wanted, found)) == ok)
+hits = [books.Book("googlebooks", "seq", "被討厭的勇氣 二部曲", "岸見一郎", None, 2016),
+        books.Book("googlebooks", "ed", "被討厭的勇氣（新版）", "岸見一郎", None, 2020),
+        books.Book("googlebooks", "same", "被討厭的勇氣", "岸見一郎", None, 2014)]
+check("exact title preferred over an edition, sequels never", quickpick._book_match("被討厭的勇氣", hits).external_id == "same")
+hits[1] = books.Book("googlebooks", "ed", "被討厭的勇氣（新版）", "岸見一郎", "https://img.test/c.jpg", 2020)
+check("an edition with a cover beats the same title without one", quickpick._book_match("被討厭的勇氣", hits).external_id == "ed")
 
 # a new user who only picked artists: the card shows them, no empty song rankings
 carol = client("carol")

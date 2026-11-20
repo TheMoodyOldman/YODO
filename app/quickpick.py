@@ -154,7 +154,7 @@ async def _fetch(session: Session, cat: Category) -> list[Item]:
             except books.BooksError:
                 found = []
             b = _book_match(title, found)
-            items.append(Item(cat, b.source, b.external_id, b.title, sub=b.authors, cover_url=b.cover_url, year=b.year)
+            items.append(Item(cat, b.source, b.external_id, title, sub=author, cover_url=b.cover_url, year=b.year)
                          if b else Item(cat, "lookup", f"{title}／{author}", title, sub=author))
             await asyncio.sleep(0.3)
         return items
@@ -260,16 +260,30 @@ def _known(session: Session, key: str) -> Item | None:
     return next((i for i in _fallback(category) if i.key == key), None)
 
 
-def _same_book(wanted: str, found: str) -> bool:
+# What may follow a title in an edition's name: 「三體（全球突破…版）」, 「我可能錯了：森林智者…」.
+_EDITION_START = tuple("（(：:【〔[－—-")  # not a space: 「被討厭的勇氣 二部曲」 is a sequel
+
+
+def _book_score(wanted: str, found: str) -> int:
+    """2 = the same title, 1 = the same title plus an edition note, 0 = a different book (a study
+    of it, a sequel, a summary, a book that merely mentions it in its title...)."""
     from app import zh
 
-    norm = lambda t: "".join(ch for ch in zh.to_traditional(t or "").casefold() if ch.isalnum())  # noqa: E731
-    a, b = norm(wanted), norm(found)
-    return bool(a) and (a in b or b in a)
+    clean = lambda t: zh.to_traditional(t or "").strip().casefold()  # noqa: E731
+    bare = lambda t: "".join(ch for ch in clean(t) if ch.isalnum())  # noqa: E731
+    a, b = clean(wanted), clean(found)
+    if not a:
+        return 0
+    if bare(wanted) == bare(found):  # same title up to punctuation / script: 「那些年我们一起追的女孩」
+        return 2
+    return 1 if b.startswith(a) and b[len(a):].startswith(_EDITION_START) else 0
 
 
 def _book_match(title: str, found: list) -> "books.Book | None":
-    return next((b for b in found if _same_book(title, b.title)), None)
+    """The search hit that really is this book (same title, or an edition of it); among those,
+    one with a cover first, then the exact title, then search order."""
+    scored = [(not b.cover_url, -s, i) for i, b in enumerate(found) if (s := _book_score(title, b.title))]
+    return found[min(scored)[2]] if scored else None
 
 
 async def _resolve_lookup(item: Item) -> Item:
@@ -279,8 +293,8 @@ async def _resolve_lookup(item: Item) -> Item:
         b = _book_match(item.title, await books.search(f"{item.title} {item.sub}".strip()))
     except books.BooksError:
         b = None
-    if b is not None:
-        return Item(item.cat, b.source, b.external_id, b.title, sub=b.authors, cover_url=b.cover_url, year=b.year)
+    if b is not None:  # our Traditional Chinese title and author, the record's id and cover
+        return Item(item.cat, b.source, b.external_id, item.title, sub=item.sub, cover_url=b.cover_url, year=b.year)
     return Item(item.cat, BOOKLIST, f"{item.title}／{item.sub}", item.title, sub=item.sub)
 
 

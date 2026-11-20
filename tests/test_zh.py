@@ -76,6 +76,10 @@ check("chinese_title by native", asyncio.run(anime_search.chinese_title("ぼっ�
 check("chinese_title never raises", asyncio.run(anime_search.chinese_title("down")) is None)
 
 # ---------- books: both scripts ----------
+# This is the Open Library path (no Google Books key); don't let a key in .env switch sources.
+from app.config import settings  # noqa: E402
+
+settings.google_books_api_key = ""
 seen_q = []
 
 
