@@ -5,3 +5,6 @@ __pycache__/
 *.db
 .claude/
 *.db.bak*
+*.db-journal
+*.db-wal
+*.db-shm

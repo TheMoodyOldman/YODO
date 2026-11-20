@@ -408,3 +408,12 @@ class GameInvite(SQLModel, table=True):
     to_id: int = Field(foreign_key="user.id", index=True)
     created_at: datetime = Field(default_factory=utcnow)
     declined: bool = False
+
+
+class CatalogCache(SQLModel, table=True):
+    """Lists fetched from external APIs (本季新番, popular titles, …) kept between restarts, so pages
+    don't call the API on every load and a demo keeps working when the API is slow or offline."""
+
+    key: str = Field(primary_key=True)  # e.g. "season:2026-FALL"
+    payload: str  # JSON
+    fetched_at: datetime = Field(default_factory=utcnow)

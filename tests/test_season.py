@@ -271,7 +271,6 @@ async def down(*a):
 
 
 anilist.season_anime = down
-seasonal._fetch.__wrapped__  # noqa: B018  (ttl_cache keeps the old list for FALL; use a fresh season)
 TODAY[0] = date(2027, 4, 2)
 r = mika.get("/me/season")
 check("AniList down: friendly error, no crash", r.status_code == 200 and "AniList 暫時無法連線" in r.text)

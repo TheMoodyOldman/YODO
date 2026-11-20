@@ -141,14 +141,43 @@ uvicorn app.main:app --reload
 
 AniList 與 Steam 商店頁不需要金鑰。
 
-### 本機測試帳號
+### Demo 環境（demo.db）
+
+Demo 用一個獨立的資料庫 `demo.db`，裡面只有示範帳號 `demo` 和幾個 `demo_` 開頭的假帳號，不會碰到真實使用者的 `app.db`。
+
+**第一次建立**（需要網路，約 2 分鐘）：
 
 ```powershell
-python -m scripts.seed_demo
+.venv\Scripts\python.exe -m scripts.seed_demo
 ```
 
-會建立帳號 `demo` 並加入幾部動畫，密碼寫在 `scripts/seed_demo.py`，只適合本機開發使用。
-也會加入本季新番的勾選，以及幾個 `demo_` 開頭的假帳號（部分是 demo 的好友），讓動態、個人頁和探索推薦都看得到「本季在追」。
+會從頭建立快照 `demo.seed.db`，再複製成 `demo.db`。內容包括：
+- `demo` 帳號的動畫評價、遊戲時數、音樂播放次數（Recap 有資料）、本季新番勾選，和小雨的私訊。
+- 4 個 `demo_` 假帳號：小雨、阿哲是 demo 的好友（動態、私訊、猜歌），小光、奈奈不是（探索推薦）。
+- 事先存好的快取：本季新番清單和中文片名、猜歌的試聽片段，Demo 時不用等 AniList、Bangumi、iTunes。
+
+`demo` 的密碼寫在 `scripts/seed_demo.py`，只適合本機和 Demo 使用。
+
+**用 demo.db 啟動**：
+
+```powershell
+$env:DATABASE_URL = "sqlite:///demo.db"; .venv\Scripts\uvicorn.exe app.main:app --port 8000
+```
+
+**每次 Demo 前重置**（不需要網路，一秒內完成；先按 Ctrl+C 停掉伺服器）：
+
+```powershell
+.venv\Scripts\python.exe -m scripts.reset_demo
+```
+
+會把 `demo.db` 還原成快照的狀態：上次 Demo 新增的勾選、訊息、照片、遊戲房間都會清掉，demo 帳號關掉的本季新番橫幅也會重新出現。
+
+**清掉其他資料庫裡的假帳號**：如果不小心把 `demo_` 假帳號加進了其他資料庫，可以先預覽、確認後再刪除（只刪 `demo_` 開頭的帳號和連到它們的資料，作品本身保留；請先備份）：
+
+```powershell
+.venv\Scripts\python.exe -m scripts.remove_demo_people           # 預覽會刪掉什麼
+.venv\Scripts\python.exe -m scripts.remove_demo_people --apply   # 真的刪除
+```
 
 ### 執行測試
 
@@ -184,6 +213,7 @@ app/
 ├── contacts.py        LINE／Discord／Instagram 聯絡方式
 ├── onboarding.py      新手教學清單
 ├── seasonal.py        本季新番快速勾選（AniList 當季清單、勾選、季別標籤）
+├── catalog.py         外部清單的資料庫快取（重開伺服器或 API 失敗時沿用）
 ├── anime_search.py    中文動畫搜尋與中文片名（Bangumi → AniList）
 ├── zh.py              繁簡轉換（OpenCC）
 ├── music.py           音樂匯入、排行計算
@@ -197,7 +227,7 @@ app/
 ├── routers/           各頁面路由
 ├── templates/         Jinja 模板
 └── static/            CSS 與 JS
-scripts/seed_demo.py   本機測試帳號
+scripts/               Demo 環境：seed_demo（建立 demo.db）、reset_demo（重置）、remove_demo_people
 tests/                 整合測試（run_all.py 一次跑完）
 ```
 
