@@ -78,26 +78,33 @@ async def chinese_title(native: str | None) -> str | None:
 
 
 async def enrich_titles(session: Session, limit: int = 10) -> int:
-    """Give collected anime their Chinese title, most-collected first. Returns works processed."""
-    candidates = session.exec(
-        select(Work)
-        .join(CollectionEntry, col(CollectionEntry.work_id) == Work.id)
-        .where(Work.category == Category.anime, col(Work.zh_checked_at).is_(None))
-        .group_by(col(Work.id))
-        .order_by(func.count(CollectionEntry.id).desc(), col(Work.id))
-        .limit(limit)
-    ).all()
-    for work in candidates:
+    """Give collected anime their Chinese title, most-collected first. Returns works processed.
+    No transaction stays open across the Bangumi call (see genres.enrich_batch for why)."""
+    candidates = [
+        (w.id, w.original_title)
+        for w in session.exec(
+            select(Work)
+            .join(CollectionEntry, col(CollectionEntry.work_id) == Work.id)
+            .where(Work.category == Category.anime, col(Work.zh_checked_at).is_(None))
+            .group_by(col(Work.id))
+            .order_by(func.count(CollectionEntry.id).desc(), col(Work.id))
+            .limit(limit)
+        ).all()
+    ]
+    session.commit()  # end the read transaction before the first await
+    for work_id, original_title in candidates:
         try:
-            subjects = await bangumi.search_anime(work.original_title) if work.original_title else []
+            subjects = await bangumi.search_anime(original_title) if original_title else []
         except bangumi.BangumiError:
-            log.warning("Bangumi lookup failed for work %s", work.id)
+            log.warning("Bangumi lookup failed for work %s", work_id)
             continue  # retried on a later pass
-        name = _chinese_name(subjects, work.original_title)
-        if name:
-            work.title = name
-        work.zh_checked_at = utcnow()
-        session.add(work)
+        name = _chinese_name(subjects, original_title)
+        work = session.get(Work, work_id)
+        if work is not None:
+            if name:
+                work.title = name
+            work.zh_checked_at = utcnow()
+            session.add(work)
         session.commit()
         await asyncio.sleep(BANGUMI_DELAY)
     return len(candidates)
