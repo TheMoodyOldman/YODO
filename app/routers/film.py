@@ -87,7 +87,8 @@ async def submit_review(request: Request, session: SessionDep, me: RequiredUser,
         shown += not entry.hidden
         session.add(entry)
     session.commit()
-    flash(request, f"已公開 {shown} 部，其餘設為隱藏，之後可在收藏中調整")
+    unit = "本" if category == Category.book else "部"
+    flash(request, f"已公開 {shown} {unit}，其餘設為隱藏，之後可在收藏中調整")
     if category == Category.film and _pending(session, me, Category.anime):
         return RedirectResponse("/me/review/anime", status_code=303)  # the anime from the same import
     return RedirectResponse(f"/me/collection#{kind}", status_code=303)
