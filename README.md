@@ -232,6 +232,45 @@ $env:DATABASE_URL = "sqlite:///demo.db"; $env:LOCAL_ASSETS_DIR = "demo_assets"; 
 .venv\Scripts\python.exe -m scripts.remove_demo_people --apply   # 真的刪除
 ```
 
+### 正式版上線（app.db，給評審、觀眾註冊使用）
+
+正式版用的是 `app.db`，資料全部保留、不會重置。它和 Demo 是兩台獨立的伺服器：正式版在 port 8001，Demo 在 port 8000，可以同時開著，互不影響。
+
+**啟動**（在專案資料夾）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_live.ps1
+```
+
+腳本會依序：
+
+1. 確認 port 8001 沒有伺服器在跑；如果已經有，就不會備份也不會啟動。
+2. 把 `app.db` 備份成 `app.db.bak-日期-時間`。用的是 SQLite 自己的備份功能，所以備份是一個完整的檔案。
+3. 把 `app.db` 切換成 WAL 模式（只會切換一次，資料不會變），讓很多人同時讀寫時不會出現 database is locked。之後資料夾裡會多出 `app.db-wal` 和 `app.db-shm`，它們是 `app.db` 的一部分，伺服器在跑的時候不要刪掉或搬走。
+4. 在另一個視窗開 Cloudflare 臨時通道。這個視窗會縮到工作列，不要關掉它。
+5. 在畫面上顯示通道網址的 QR Code，同時開一張大圖，可以直接把筆電轉給評審掃。網址每次啟動都會不一樣。
+6. 用 `app.db` 啟動伺服器：`0.0.0.0:8001`，不用 --reload。`DATABASE_URL` 寫死在腳本裡，所以就算之前跑過 `start_demo.ps1` 也不會用錯資料庫。本機有的封面會直接用本機檔案。
+
+**停止**：在執行腳本的視窗按 **Ctrl+C**，通道會跟著關掉。如果通道視窗還在，直接把它關掉就好。
+
+**cloudflared**：這台筆電已經裝好了，放在 `%USERPROFILE%\cloudflared\cloudflared.exe`，腳本會自動找到。換一台電腦的話，用下面的指令安裝，或是把 `CLOUDFLARED` 環境變數設成 cloudflared.exe 的路徑：
+
+```powershell
+winget install --id Cloudflare.cloudflared
+```
+
+找不到 cloudflared 時，腳本仍然會啟動伺服器，只是改成顯示同一個 Wi-Fi 的區網網址和 QR Code。
+
+**從備份還原**：先按 Ctrl+C 停掉正式版，再執行下面的指令（把檔名換成要還原的那一份）：
+
+```powershell
+Remove-Item app.db-wal, app.db-shm -ErrorAction SilentlyContinue; Copy-Item app.db.bak-20261121-090000 app.db -Force
+```
+
+**管理員**：`.env` 裡 `ADMIN_USERNAMES` 列出的帳號可以刪除任何人的便利貼、便利貼回覆、短評和作品頁留言。動態牆上的留言只有留言者本人和該則動態的主人能刪。
+
+**信箱驗證**：`.env` 沒有設定寄信（SMTP）時，不會要求驗證信箱，註冊後馬上可以使用。
+
 ### 執行測試
 
 ```powershell
