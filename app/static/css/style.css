@@ -1703,3 +1703,21 @@ html.tour-enter main.container { animation: tour-in 0.5s cubic-bezier(.2,.8,.2,1
 .bookscan-read { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0 12px; }
 .bookscan-read dt { color: var(--muted); }
 .bookscan-read dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+/* 新手教學 cover picker (/me/start), on top of the shared 本季新番 tiles */
+.season-pick.square .season-cover { aspect-ratio: 1; border-radius: 50%; }
+.season-pick.locked { cursor: default; opacity: 0.75; }
+.season-pick.locked .season-check { background: var(--grad); color: #fff; }
+.season-sub { font-size: 0.74rem; color: var(--muted); line-height: 1.2; margin-top: -2px; }
+[data-start-form] .tabs { margin: 0 0 12px; }
+.picker-search { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 14px; }
+.picker-search input { flex: 1 1 200px; min-width: 0; }
+.picker-search [data-search-note] { flex: 1 0 100%; margin: 0; }
+.import-more { margin-top: 24px; }
+
+/* 喜歡的歌手 */
+.fav-artists h3 { margin: 4px 0 10px; }
+.fav-artist-list { list-style: none; padding: 0; margin: 0 0 18px; display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; }
+.fav-artist-list li { flex: none; width: 76px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 0.8rem; text-align: center; }
+.fav-artist-cover { width: 68px; height: 68px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--grad-soft); color: var(--accent); font-weight: 800; font-size: 1.4rem; box-shadow: var(--shadow); }
+.fav-artist-cover img { width: 100%; height: 100%; object-fit: cover; }
+.fav-artist-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 14px; }

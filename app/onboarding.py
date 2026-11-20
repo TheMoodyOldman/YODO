@@ -48,10 +48,10 @@ def steps(session: Session, user: User) -> list[Step]:
         Step("profile", "寫一句自我介紹", "填上自介和地區，讓同好知道怎麼開話題。", "/me/settings", "編輯資料",
              bool(user.bio or user.region),
              targets=('textarea[name="bio"]',), hint="寫一句自我介紹、選你的地區，再按最下面的「儲存」。"),
-        Step("collect", f"加入 {COLLECT_GOAL} 個收藏", "同步 Steam、匯入音樂，或搜尋動畫、影視、書籍加入。", "/me/collection#anime", "去加收藏",
+        Step("collect", f"加入 {COLLECT_GOAL} 個收藏", "點封面挑幾個喜歡的動畫、遊戲、歌手、書和影視，30 秒就有一張名片。", "/me/start", "去挑作品",
              entries >= COLLECT_GOAL,
-             targets=('[data-panel="anime"] .search input',),
-             hint="搜尋一部喜歡的動畫（中文、英文、日文都可以），按「加入」再選評價。也可以切到其他分頁同步遊戲或音樂。",
+             targets=("[data-start-form] .tabs", ".season-grid .season-pick"),  # tabs: keeps the tour card at the bottom, clear of 完成
+             hint="點幾個喜歡的封面（上面可以切換分類，也能搜尋），再按「完成」。想要更完整，頁面最下面可以匯入紀錄。",
              progress=f"已加入 {min(entries, COLLECT_GOAL)} / {COLLECT_GOAL} 個收藏"),
         Step("friend", "認識一位同好", "到探索看看品味相近或新加入的人，按 ♥ 送出好友邀請。", "/match", "去探索",
              friends >= 1,

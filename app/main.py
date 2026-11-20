@@ -12,7 +12,7 @@ from app.auth import BirthDateRequired, EmailRequired, LoginRequired
 from app.config import settings
 from app.db import init_db
 from app.local_assets import MOUNT
-from app.routers import account, auth, bookscan, card, community, feed, film, messages, nearby, photos, friends, games, lastfm, match, me, music, pages, profile, rooms, season, steam, work, youtube
+from app.routers import account, auth, bookscan, card, community, feed, film, messages, nearby, photos, friends, games, lastfm, match, me, music, pages, profile, rooms, season, start, steam, work, youtube
 
 BASE_DIR = Path(__file__).parent
 
@@ -43,6 +43,7 @@ app.include_router(auth.router)
 app.include_router(account.router)
 app.include_router(me.router)
 app.include_router(season.router)
+app.include_router(start.router)
 app.include_router(film.router)
 app.include_router(bookscan.router)
 app.include_router(steam.router)

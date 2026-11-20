@@ -26,7 +26,7 @@ from datetime import date, datetime, timedelta  # noqa: E402
 import httpx  # noqa: E402
 from sqlmodel import Session, col, select  # noqa: E402
 
-from app import anime_search, catalog, genres, seasonal, workinfo  # noqa: E402
+from app import anime_search, catalog, genres, quickpick, seasonal, workinfo  # noqa: E402
 from app.auth import hash_password  # noqa: E402
 from app.db import engine, init_db  # noqa: E402
 from app.importers.youtube import TAIPEI  # noqa: E402
@@ -288,6 +288,12 @@ async def main() -> None:
             filled += (await workinfo.cache_work_info(session, work)) != workinfo.WorkInfo()
             await asyncio.sleep(0.5)  # gentle on AniList / Steam / Last.fm
         print(f"work pages cached: {filled} / {len(works)}")
+        # 新手教學 cover picker: every tab's popular list cached ahead (built-in lists cover failures)
+        for cat in quickpick.CATEGORIES:
+            try:
+                print(f"popular {cat.value}: {await quickpick.prefetch(session, cat)} items")
+            except Exception as e:  # the page falls back to its built-in list
+                print(f"popular {cat.value}: not cached ({e})")
     engine.dispose()  # release the snapshot file before copying it
     demo_db.restore()
     print(f"Seeded /u/{DEMO_USERNAME}: {demo_db.SNAPSHOT.name} built and copied to {demo_db.DEMO_DB.name}")

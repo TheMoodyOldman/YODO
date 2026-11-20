@@ -184,6 +184,10 @@
     </section>
 
   {% elif category == Category.music %}
+    {% if fav_artists %}
+      <p class="fav-artist-line"><strong>喜歡的歌手</strong>{% for w in fav_artists %}<span class="meta-chip">{{ w.title }}</span>{% endfor %}
+        <a href="/me/start?next=/me/collection%23music">編輯</a></p>
+    {% endif %}
     <section class="panel">
       <h2>Last.fm</h2>
       {% if me.lastfm_username %}

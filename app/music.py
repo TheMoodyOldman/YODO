@@ -152,6 +152,8 @@ def dedupe_songs(rows: list[tuple[CollectionEntry, Work]]) -> list[tuple[Collect
     to Last.fm), keeping the copy with the most plays rather than adding them up."""
     best: dict[tuple[str, str], tuple[CollectionEntry, Work]] = {}
     for entry, work in rows:
+        if work.source == "artist":  # a 喜歡的歌手 pick, not a song
+            continue
         key = _song_key(work)
         if key not in best or (entry.play_count or 0) > (best[key][0].play_count or 0):
             best[key] = (entry, work)

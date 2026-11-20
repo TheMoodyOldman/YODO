@@ -3,6 +3,7 @@
 
 {% block content %}
 {% from "_icons.html" import icon %}
+{% from "_cover_picker.html" import cover_tile, picker_bar %}
 <a class="back-btn plain" href="{{ back }}"><span class="arrow" aria-hidden="true">←</span> 返回</a>
 <header class="page-head season-head">
   <p class="eyebrow gradient-text">{{ season_label }}新番</p>
@@ -17,43 +18,16 @@
     <a class="btn secondary" href="/me/season">再試一次</a>
   </section>
 {% else %}
-<form method="post" action="/me/season" class="season-form" data-season-form>
+<form method="post" action="/me/season" class="season-form" data-season-form data-picker>
   <input type="hidden" name="next" value="{{ next }}">
-  <div class="season-bar">
-    <p class="season-count" aria-live="polite">已選 <strong data-count>{{ picked | length }}</strong> 部</p>
-    <button type="submit" class="btn">完成</button>
-  </div>
+  {{ picker_bar(picked | length) }}
   <div class="season-grid">
-    {% for a in items %}
-      <label class="season-pick">
-        <input type="checkbox" name="pick" value="{{ a.id }}"{% if a.id in picked %} checked{% endif %}>
-        <span class="season-cover">
-          {% if a.cover_url %}<img src="{{ a.cover_url | local }}" alt="" loading="lazy">{% else %}<span class="season-initial" aria-hidden="true">{{ a.title[:1] }}</span>{% endif %}
-          <span class="season-check" aria-hidden="true">{{ icon("check", 20) }}</span>
-        </span>
-        <span class="season-title">{{ a.title }}</span>
-      </label>
-    {% endfor %}
+    {% for a in items %}{{ cover_tile(a.id, a.title, a.cover_url, a.id in picked) }}{% endfor %}
   </div>
 </form>
 {% endif %}
 {% endblock %}
 
 {% block scripts %}
-<script>
-  // Live 「已選 N 部」 count; the checkboxes themselves work without JS.
-  (() => {
-    const form = document.querySelector("[data-season-form]");
-    if (!form) return;
-    const out = form.querySelector("[data-count]");
-    const update = () => { out.textContent = form.querySelectorAll('input[name="pick"]:checked').length; };
-    form.addEventListener("change", update);
-    form.addEventListener("submit", () => {
-      const btn = form.querySelector('button[type="submit"]');
-      btn.disabled = true;
-      btn.textContent = "儲存中…";
-    });
-    update();
-  })();
-</script>
+<script src="{{ asset('js/cover-picker.js') }}"></script>
 {% endblock %}

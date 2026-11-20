@@ -110,6 +110,8 @@ async def collection(
         by_category[category].sort(key=_sort_key(category), reverse=True)
     # Music libraries can hold thousands of songs: list the most played first, capped unless asked.
     # Not deduped across sources (unlike the profile rankings): every imported copy stays manageable.
+    fav_artists = [w for _, w in by_category[Category.music] if w.source == "artist"]  # 喜歡的歌手 picks
+    by_category[Category.music] = [r for r in by_category[Category.music] if r[1].source != "artist"]
     music_total = len(by_category[Category.music])
     if music != "all":
         by_category[Category.music] = by_category[Category.music][:MUSIC_LIST_LIMIT]
@@ -155,6 +157,7 @@ async def collection(
         rate_entry=rate_entry,
         rate_next=rate_next,
         season_label_now=seasonal.label(seasonal.current_key()),
+        fav_artists=fav_artists,
     )
 
 

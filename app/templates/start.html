@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}挑選你喜歡的作品 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+{% from "_cover_picker.html" import cover_tile, picker_bar %}
+<header class="page-head season-head">
+  <p class="eyebrow gradient-text">新手教學</p>
+  <h1>你喜歡哪些作品？</h1>
+  <p class="muted small">每個分頁點幾個喜歡的封面，按「完成」一次存好，名片就有內容了。不用評價，之後想評再補。</p>
+</header>
+
+<form method="post" action="/me/start" class="season-form" data-picker data-start-form>
+  <input type="hidden" name="next" value="{{ next }}">
+  {{ picker_bar(picked, "個") }}
+
+  <nav class="tabs" role="tablist" aria-label="分類">
+    {% for tab in tabs %}
+      <button type="button" role="tab" data-tab="{{ tab.cat.value }}" aria-selected="{{ 'true' if loop.first else 'false' }}">{{ tab.label }}</button>
+    {% endfor %}
+  </nav>
+
+  {% for tab in tabs %}
+    <div role="tabpanel" data-panel="{{ tab.cat.value }}">
+      <div class="picker-search" data-picker-search data-cat="{{ tab.cat.value }}" data-search-url="/me/start/search"
+           data-target="#grid-{{ tab.cat.value }}"{% if tab.square %} data-square="1"{% endif %}>
+        <input type="search" placeholder="{{ tab.hint }}" aria-label="{{ tab.hint }}" enterkeyhint="search">
+        <button type="button" class="btn small secondary">搜尋</button>
+        <p class="muted small" data-search-note aria-live="polite"></p>
+      </div>
+      <div class="season-grid" id="grid-{{ tab.cat.value }}">
+        {% for item, entry in tab["items"] %}
+          {% set mine = entry is not none %}
+          {{ cover_tile(item.key, item.title, item.cover_url, checked=mine, sub=item.sub, square=tab.square,
+                        shown=true, locked=mine and not entry.quick_pick) }}
+        {% endfor %}
+      </div>
+    </div>
+  {% endfor %}
+</form>
+
+<section class="panel import-more">
+  <h2>想要更完整？匯入紀錄</h2>
+  <p class="muted small">同步 Steam 遊戲時數、Last.fm 收聽紀錄，或上傳 YouTube Music、Netflix 紀錄，名片會更準。</p>
+  <a class="btn secondary small" href="/me/collection">到收藏頁匯入 →</a>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ asset('js/tabs.js') }}"></script>
+<script src="{{ asset('js/cover-picker.js') }}"></script>
+{% endblock %}

@@ -67,6 +67,7 @@ def profile(request: Request, username: str, session: SessionDep, me: CurrentUse
         if category == Category.anime:  # 「本季在追」 row on top of the anime tab
             section["season_picks"] = seasonal.picks(session, owner.id, season_key, public_only=not is_owner)
         if category == Category.music:
+            section["fav_artists"] = [(e, w) for e, w in rows if w.source == "artist"]  # 喜歡的歌手 picks
             section["top_artists"] = top_artists(list(rows), TOP_N)
             section["top_songs"] = top_songs(list(rows), TOP_N)
         sections.append(section)

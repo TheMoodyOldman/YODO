@@ -97,7 +97,7 @@ def candidate_tiers(session: Session, p1: User, p2: User, is_friend: bool) -> li
         session.exec(
             select(Work)
             .join(CollectionEntry, col(CollectionEntry.work_id) == Work.id)
-            .where(Work.category == Category.music, col(Work.id).not_in(used or {-1}))
+            .where(Work.category == Category.music, Work.source != "artist", col(Work.id).not_in(used or {-1}))
             .group_by(col(Work.id))
             .having(func.count(func.distinct(CollectionEntry.user_id)) >= 2)
             .order_by(func.count(func.distinct(CollectionEntry.user_id)).desc())

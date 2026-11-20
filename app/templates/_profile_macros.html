@@ -1,6 +1,17 @@
 {% from "_macros.html" import cover_img %}
 
 {% macro music_rankings(section, n, base) -%}
+{% if section.fav_artists %}
+  <div class="fav-artists">
+    <h3>喜歡的歌手</h3>
+    <ul class="fav-artist-list">
+      {% for entry, work in section.fav_artists %}
+        <li><span class="fav-artist-cover">{% if work.cover_url %}<img src="{{ work.cover_url | local }}" alt="" loading="lazy">{% else %}{{ work.title[:1] }}{% endif %}</span><span>{{ work.title }}</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
+{% if section.top_songs %}
 <div class="rankings">
   <div>
     <h3>最常聽的歌手</h3>
@@ -33,6 +44,7 @@
     </ol>
   </div>
 </div>
+{% endif %}
 {%- endmacro %}
 
 

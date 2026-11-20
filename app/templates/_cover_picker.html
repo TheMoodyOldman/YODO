@@ -1,0 +1,26 @@
+{# Shared cover multi-select (本季新番, 新手教學). Tap a cover to tick it; static/js/cover-picker.js
+   keeps 「已選 N」 up to date and adds search results. Without JS the checkboxes still work. #}
+{% from "_icons.html" import icon %}
+
+{# One tile. `shown` adds a hidden input so the server knows the tile was on the page (un-ticking
+   an untouched quick pick removes it). `locked` = already in the collection another way. #}
+{% macro cover_tile(value, title, cover_url=none, checked=false, sub="", square=false, shown=false, locked=false, name="pick") -%}
+  <label class="season-pick{% if square %} square{% endif %}{% if locked %} locked{% endif %}">
+    <input type="checkbox" name="{{ name }}" value="{{ value }}"{% if checked %} checked{% endif %}{% if locked %} disabled{% endif %}>
+    {% if shown %}<input type="hidden" name="shown" value="{{ value }}">{% endif %}
+    <span class="season-cover">
+      {% if cover_url %}<img src="{{ cover_url | local }}" alt="" loading="lazy">{% else %}<span class="season-initial" aria-hidden="true">{{ title[:1] }}</span>{% endif %}
+      <span class="season-check" aria-hidden="true">{{ icon("check", 20) }}</span>
+    </span>
+    <span class="season-title">{{ title }}</span>
+    {% if sub or locked %}<span class="season-sub">{{ "已收藏" if locked else sub }}</span>{% endif %}
+  </label>
+{%- endmacro %}
+
+{# The sticky 「已選 N 部 · 完成」 bar. #}
+{% macro picker_bar(count, unit="部") -%}
+  <div class="season-bar">
+    <p class="season-count" aria-live="polite">已選 <strong data-count>{{ count }}</strong> {{ unit }}</p>
+    <button type="submit" class="btn">完成</button>
+  </div>
+{%- endmacro %}

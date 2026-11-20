@@ -78,13 +78,21 @@ def looking_keys(user: User) -> list[str]:
 
 
 def _weight(entry: CollectionEntry, category: Category) -> float:
+    if (entry.quick_pick or entry.season) and not (entry.tier or entry.playtime_minutes or entry.play_count):
+        return SEASON_PICK_WEIGHT  # picked from covers, nothing measured or rated yet
     if category == Category.game:
         return math.log1p((entry.playtime_minutes or 0) / 60)
     if category == Category.music:
         return math.log1p(entry.play_count or 0)
-    if entry.season and not entry.tier:
-        return SEASON_PICK_WEIGHT
     return TIER_WEIGHT.get(entry.tier or "", 1.0)
+
+
+ARTIST_SOURCE = "artist"  # app.quickpick: a 喜歡的歌手 pick, not a song
+
+
+def _artist_plays(entry: CollectionEntry, work: Work) -> int:
+    """Plays an entry adds to its artist: a picked favourite artist counts like one play."""
+    return 1 if work.source == ARTIST_SOURCE else (entry.play_count or 0)
 
 
 def _season_only(mine: CollectionEntry, theirs: CollectionEntry) -> bool:
@@ -172,8 +180,9 @@ def empty_reason(session: Session, viewer: User) -> str:
 
 
 def find_matches(session: Session, viewer: User, limit: int = 20) -> list[Match]:
-    mine = {w.id: (e, w) for e, w in _entries(session, [viewer.id])}
-    if len(mine) < MIN_ENTRIES:
+    rows = _entries(session, [viewer.id])
+    mine = {w.id: (e, w) for e, w in rows if w.source != ARTIST_SOURCE}
+    if len(rows) < MIN_ENTRIES:
         return []
     candidates = _eligible_ids(session, viewer)
     if not candidates:
@@ -186,10 +195,11 @@ def find_matches(session: Session, viewer: User, limit: int = 20) -> list[Match]
     for e, w in _entries(session, candidates):
         if w.category not in public[e.user_id]:
             continue
-        theirs[e.user_id][w.id] = e
+        if w.source != ARTIST_SOURCE:
+            theirs[e.user_id][w.id] = e
         if w.category == Category.music and w.creator:
             artists = their_artists[e.user_id]
-            artists[w.creator.casefold()] = artists.get(w.creator.casefold(), 0) + (e.play_count or 0)
+            artists[w.creator.casefold()] = artists.get(w.creator.casefold(), 0) + _artist_plays(e, w)
 
     # Popularity across everyone (not just candidates) for rarity weighting.
     population = max(session.exec(select(func.count()).select_from(User)).one(), 1)
@@ -201,10 +211,10 @@ def find_matches(session: Session, viewer: User, limit: int = 20) -> list[Match]
         ).all()
     )
     my_artists: dict[str, tuple[str, int]] = {}
-    for e, w in mine.values():
+    for e, w in rows:
         if w.category == Category.music and w.creator:
             name, plays = my_artists.get(w.creator.casefold(), (w.creator, 0))
-            my_artists[w.creator.casefold()] = (name, plays + (e.play_count or 0))
+            my_artists[w.creator.casefold()] = (name, plays + _artist_plays(e, w))
     artist_df: dict[str, int] = {}
     if my_artists:
         for uid, creator in set(

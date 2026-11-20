@@ -36,6 +36,8 @@ def collect_urls(db: Path) -> set[str]:
     try:
         for (payload,) in con.execute("SELECT payload FROM catalogcache WHERE key LIKE 'season:%'"):
             urls |= {i["cover_url"] for i in json.loads(payload) if i.get("cover_url")}
+        for (payload,) in con.execute("SELECT payload FROM catalogcache WHERE key LIKE 'popular:%'"):
+            urls |= {i["cover_url"] for i in json.loads(payload) if (i.get("cover_url") or "").startswith("http")}
         for (payload,) in con.execute("SELECT payload FROM catalogcache WHERE key LIKE 'workinfo:%'"):
             image = json.loads(payload).get("image")  # the work page's high-resolution cover
             if image and image.startswith(("http://", "https://")):

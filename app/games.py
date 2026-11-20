@@ -45,7 +45,8 @@ def visible_rows(session: Session, owner: User, viewer: User, is_friend: bool) -
             col(CollectionEntry.pending_review).is_(False),
         )
     ).all()
-    return [(e, w) for e, w in rows if w.category in allowed]
+    # 喜歡的歌手 picks are artists, not works: never shown or asked about in the games
+    return [(e, w) for e, w in rows if w.category in allowed and w.source != "artist"]
 
 
 def _idf_table(session: Session, work_ids: set[int]) -> tuple[dict[int, float], int]:
