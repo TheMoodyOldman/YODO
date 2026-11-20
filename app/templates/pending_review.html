@@ -20,6 +20,8 @@
           <span class="entry-info">
             <span class="card-title">{{ work.title }}</span>
             {% if work.original_title %}<span class="card-sub">{{ work.original_title }}</span>{% endif %}
+            {% if category == Category.book and entry.status %}<span class="card-sub">{{ {"read":"讀完", "reading":"在讀", "want":"想讀"}.get(entry.status, "") }}</span>{% endif %}
+            {% if work.creator and category == Category.book %}<span class="card-sub">{{ work.creator }}</span>{% endif %}
             {% if entry.play_count %}<span class="card-sub">看了 {{ entry.play_count }} 次</span>{% endif %}
           </span>
         </label>

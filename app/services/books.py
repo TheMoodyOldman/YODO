@@ -126,6 +126,8 @@ async def get_book(source: str, external_id: str) -> Book | None:
     if source == GOOGLE:
         data = await _get(f"{GOOGLE_URL}/{external_id}", _google_params({}))
         return _google_book(data) if data else None
+    if source != OPENLIBRARY:
+        return None
     data = await _get(f"{OL_URL}/search.json", {"q": f"key:/works/{external_id}", "limit": "1", "fields": _OL_FIELDS})
     docs = (data or {}).get("docs") or []
     return _ol_book(docs[0]) if docs else None
@@ -145,6 +147,8 @@ async def get_details(source: str, external_id: str) -> dict[str, Any] | None:
             "publisher": info.get("publisher"),
             "link": info.get("infoLink") or f"https://books.google.com/books?id={external_id}",
         }
+    if source != OPENLIBRARY:
+        return None
     data = await _get(f"{OL_URL}/works/{external_id}.json", {})
     if not data:
         return None

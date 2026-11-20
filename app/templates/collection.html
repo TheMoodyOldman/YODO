@@ -20,6 +20,9 @@
 {% if pending[Category.film] %}
   <p class="notice">有 {{ pending[Category.film] }} 部從 Netflix 匯入的作品還沒公開。<a href="/me/review/film">確認要公開哪些</a></p>
 {% endif %}
+{% if pending[Category.book] %}
+  <p class="notice">有 {{ pending[Category.book] }} 本新匯入的書籍等待確認。<a href="/me/review/book">確認要公開哪些</a></p>
+{% endif %}
 
 <nav class="tabs" role="tablist" aria-label="收藏分類" data-default="{{ default_tab }}">
   {% for category in Category %}
@@ -146,6 +149,11 @@
 
   {% elif category == Category.book %}
     {% set srch = searches[Category.book] %}
+    <section class="panel">
+      <h2>Kobo 快速匯入</h2>
+      <p>批次帶入讀完與在讀的書，不用一本一本搜尋。</p>
+      <a class="btn small" href="/me/kobo">從 Kobo 匯入書單</a>
+    </section>
     <section class="panel">
       <h2>加入書籍</h2>
       <form method="get" action="/me/collection" class="search">

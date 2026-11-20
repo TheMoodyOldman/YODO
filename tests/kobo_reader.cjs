@@ -1,0 +1,24 @@
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const init = require('../app/static/vendor/sql.js/sql-wasm.js');
+const {extract} = require('../app/static/js/kobo-reader.js');
+(async () => {
+  const SQL = await init({locateFile: f => path.join(__dirname,'../app/static/vendor/sql.js',f)});
+  const db = new SQL.Database();
+  db.run('CREATE TABLE content(Title TEXT,Attribution TEXT,ISBN TEXT,ReadStatus INTEGER,ContentType INTEGER,BookID TEXT,AccountToken TEXT)');
+  db.run('CREATE TABLE user(AccountToken TEXT)'); db.run("INSERT INTO user VALUES('NEVER_UPLOAD_TOKEN')");
+  const insert = db.prepare('INSERT INTO content VALUES (?,?,?,?,?,?,?)');
+  for (const r of [['讀完的書','作者','9781234567897',2,6,null,'SECRET'],['在讀的書','作者','',1,6,null,'SECRET'],['沒讀的書','作者','',0,6,null,'SECRET'],['章節','作者','',2,9,'id','SECRET'],['子項','作者','',2,6,'id','SECRET']]) insert.run(r);
+  insert.free(); const bytes=db.export(); db.close();
+  const started=extract(SQL,bytes); assert.equal(started.books.length,2);
+  assert.deepEqual(started.books.map(b=>b.status),['read','reading']);
+  assert.equal(extract(SQL,bytes,'finished').books.length,1);
+  assert.equal(extract(SQL,bytes,'all').books.length,3);
+  assert(!JSON.stringify(started).includes('SECRET')); assert(!JSON.stringify(started).includes('TOKEN'));
+  assert.throws(()=>extract(SQL,new Uint8Array([1,2,3])));
+  const bad=new SQL.Database();bad.run('CREATE VIEW content AS SELECT 1 AS Title');
+  assert.throws(()=>extract(SQL,bad.export()));bad.close();
+  const missing=new SQL.Database();missing.run('CREATE TABLE content(Title TEXT)');
+  assert.throws(()=>extract(SQL,missing.export()));missing.close();
+  console.log('PASS browser SQLite extraction, read status, chapter exclusion, metadata allowlist and invalid schemas');
+})().catch(e=>{console.error(e);process.exitCode=1;});
