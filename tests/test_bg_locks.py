@@ -110,4 +110,64 @@ check("no lock held while waiting on Bangumi", not blocked, str(blocked))
 with Session(engine) as s:
     check("titles marked checked", all(w.zh_checked_at for w in s.exec(select(Work).where(Work.category == Category.anime))))
 
+# 新手教學 cover picker save: a built-in book is looked up over the network. It used to be looked up
+# after an earlier pick was already written, so the lock was held across the await (live load test:
+# "database is locked" for everyone else).
+from app import quickpick  # noqa: E402
+from app.services import books  # noqa: E402
+
+
+async def fake_book_search(query):
+    other_writer_can_commit(f"book search {query}")
+    return []  # no record: saved from the list's title and author
+
+
+books.search = fake_book_search
+blocked.clear()
+game = quickpick._fallback(Category.game)[0]
+book_keys = [i.key for i in quickpick._fallback(Category.book)[:2]]
+with Session(engine) as s:
+    me = s.exec(select(User).where(User.username == "u")).one()
+    result = asyncio.run(quickpick.save(s, me, [game.key, *book_keys], []))
+check("picker saved the game and both books", (result.added, result.skipped) == (3, 0), str(result))
+check("no lock held while looking up a picked book", not blocked, str(blocked))
+with Session(engine) as s:
+    picks = s.exec(select(CollectionEntry).where(CollectionEntry.quick_pick == True)).all()  # noqa: E712
+    check("picks stored as quick picks", len(picks) == 3, str(len(picks)))
+
+# Two people pick the same new work at the same moment: the other one's insert lands between our
+# lookup and our insert (unique source + external_id). The save must retry, not fail with a 500.
+real_work_for = quickpick._work_for
+raced = []
+
+
+def racing_work_for(session, item):
+    if not raced:
+        raced.append(item.key)
+        with Session(engine) as other:
+            other.add(Work(category=item.cat, source=item.source, external_id=item.external_id, title=item.title))
+            other.commit()
+        work = Work(category=item.cat, source=item.source, external_id=item.external_id, title=item.title)
+        session.add(work)
+        session.flush()  # what the old code did after its lookup missed: now a duplicate
+        return work
+    return real_work_for(session, item)
+
+
+quickpick._work_for = racing_work_for
+new_game = quickpick._fallback(Category.game)[1]
+with Session(engine) as s:
+    me = s.exec(select(User).where(User.username == "u")).one()
+    try:
+        result = asyncio.run(quickpick.save(s, me, [new_game.key], []))
+        err = None
+    except Exception as e:  # noqa: BLE001
+        result, err = None, e
+quickpick._work_for = real_work_for
+check("same new work picked by two people at once: save retries", err is None and result.added == 1 and raced, repr(err))
+with Session(engine) as s:
+    rows = s.exec(select(Work).where(Work.source == new_game.source, Work.external_id == new_game.external_id)).all()
+    mine = s.exec(select(CollectionEntry).where(CollectionEntry.work_id == rows[0].id)).all() if rows else []
+    check("one shared work, and the pick points at it", len(rows) == 1 and len(mine) == 1, f"{len(rows)} works, {len(mine)} picks")
+
 print(f"\n{'ALL PASS' if not fails else f'{fails} FAILED'}")

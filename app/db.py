@@ -7,8 +7,14 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from app.config import settings
 
-connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
-engine = create_engine(settings.database_url, connect_args=connect_args)
+if settings.database_url.startswith("sqlite"):
+    # Many people at once (live demo): sync routes run on up to 40 threadpool threads and a page
+    # can use two connections (the route's and render()'s), so the default pool of 5 + 10 ran out.
+    # SQLite connections are cheap. A writer waits up to 15 s for the lock instead of 5 s.
+    engine = create_engine(settings.database_url, connect_args={"check_same_thread": False, "timeout": 15},
+                           pool_size=20, max_overflow=80, pool_timeout=60)
+else:
+    engine = create_engine(settings.database_url)
 
 
 def _add_missing_columns() -> None:

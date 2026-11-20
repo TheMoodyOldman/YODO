@@ -14,6 +14,7 @@ import logging
 from dataclasses import dataclass
 from datetime import timedelta
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app import anime_search, catalog, seasonal
@@ -326,20 +327,37 @@ class SaveResult:
 
 async def save(session: Session, user: User, chosen: list[str], shown: list[str]) -> SaveResult:
     """Add the ticked items; remove untouched quick picks that were shown but un-ticked. Commits."""
-    from app.seasonal import is_empty_shell
-
     have = entry_keys(session, user)
-    added = skipped = removed = 0
+    skipped = 0
+    # Look everything up first (network for built-in books), then write and commit with no await in
+    # between: holding SQLite's write lock across an await locks out every other request.
+    items: list[Item] = []
     for key in dict.fromkeys(chosen):
         if key in have:
             continue
         item = _known(session, key)
         if item is not None and item.source == "lookup":
             item = await _resolve_lookup(item)
-            if item.key in have:
-                continue
         if item is None:
             skipped += 1
+            continue
+        items.append(item)
+    # The writes run in a worker thread, so waiting for the lock never stalls the event loop.
+    try:
+        return await asyncio.to_thread(_write_picks, session, user, have, items, shown, chosen, skipped)
+    except IntegrityError:  # someone else added the same new work at that moment: now it exists, so retry once
+        session.rollback()
+        have = entry_keys(session, user)
+        return await asyncio.to_thread(_write_picks, session, user, have, items, shown, chosen, skipped)
+
+
+def _write_picks(session: Session, user: User, have: dict, items: list, shown: list[str], chosen: list[str],
+                 skipped: int) -> SaveResult:
+    from app.seasonal import is_empty_shell
+
+    added = removed = 0
+    for item in items:
+        if item.key in have:
             continue
         work = _work_for(session, item)
         session.add(CollectionEntry(user_id=user.id, work_id=work.id, quick_pick=True))
