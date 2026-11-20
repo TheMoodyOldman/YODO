@@ -1,0 +1,14 @@
+{
+  "branch": "feat/kobo-in-book-collection",
+  "based_on": "50de8da",
+  "python_kobo_tests": 7,
+  "regression_checks": 87,
+  "browser_checks": {
+    "collection_book_tab_contains_file_and_paste_forms": true,
+    "fresh_game_tab_does_not_load_sql_parser": true,
+    "book_tab_loads_parser_and_enables_file_picker": true,
+    "inline_paste_reaches_private_review": true
+  },
+  "screenshot": "kobo-collection.jpg",
+  "scope": "Synthetic data; original physical Kobo compatibility limit remains."
+}

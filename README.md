@@ -313,3 +313,73 @@ cloudflared tunnel --url http://localhost:8000
 
 1. **第二階段**：~~好友、動態、同好推薦~~（已完成），接著在校園社團內試行，確認用戶密度足以讓推薦有意義
 2. **第三階段**：~~小遊戲、影視與電子書、Netflix 觀看紀錄匯入、作品討論與評分~~（已完成）
+
+
+## Kobo 看過的書快速匯入
+
+入口：我的收藏 → 書籍（`/me/collection#book`）。選檔、貼上書單和錯誤提示都直接整合在此分頁，不需要再開 Kobo 獨立頁。舊 `/me/kobo` 網址會導回書籍分頁。
+
+- 有 Kobo 閱讀器：USB 連接後選取 `.kobo/KoboReader.sqlite`，瀏覽器自動整理書單，再確認一次公開哪些書。
+- 預設只帶入「讀完＋在讀」，可改成只要讀完，或全部含未讀。`ReadStatus` 0／1／2 分別對應想讀／在讀／讀完；不會把所有購書紀錄當成讀完。
+- 沒有閱讀器：每行貼一本書，可貼試算表的「書名 Tab 作者」兩欄，再選閱讀狀態，一次批次加入。
+- 新書沿用匯入確認清單，確認前不會出現在公開名片；取消勾選的書設為隱藏。既有收藏的評價、閱讀狀態和隱私不會被覆蓋。
+- 完全相同的書名＋作者跨來源重用，重複匯入不新增重複收藏。ISBN 存在時使用 Open Library 封面，無封面也能加入；不會自動以模糊搜尋結果替換書籍。
+
+這是**本機書櫃資料匯入**，不是 Kobo 官方 OAuth 帳號連結，不會持續同步。手機 Kobo App 沒有閱讀器的檔案入口；也不能保證設備已刪除、未同步或特定韌體未提供的書籍會出現在檔案中。官方支援筆記匯出，但筆記清單不等於完整已讀書櫃，因此本功能不將筆記內容當成讀完證明。
+
+### 資料與依賴
+
+Kobo 原始 SQLite 僅在瀏覽器的本機 WebAssembly 解析，不上傳伺服器。檔案欄位沒有表單名稱；送出的只有白名單書籍資料（書名、作者、ISBN、閱讀狀態），不包含電子書內容、劃線、筆記、帳號或裝置識別。伺服器再驗證大小、筆數與欄位，並沿用登入者身分與收藏隱私。
+
+解析器為 `app/static/vendor/sql.js/` 中固定版本的 sql.js（版本見 VERSION，MIT 授權同目錄 LICENSE），從官方 npm 套件下載並驗證 SHA-512。所有資源由本站提供，只有 Kobo 區塊出現在畫面時才下載 WASM，其他收藏分頁不預先載入；執行時不需要第三方 CDN、不需要新增伺服器套件，也不需要使用者申請金鑰。
+
+若要更新解析器，請使用官方 sql.js 發布，保留 LICENSE，並一起更新 JS 與 WASM 檔案。閱讀器資料庫欄位依韌體可能不同；缺少必要欄位時會提示改用貼上書單，不會猜測狀態。
+
+### 驗證
+
+`tests/test_kobo.py`：登入保護、批次匯入、重複與跨來源去重、既有資料保留、公開確認、使用者隔離、無效／超量資料、書籍詳情頁。會呼叫 `tests/kobo_reader.cjs`，用虛構 SQLite 驗證實際 WASM 解析、章節過濾、讀完／在讀／未讀及敏感欄位不外傳；執行此套測試需有 Node.js。
+
+已用實際瀏覽器與虛構 Kobo SQLite 完成選檔 → 本機解析 → 確認 → 公開名片流程，另驗證取消勾選後隱藏、無效檔案錯誤恢復及批次貼上。伺服器請求記錄確認未上傳原始 SQLite 或假敏感欄位；本次書櫃請求僅 345 bytes。驗證紀錄見 `tests/evidence/kobo-feasibility.json`，畫面見 `tests/evidence/kobo-review.jpg`。
+
+目前仍未用真人閱讀器檔案驗證。可用個人閱讀器實測本機解析與狀態；請勿將真實 KoboReader.sqlite 放入 Git repo、issue 或公開測試附件。
+
+參考：[Kobo 官方筆記匯出說明](https://help.kobo.com/hc/en-us/articles/29991333812631-Export-annotations-from-your-books)、[KoboReader 欄位查詢範例](https://gist.github.com/ozgurkalan/730f76e2ca7df552151c09a1df8d36bd)、[sql.js 原始專案](https://github.com/sql-js/sql.js)。
+
+
+## 各平台書單與 Google 書櫃匯入
+
+入口同樣在 **我的收藏 → 書籍**。Readmoo、博客來、HyRead、Pubu 等平台可複製可取得的書名清單，每行一本；若有作者，可貼試算表的書名、作者兩欄（Tab 分隔）。選擇這份清單的閱讀狀態後批次加入。不需要提供平台密碼；這是通用文字匯入，不是各平台官方帳號連結，也不會自動抓取那些平台的私人書櫃。
+
+Google 書櫃則提供一次性的 OAuth 授權入口。一般使用者只要登入 Google、授權，再確認收藏；不需要自行申請金鑰。新書一律先進入隱私確認清單，既有收藏的閱讀狀態、評價、隱藏設定不覆蓋。相同來源 ID 或完全一致的書名與作者會沿用既有作品；不使用模糊搜尋猜測作品。
+
+### 網站管理者的一次性 Google 設定
+
+1. 在 Google Cloud 專案啟用 Books API，設定 Google Auth Platform 的同意畫面與 OAuth Web application 用戶端。
+2. 在部署環境設定 `GOOGLE_BOOKS_CLIENT_ID`、`GOOGLE_BOOKS_CLIENT_SECRET`，以及 `GOOGLE_BOOKS_REDIRECT_URI`（例如 `https://your-domain/me/google-books/callback`）；後者須與 Google 登記的重新導向 URI 完全一致。未指定時使用 `PUBLIC_URL` 或目前請求網址產生。正式環境應明確設定 HTTPS callback。
+3. 尚在 Testing 模式時，把實際測試 Google 帳號加入測試使用者。對外發布前需按 Google Console 的要求處理應用程式驗證與隱私權政策。未設定 OAuth 用戶端時，頁面會停用 Google 按鈕，貼上與 Kobo 仍可用。
+
+不要將 client secret 或使用者的 access token 放進 Git。程式只把 OAuth state、PKCE verifier、登入者 ID、10 分鐘期限等暫存於簽章 session；access token 僅用於當次伺服器記憶體中的 API 請求，不寫入 session、資料庫或檔案，不申請離線 refresh token。這是單次匯入，沒有背景同步，也不會顯示為永久綁定帳號。
+
+預設讀取 Google 書架 4（讀過）、3（正在讀）；勾選擴充項目後，另讀取 2（想讀）、1（已購買）、7（我的電子書）。購買與電子書清單的作品保留未知閱讀狀態，不會自動當成讀完。每次最多 1000 本，以每頁 40 本分頁讀取；任何一頁失敗時整次不寫入資料庫。Google Books API 的書櫃不保證包含完整 Play 圖書購買、上傳或閱讀紀錄；空書架時可改用貼上清單。
+
+Google Books 僅提供 `https://www.googleapis.com/auth/books` 授權範圍，包含管理書櫃的權限；頁面會明確說明，本實作只呼叫 GET 書櫃讀取，不新增或刪除遠端書籍。官方參考：[授權與書架 ID](https://developers.google.com/books/docs/v1/using)、[分頁讀取私人書架](https://developers.google.com/books/docs/v1/reference/mylibrary/bookshelves/volumes/list)。
+
+驗證：`tests/test_book_import.py` 使用獨立虛構資料庫與模擬 Google OAuth/API 回應，涵蓋分頁、來源重複、閱讀狀態、授權失效、重放及失敗不寫入。尚未設定正式 Google OAuth 用戶端，真人 Google 帳號授權與 Play 圖書涵蓋程度仍待實測；不將模擬測試當成實際帳號連線成功。
+
+
+## 容器部署與上線驗收
+
+提供 `Dockerfile`、`compose.yaml` 與 `scripts/serve.py`。容器只複製程式，不帶入本機 .env、資料庫、測試帳號或 Kobo 檔案。使用 Python 3.12、非 root 使用者、中文字型、單一 SQLite worker，健康檢查為 `/health`。照片保存在資料庫，SQLite 與照片都需保留 `/data` 的持久化磁碟；**不要使用會在重啟後清空檔案的主機方案**。Render 的持久化磁碟目前需付費服務，這份變更沒有建立或購買任何主機。
+
+在支援持久化磁碟的容器主機設定：
+
+- `SECRET_KEY`：管理者建立至少 32 字元的隨機值並穩定保存；啟動程式拒絕空值或短值，不會輸出金鑰。
+- `PUBLIC_URL=https://正式網址`、`SESSION_HTTPS_ONLY=true`；單機 HTTP 驗收才設為 false。
+- `DATABASE_URL=sqlite:////data/app.db`（容器預設），將 `/data` 掛載為持久化磁碟，維持單個服務實例。增加實例前須另處理 SQLite 與遊戲狀態同步。
+- Google 的三個 OAuth 設定如上節；先註冊正式 callback，再在後台填入 secret，不將 secret 交給一般用戶。反向代理的來源只有在確認可信時才設定 `FORWARDED_ALLOW_IPS`；不要直接信任任意外部請求。
+
+本機 Docker 可執行 `docker compose up --build -d`；先在管理者的私有環境設定上述值。Compose 只綁定 127.0.0.1:8000，正式對外服務另接 HTTPS 反向代理。Google callback 使用同一個網域登入及返回，避免 localhost/127.0.0.1 混用。啟動停用 access log，避免 OAuth callback 的 code 出現在請求紀錄；主機或反向代理也應遮蔽此路徑的查詢參數。
+
+驗收順序：`/health` → 註冊／登入 → 貼上書單 → 隱私確認 → 名片 → Google 授權讀取 → 重複匯入 → 取消授權 → 服務重啟後收藏仍在。Google 未提供用戶端與可登入測試者前只能完成模擬驗證；Kobo 未提供閱讀器時使用合成 SQLite 測試，不宣稱已驗證所有實體韌體。此次 Windows Docker 引擎未啟動，映像建置需在有 Linux 容器引擎的主機補驗。
+
+部署文件參考：[Google Web OAuth](https://developers.google.com/identity/protocols/oauth2/web-server)、[Render 持久化磁碟](https://render.com/docs/disks)。

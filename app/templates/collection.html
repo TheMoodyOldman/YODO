@@ -20,6 +20,9 @@
 {% if pending[Category.film] %}
   <p class="notice">有 {{ pending[Category.film] }} 部從 Netflix 匯入的作品還沒公開。<a href="/me/review/film">確認要公開哪些</a></p>
 {% endif %}
+{% if pending[Category.book] %}
+  <p class="notice">有 {{ pending[Category.book] }} 本新匯入的書籍等待確認。<a href="/me/review/book">確認要公開哪些</a></p>
+{% endif %}
 
 <nav class="tabs" role="tablist" aria-label="收藏分類" data-default="{{ default_tab }}">
   {% for category in Category %}
@@ -146,6 +149,7 @@
 
   {% elif category == Category.book %}
     {% set srch = searches[Category.book] %}
+    {% include "_book_import.html" %}
     <section class="panel">
       <h2>加入書籍</h2>
       <form method="get" action="/me/collection" class="search">
@@ -329,6 +333,7 @@
 {% endblock %}
 
 {% block scripts %}
+{% include "_kobo_scripts.html" %}
 <script src="{{ asset('js/tabs.js') }}"></script>
 <script>
   // ⋯ menus: only one open at a time, closed by tapping elsewhere.

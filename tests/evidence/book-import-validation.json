@@ -1,0 +1,131 @@
+{
+  "date": "2026-11-20",
+  "database": "isolated synthetic fixtures only",
+  "new_tests": 12,
+  "kobo_regression_tests": 7,
+  "other_regressions": [
+    "test_filmbook.py",
+    "test_profile.py",
+    "test_match.py"
+  ],
+  "results": "passed",
+  "coverage": [
+    "generic paste form and error recovery",
+    "manual and Kobo and Google exact-match reuse",
+    "existing status/rating/privacy preserved",
+    "OAuth state, expiration, cancellation, replay and login reset",
+    "PKCE and online-only scope request",
+    "Google pagination and duplicate reading priority",
+    "purchased books not assumed read",
+    "HTTP 401/403/429 and malformed data",
+    "partial remote failure leaves no database writes",
+    "1000-book cap",
+    "unconfigured Google button disabled"
+  ],
+  "limitations": [
+    "Google OAuth and API responses mocked; real account consent unverified",
+    "No production Google OAuth client configured",
+    "No actual Play Books library completeness claim",
+    "No new physical Kobo device test",
+    "No Google Cloud project or hosting account provided",
+    "Friend repo read-only permission; merge must be completed by owner",
+    "Docker engine unavailable; image not built"
+  ],
+  "upstream_integrated": "332b85271ebae7f8988a1599e37023e2270680e2",
+  "rollout_retest": {
+    "checks": 177,
+    "all_passed": true,
+    "suites": [
+      {
+        "script": "test_book_import.py",
+        "exit_code": 0,
+        "passed": true,
+        "checks": 12,
+        "seconds": 6.8,
+        "failures": []
+      },
+      {
+        "script": "test_kobo.py",
+        "exit_code": 0,
+        "passed": true,
+        "checks": 7,
+        "seconds": 4.9,
+        "failures": []
+      },
+      {
+        "script": "test_deployment.py",
+        "exit_code": 0,
+        "passed": true,
+        "checks": 4,
+        "seconds": 2.5,
+        "failures": []
+      },
+      {
+        "script": "test_filmbook.py",
+        "exit_code": 0,
+        "passed": true,
+        "checks": 38,
+        "seconds": 4.0,
+        "failures": []
+      },
+      {
+        "script": "test_profile.py",
+        "exit_code": 0,
+        "passed": true,
+        "checks": 21,
+        "seconds": 9.2,
+        "failures": []
+      },
+      {
+        "script": "test_match.py",
+        "exit_code": 0,
+        "passed": true,
+        "checks": 28,
+        "seconds": 3.3,
+        "failures": []
+      },
+      {
+        "script": "test_demo_env.py",
+        "exit_code": 0,
+        "passed": true,
+        "checks": 26,
+        "seconds": 8.4,
+        "failures": []
+      },
+      {
+        "script": "test_local_assets.py",
+        "exit_code": 0,
+        "passed": true,
+        "checks": 23,
+        "seconds": 2.8,
+        "failures": []
+      },
+      {
+        "script": "test_polish.py",
+        "exit_code": 0,
+        "passed": true,
+        "checks": 12,
+        "seconds": 2.9,
+        "failures": []
+      },
+      {
+        "script": "test_bg_locks.py",
+        "exit_code": 0,
+        "passed": true,
+        "checks": 6,
+        "seconds": 1.9,
+        "failures": []
+      }
+    ]
+  },
+  "http_preview_validation": {
+    "health": "passed",
+    "real_http_login": "passed",
+    "paste_and_privacy_review": "passed",
+    "collection_survives_server_restart": "passed",
+    "duplicate_after_restart": "passed",
+    "google_unconfigured_disabled": "passed",
+    "url": "http://127.0.0.1:8796/me/collection#book",
+    "publicly_deployed": false
+  }
+}

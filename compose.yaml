@@ -1,0 +1,17 @@
+services:
+  yodo:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      SECRET_KEY: ${SECRET_KEY:?Set a stable random SECRET_KEY of at least 32 characters}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      SESSION_HTTPS_ONLY: ${SESSION_HTTPS_ONLY:-true}
+      GOOGLE_BOOKS_CLIENT_ID: ${GOOGLE_BOOKS_CLIENT_ID:-}
+      GOOGLE_BOOKS_CLIENT_SECRET: ${GOOGLE_BOOKS_CLIENT_SECRET:-}
+      GOOGLE_BOOKS_REDIRECT_URI: ${GOOGLE_BOOKS_REDIRECT_URI:-}
+    volumes:
+      - yodo-data:/data
+    restart: unless-stopped
+volumes:
+  yodo-data:
