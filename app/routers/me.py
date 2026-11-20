@@ -118,7 +118,9 @@ async def collection(
 
     # Tab shown when the URL has no #hash (redirects after form posts add one).
     searched = next((c for c, srch in searches.items() if srch["query"]), None)
-    if searched:
+    if getattr(request.state, "kobo_error", None):
+        default_tab = Category.book
+    elif searched:
         default_tab = searched
     elif music == "all":
         default_tab = Category.music
@@ -136,6 +138,10 @@ async def collection(
         "collection.html",
         me=me,
         guide=onboarding.card(session, me),
+        kobo_error=getattr(request.state, "kobo_error", None),
+        kobo_text=getattr(request.state, "kobo_text", ""),
+        kobo_status=getattr(request.state, "kobo_status", "reading"),
+        status_code=400 if getattr(request.state, "kobo_error", None) else 200,
         q=q,
         searches=searches,
         owned=owned,

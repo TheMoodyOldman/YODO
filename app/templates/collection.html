@@ -149,11 +149,7 @@
 
   {% elif category == Category.book %}
     {% set srch = searches[Category.book] %}
-    <section class="panel">
-      <h2>Kobo 快速匯入</h2>
-      <p>批次帶入讀完與在讀的書，不用一本一本搜尋。</p>
-      <a class="btn small" href="/me/kobo">從 Kobo 匯入書單</a>
-    </section>
+    {% include "_kobo_import.html" %}
     <section class="panel">
       <h2>加入書籍</h2>
       <form method="get" action="/me/collection" class="search">
@@ -337,6 +333,7 @@
 {% endblock %}
 
 {% block scripts %}
+{% include "_kobo_scripts.html" %}
 <script src="{{ asset('js/tabs.js') }}"></script>
 <script>
   // ⋯ menus: only one open at a time, closed by tapping elsewhere.

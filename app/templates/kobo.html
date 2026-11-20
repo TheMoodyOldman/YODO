@@ -1,34 +1,4 @@
 {% extends "base.html" %}
 {% block title %}Kobo 快速匯入 · 友多聞 YODO{% endblock %}
-{% block content %}
-<h1>Kobo 看過的書，一次帶進來</h1>
-<p class="muted">選一次書櫃檔案，確認一次，就能批次加入。不需要 Kobo 密碼。</p>
-{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
-<section class="panel">
-  <h2>從 Kobo 閱讀器匯入</h2>
-  <p>用 USB 連接閱讀器，在這台電腦選取 <strong>.kobo → KoboReader.sqlite</strong>。請先同步閱讀器並保留一份副本。</p>
-  <p class="small muted">書櫃在瀏覽器本機解析，原始檔、帳號、筆記及劃線內容不會上傳。只傳送書名、作者、ISBN 與閱讀狀態。這是一次匯入，不會持續同步 Kobo 帳號。</p>
-  <label for="kobo-scope">帶入哪些書</label>
-  <select id="kobo-scope"><option value="started">讀完與在讀（預設）</option><option value="finished">只要讀完</option><option value="all">全部，包含未讀</option></select>
-  <p><label for="kobo-file">選取 Kobo 書櫃檔案</label><input id="kobo-file" type="file" accept=".sqlite,.db" disabled></p>
-  <p id="kobo-feedback" role="status" aria-live="polite">正在準備本機解析器…</p>
-  <form id="kobo-upload" action="/me/kobo/import" method="post" enctype="multipart/form-data"><input type="hidden" name="payload" id="kobo-payload"></form>
-  <noscript><p>本機檔案解析需要 JavaScript，或使用下方貼上書單。</p></noscript>
-  <details><summary>找不到 .kobo 資料夾？</summary><p>電腦的檔案選擇視窗可直接輸入「閱讀器磁碟代號:\.kobo\KoboReader.sqlite」。macOS 可按 Command + Shift + . 顯示隱藏檔。手機 Kobo App 沒有這個檔案入口，請用下方貼上書單。</p></details>
-</section>
-<section class="panel">
-  <h2>沒有閱讀器？貼上看過的書</h2>
-  <p class="muted">每行一本；可直接貼試算表的「書名、作者」兩欄（Tab 分隔）。沒有作者也可以。</p>
-  <form method="post" action="/me/kobo/import" enctype="multipart/form-data" class="stack">
-    <label for="kobo-text">書單</label><textarea id="kobo-text" name="text" rows="7" maxlength="200000" required placeholder="小王子&#9;Antoine de Saint-Exupéry&#10;原子習慣&#9;James Clear"></textarea>
-    <label for="kobo-status">這份書單的閱讀狀態</label><select id="kobo-status" name="status"><option value="reading">在讀</option><option value="read">讀完</option><option value="want">想讀</option></select>
-    <button class="btn" type="submit">批次加入，前往確認</button>
-  </form>
-</section>
-<p class="small muted">新書先進入確認清單；既有收藏的評價與隱私不會被覆蓋。封面依 ISBN 取得，查不到時仍可加入。買過、在讀與讀完會分開保留。</p>
-{% endblock %}
-{% block scripts %}
-<script src="{{ asset('vendor/sql.js/sql-wasm.js') }}" defer></script>
-<script src="{{ asset('js/kobo-reader.js') }}" defer></script>
-<script src="{{ asset('js/kobo.js') }}" defer></script>
-{% endblock %}
+{% block content %}{% include "_kobo_import.html" %}{% endblock %}
+{% block scripts %}{% include "_kobo_scripts.html" %}{% endblock %}

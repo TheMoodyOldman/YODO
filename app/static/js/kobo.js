@@ -1,12 +1,29 @@
 (() => {
   const file = document.getElementById('kobo-file');
+  if (!file) return;
   const feedback = document.getElementById('kobo-feedback');
-  const script = [...document.scripts].find(s => s.src.includes('/vendor/sql.js/sql-wasm.js'));
+  const panel = document.querySelector('[data-kobo-import]');
   let sqlPromise;
-  try {
-    sqlPromise = initSqlJs({locateFile:name => new URL(name, script.src).href});
+  function prepare() {
+    if (sqlPromise) return;
+    sqlPromise = new Promise((resolve, reject) => {
+      const script=document.createElement('script'); script.src=panel.dataset.sqlJs;
+      script.onload=() => {
+        try { resolve(initSqlJs({locateFile:name => new URL(name,script.src).href})); }
+        catch (error) { reject(error); }
+      };
+      script.onerror=() => reject(new Error('parser unavailable'));
+      document.head.append(script);
+    });
     sqlPromise.then(() => { file.disabled=false; feedback.textContent='選取檔案後會自動整理書單，再讓你確認。'; }).catch(() => { feedback.textContent='本機解析器無法載入，請重新整理或使用下方貼上書單。'; });
-  } catch { feedback.textContent='本機解析器無法載入，請使用下方貼上書單。'; }
+  }
+  // Other collection tabs do not download the WASM parser. Prepare it only on screen.
+  if ('IntersectionObserver' in window) {
+    const observer=new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) { prepare(); observer.disconnect(); }
+    });
+    observer.observe(panel);
+  } else { prepare(); }
   file.addEventListener('change', async () => {
     const selected=file.files[0]; if (!selected) return;
     file.disabled=true;

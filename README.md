@@ -242,7 +242,7 @@ cloudflared tunnel --url http://localhost:8000
 
 ## Kobo 看過的書快速匯入
 
-入口：我的收藏 → 書籍 → 從 Kobo 匯入書單（`/me/kobo`）。
+入口：我的收藏 → 書籍（`/me/collection#book`）。選檔、貼上書單和錯誤提示都直接整合在此分頁，不需要再開 Kobo 獨立頁。舊 `/me/kobo` 網址會導回書籍分頁。
 
 - 有 Kobo 閱讀器：USB 連接後選取 `.kobo/KoboReader.sqlite`，瀏覽器自動整理書單，再確認一次公開哪些書。
 - 預設只帶入「讀完＋在讀」，可改成只要讀完，或全部含未讀。`ReadStatus` 0／1／2 分別對應想讀／在讀／讀完；不會把所有購書紀錄當成讀完。
@@ -256,7 +256,7 @@ cloudflared tunnel --url http://localhost:8000
 
 Kobo 原始 SQLite 僅在瀏覽器的本機 WebAssembly 解析，不上傳伺服器。檔案欄位沒有表單名稱；送出的只有白名單書籍資料（書名、作者、ISBN、閱讀狀態），不包含電子書內容、劃線、筆記、帳號或裝置識別。伺服器再驗證大小、筆數與欄位，並沿用登入者身分與收藏隱私。
 
-解析器為 `app/static/vendor/sql.js/` 中固定版本的 sql.js（版本見 VERSION，MIT 授權同目錄 LICENSE），從官方 npm 套件下載並驗證 SHA-512。所有資源由本站提供，執行時不需要第三方 CDN、不需要新增伺服器套件，也不需要使用者申請金鑰。
+解析器為 `app/static/vendor/sql.js/` 中固定版本的 sql.js（版本見 VERSION，MIT 授權同目錄 LICENSE），從官方 npm 套件下載並驗證 SHA-512。所有資源由本站提供，只有 Kobo 區塊出現在畫面時才下載 WASM，其他收藏分頁不預先載入；執行時不需要第三方 CDN、不需要新增伺服器套件，也不需要使用者申請金鑰。
 
 若要更新解析器，請使用官方 sql.js 發布，保留 LICENSE，並一起更新 JS 與 WASM 檔案。閱讀器資料庫欄位依韌體可能不同；缺少必要欄位時會提示改用貼上書單，不會猜測狀態。
 

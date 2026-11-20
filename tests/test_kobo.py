@@ -68,8 +68,9 @@ class KoboTests(unittest.TestCase):
 
     def test_auth_and_entry(self):
         self.assertEqual(TestClient(app,follow_redirects=False).post('/me/kobo/import',data={'text':'a'}).status_code,303)
-        self.assertIn('從 Kobo 匯入書單',self.client.get('/me/collection#book').text)
-        page=self.client.get('/me/kobo');self.assertEqual(page.status_code,200)
+        old=self.client.get('/me/kobo');self.assertEqual(old.status_code,303)
+        self.assertEqual(old.headers['location'],'/me/collection#book')
+        page=self.client.get('/me/collection#book');self.assertEqual(page.status_code,200)
         self.assertNotIn('type="password"',page.text)
         self.assertIn('id="kobo-file"',page.text)
         self.assertNotIn('name="file"',page.text)
@@ -90,6 +91,20 @@ class KoboTests(unittest.TestCase):
         with Session(engine) as s:eid=s.exec(select(CollectionEntry.id)).one()
         self.client.post('/me/review/book',data={'publish':str(eid)})
         self.assertEqual(self.client.get(f'/u/kobo_test/w/{wid}').status_code,200)
+
+    def test_collection_inline_and_error_recovery(self):
+        page=self.client.get('/me/collection')
+        self.assertEqual(page.text.count('id="kobo-file"'),1)
+        self.assertEqual(page.text.count('id="kobo-text"'),1)
+        self.assertIn('data-kobo-import',page.text)
+        self.assertNotIn('href="/me/kobo"',page.text)
+        self.assertNotIn('<script src="/static/vendor/sql.js/sql-wasm.js',page.text)
+        invalid=self.client.post('/me/kobo/import',data={'text':'原本貼上的書單','status':'invalid'})
+        self.assertEqual(invalid.status_code,400)
+        self.assertIn('我的收藏',invalid.text)
+        self.assertIn('data-default="book"',invalid.text)
+        self.assertIn('原本貼上的書單',invalid.text)
+        self.assertIn('role="alert"',invalid.text)
 
     def test_browser_sqlite(self):
         result=subprocess.run(['node',str(ROOT/'tests/kobo_reader.cjs')],capture_output=True,text=True,encoding='utf-8')
