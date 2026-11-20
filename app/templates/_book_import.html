@@ -1,0 +1,27 @@
+<h2>匯入我的書單</h2>
+{% if kobo_error %}<p class="error" role="alert">{{ kobo_error }}</p>{% endif %}
+<section class="panel">
+  <h2>從 Google 書櫃匯入</h2>
+  <p>登入 Google 並授權後，自動整理書單，再一次確認加入。不需要申請自己的 API 金鑰。</p>
+  {% if google_books_ready %}
+    <form method="get" action="/me/google-books/connect" class="stack">
+      <label class="check"><input type="checkbox" name="include_owned" value="1">也帶入想讀、已購買與我的電子書</label>
+      <button type="submit" class="btn">登入 Google，匯入書櫃</button>
+    </form>
+  {% else %}
+    <button type="button" class="btn secondary" disabled>Google 書櫃連結尚未開放</button>
+    <p class="small muted">網站管理者完成 Google 授權設定後即可使用。你可以先貼上書單或使用 Kobo 匯入。</p>
+  {% endif %}
+  <p class="small muted">預設匯入「讀過、正在讀」書架。勾選後也會帶入想讀和購買清單；買過的書不會直接標成讀完。只取得 Google Books API 可回傳的書籍，可能不包含全部 Play 圖書。這是單次匯入，不會背景持續同步。</p>
+  <details><summary>Google 的授權範圍</summary><p>Google Books 的授權範圍包含管理書櫃；YODO 的實作只使用讀取 API，不新增、刪除或修改 Google 書架。不會把存取權杖保存在瀏覽器 cookie 或資料庫中。</p></details>
+</section>
+<section class="panel">
+  <h2>從任何平台貼上書單</h2>
+  <p class="muted">Readmoo、博客來、HyRead、Pubu 或其他來源都可使用。每行一本；可直接貼試算表的「書名、作者」兩欄（Tab 分隔）。沒有作者也可以。</p>
+  <form method="post" action="/me/books/import" enctype="multipart/form-data" class="stack">
+    <label for="kobo-text">書單</label><textarea id="kobo-text" name="text" rows="7" maxlength="200000" required placeholder="小王子&#9;Antoine de Saint-Exupéry&#10;原子習慣&#9;James Clear">{{ kobo_text | default('') }}</textarea>
+    <label for="kobo-status">這份書單的閱讀狀態</label><select id="kobo-status" name="status"><option value="reading">在讀</option><option value="read"{% if kobo_status == "read" %} selected{% endif %}>讀完</option><option value="want"{% if kobo_status == "want" %} selected{% endif %}>想讀</option></select>
+    <button class="btn" type="submit">批次加入，前往確認</button>
+  </form>
+</section>
+{% include "_kobo_import.html" %}

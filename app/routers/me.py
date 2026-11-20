@@ -15,7 +15,7 @@ from app.anime import TIERED, parse_status, parse_tag, parse_tier, status_rank, 
 from app.matching import LOOKING_FOR, REGIONS, looking_keys
 from app.music import LASTFM, YOUTUBE
 from app.privacy import get_privacy, set_privacy
-from app.services import anilist, books, steam, tmdb
+from app.services import anilist, books, steam, tmdb, google_books
 from app.templating import flash, render
 from app.works import upsert_work
 
@@ -157,6 +157,7 @@ async def collection(
         has_netflix=any(e.play_count for c in (Category.film, Category.anime) for e, _ in by_category[c]),
         tmdb_ready=tmdb.configured(),
         books_source=books.active_source(),
+        google_books_ready=google_books.configured(),
         steam_profile_url=steam.profile_url(me.steam_id) if me.steam_id else None,
         rate_entry=rate_entry,
         rate_next=rate_next,

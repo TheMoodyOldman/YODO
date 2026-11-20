@@ -269,3 +269,24 @@ Kobo 原始 SQLite 僅在瀏覽器的本機 WebAssembly 解析，不上傳伺服
 目前仍未用真人閱讀器檔案驗證。可用個人閱讀器實測本機解析與狀態；請勿將真實 KoboReader.sqlite 放入 Git repo、issue 或公開測試附件。
 
 參考：[Kobo 官方筆記匯出說明](https://help.kobo.com/hc/en-us/articles/29991333812631-Export-annotations-from-your-books)、[KoboReader 欄位查詢範例](https://gist.github.com/ozgurkalan/730f76e2ca7df552151c09a1df8d36bd)、[sql.js 原始專案](https://github.com/sql-js/sql.js)。
+
+
+## 各平台書單與 Google 書櫃匯入
+
+入口同樣在 **我的收藏 → 書籍**。Readmoo、博客來、HyRead、Pubu 等平台可複製可取得的書名清單，每行一本；若有作者，可貼試算表的書名、作者兩欄（Tab 分隔）。選擇這份清單的閱讀狀態後批次加入。不需要提供平台密碼；這是通用文字匯入，不是各平台官方帳號連結，也不會自動抓取那些平台的私人書櫃。
+
+Google 書櫃則提供一次性的 OAuth 授權入口。一般使用者只要登入 Google、授權，再確認收藏；不需要自行申請金鑰。新書一律先進入隱私確認清單，既有收藏的閱讀狀態、評價、隱藏設定不覆蓋。相同來源 ID 或完全一致的書名與作者會沿用既有作品；不使用模糊搜尋猜測作品。
+
+### 網站管理者的一次性 Google 設定
+
+1. 在 Google Cloud 專案啟用 Books API，設定 Google Auth Platform 的同意畫面與 OAuth Web application 用戶端。
+2. 在部署環境設定 `GOOGLE_BOOKS_CLIENT_ID`、`GOOGLE_BOOKS_CLIENT_SECRET`，以及 `GOOGLE_BOOKS_REDIRECT_URI`（例如 `https://your-domain/me/google-books/callback`）；後者須與 Google 登記的重新導向 URI 完全一致。未指定時使用 `PUBLIC_URL` 或目前請求網址產生。正式環境應明確設定 HTTPS callback。
+3. 尚在 Testing 模式時，把實際測試 Google 帳號加入測試使用者。對外發布前需按 Google Console 的要求處理應用程式驗證與隱私權政策。未設定 OAuth 用戶端時，頁面會停用 Google 按鈕，貼上與 Kobo 仍可用。
+
+不要將 client secret 或使用者的 access token 放進 Git。程式只把 OAuth state、PKCE verifier、登入者 ID、10 分鐘期限等暫存於簽章 session；access token 僅用於當次伺服器記憶體中的 API 請求，不寫入 session、資料庫或檔案，不申請離線 refresh token。這是單次匯入，沒有背景同步，也不會顯示為永久綁定帳號。
+
+預設讀取 Google 書架 4（讀過）、3（正在讀）；勾選擴充項目後，另讀取 2（想讀）、1（已購買）、7（我的電子書）。購買與電子書清單的作品保留未知閱讀狀態，不會自動當成讀完。每次最多 1000 本，以每頁 40 本分頁讀取；任何一頁失敗時整次不寫入資料庫。Google Books API 的書櫃不保證包含完整 Play 圖書購買、上傳或閱讀紀錄；空書架時可改用貼上清單。
+
+Google Books 僅提供 `https://www.googleapis.com/auth/books` 授權範圍，包含管理書櫃的權限；頁面會明確說明，本實作只呼叫 GET 書櫃讀取，不新增或刪除遠端書籍。官方參考：[授權與書架 ID](https://developers.google.com/books/docs/v1/using)、[分頁讀取私人書架](https://developers.google.com/books/docs/v1/reference/mylibrary/bookshelves/volumes/list)。
+
+驗證：`tests/test_book_import.py` 使用獨立虛構資料庫與模擬 Google OAuth/API 回應，涵蓋分頁、來源重複、閱讀狀態、授權失效、重放及失敗不寫入。尚未設定正式 Google OAuth 用戶端，真人 Google 帳號授權與 Play 圖書涵蓋程度仍待實測；不將模擬測試當成實際帳號連線成功。

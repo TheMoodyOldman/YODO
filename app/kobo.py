@@ -1,11 +1,10 @@
 """Import only book metadata extracted locally from a Kobo bookshelf."""
-import hashlib
 import json
 import re
 import unicodedata
 
-from sqlmodel import Session, select
-from app.models import Category, CollectionEntry, User, Work
+from sqlmodel import Session
+from app.models import User
 
 MAX_BOOKS = 5000
 MAX_PAYLOAD = 900_000
@@ -65,24 +64,5 @@ def parse_text(text: str, status: str) -> list[dict]:
 
 
 def import_books(session: Session, user: User, rows: list[dict]) -> tuple[int, int]:
-    # Reuse exact title + author across metadata providers. Never guess from a fuzzy search.
-    existing = session.exec(select(Work).where(Work.category == Category.book)).all()
-    by_name = {(normalized(w.title), normalized(w.creator or '')): w for w in existing}
-    owned = {e.work_id for e in session.exec(select(CollectionEntry).where(CollectionEntry.user_id == user.id))}
-    added = skipped = 0
-    for row in rows:
-        key = (normalized(row['title']), normalized(row['author']))
-        work = by_name.get(key)
-        if work is None:
-            identity = json.dumps(key, ensure_ascii=False).encode('utf-8')
-            work = Work(category=Category.book, source='kobo', external_id=hashlib.sha256(identity).hexdigest(),
-                        title=row['title'], creator=row['author'] or None,
-                        cover_url=f"https://covers.openlibrary.org/b/isbn/{row['isbn']}-M.jpg?default=false" if row['isbn'] else None)
-            session.add(work); session.flush(); by_name[key] = work
-        if work.id in owned:
-            skipped += 1
-            continue
-        session.add(CollectionEntry(user_id=user.id, work_id=work.id, status=row['status'], pending_review=True))
-        owned.add(work.id); added += 1
-    session.commit()
-    return added, skipped
+    from app.book_import import import_books as shared_import
+    return shared_import(session, user, rows, source='kobo')

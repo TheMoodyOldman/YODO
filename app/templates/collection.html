@@ -149,7 +149,7 @@
 
   {% elif category == Category.book %}
     {% set srch = searches[Category.book] %}
-    {% include "_kobo_import.html" %}
+    {% include "_book_import.html" %}
     <section class="panel">
       <h2>加入書籍</h2>
       <form method="get" action="/me/collection" class="search">

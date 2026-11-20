@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     tmdb_api_key: str = ""
     # Optional: Google Books works without a key at low volume
     google_books_api_key: str = ""
+    google_books_client_id: str = ""
+    google_books_client_secret: str = ""
+    google_books_redirect_uri: str = ""
     # Optional CJK font files for the monthly card; common system fonts are tried otherwise.
     card_font_regular: str = ""
     card_font_bold: str = ""

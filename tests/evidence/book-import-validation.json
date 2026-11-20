@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-20",
+  "database": "isolated synthetic fixtures only",
+  "new_tests": 12,
+  "kobo_regression_tests": 7,
+  "other_regressions": [
+    "test_filmbook.py",
+    "test_profile.py",
+    "test_match.py"
+  ],
+  "results": "passed",
+  "coverage": [
+    "generic paste form and error recovery",
+    "manual and Kobo and Google exact-match reuse",
+    "existing status/rating/privacy preserved",
+    "OAuth state, expiration, cancellation, replay and login reset",
+    "PKCE and online-only scope request",
+    "Google pagination and duplicate reading priority",
+    "purchased books not assumed read",
+    "HTTP 401/403/429 and malformed data",
+    "partial remote failure leaves no database writes",
+    "1000-book cap",
+    "unconfigured Google button disabled"
+  ],
+  "limitations": [
+    "Google OAuth and API responses mocked; real account consent unverified",
+    "No production Google OAuth client configured",
+    "No actual Play Books library completeness claim",
+    "No new physical Kobo device test"
+  ]
+}
