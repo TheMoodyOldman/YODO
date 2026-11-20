@@ -6,7 +6,7 @@ leaving real users' data alone. External APIs are faked."""
 import asyncio
 import os
 import pathlib
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 here = pathlib.Path(__file__).parent
 db = here / "test_demo_env.db"
@@ -181,7 +181,41 @@ tmp_db.write_bytes(b"changed during the demo")
 (tmp_db.with_name(tmp_db.name + "-wal")).write_bytes(b"stale wal")
 check("reset restores demo.db from the snapshot", reset_demo.main() == 0 and tmp_db.read_bytes() == b"snapshot-v1")
 check("reset removes the stale -wal file", not tmp_db.with_name(tmp_db.name + "-wal").exists())
-for p in (tmp_db, tmp_snap):
+
+# timestamps move forward by (reset time - seed time); dates of birth stay
+import sqlite3  # noqa: E402
+
+tmp_snap.unlink()
+con = sqlite3.connect(tmp_snap)
+con.executescript("""
+CREATE TABLE catalogcache (key VARCHAR PRIMARY KEY, payload VARCHAR, fetched_at DATETIME);
+CREATE TABLE message (id INTEGER PRIMARY KEY, created_at DATETIME, read_at DATETIME);
+CREATE TABLE user (id INTEGER PRIMARY KEY, birth_date DATE, created_at DATETIME);
+CREATE TABLE activity (id INTEGER PRIMARY KEY, day VARCHAR, updated_at DATETIME);
+INSERT INTO catalogcache VALUES ('demo:seeded_at', '{}', '2026-11-13 12:00:00.000000');
+INSERT INTO message VALUES (1, '2026-11-13 11:00:00.000000', NULL);
+INSERT INTO user VALUES (1, '2000-01-01', '2026-11-13 12:00:00.000000');
+INSERT INTO activity VALUES (1, '2026-11-13', '2026-11-13 11:30:00.000000');
+""")
+con.commit()
+con.close()
+real_shift = demo_db.shift_times
+demo_db.shift_times = lambda db: real_shift(db, now=datetime(2026, 11, 21, 2, 0))  # 10:00 Taipei on demo day
+try:
+    ok = reset_demo.main() == 0
+finally:
+    demo_db.shift_times = real_shift
+con = sqlite3.connect(tmp_db)
+msg = con.execute("SELECT created_at, read_at FROM message").fetchone()
+user = con.execute("SELECT birth_date, created_at FROM user").fetchone()
+day = con.execute("SELECT day FROM activity").fetchone()[0]
+con.close()
+check("reset moves times forward: the 1-hour-old message is still 1 hour old",
+      ok and msg[0].startswith("2026-11-21 01:00:00") and msg[1] is None, str(msg))
+check("reset keeps dates of birth, moves sign-up time", user[0] == "2000-01-01" and user[1].startswith("2026-11-21 02:00:00"), str(user))
+check("reset moves activity days (Taipei dates)", day == "2026-11-21", day)
+check("database without a seed marker is copied unchanged", demo_db.shift_times(tmp_snap.with_name("missing.db")) is None)
+for p in (tmp_db, tmp_snap, tmp_snap.with_name("missing.db")):
     p.unlink(missing_ok=True)
 
 # the real snapshot (if built) only holds demo accounts and starts with the banner not dismissed

@@ -26,7 +26,7 @@ from datetime import date, datetime, timedelta  # noqa: E402
 import httpx  # noqa: E402
 from sqlmodel import Session, col, select  # noqa: E402
 
-from app import anime_search, seasonal  # noqa: E402
+from app import anime_search, catalog, seasonal  # noqa: E402
 from app.auth import hash_password  # noqa: E402
 from app.db import engine, init_db  # noqa: E402
 from app.importers.youtube import TAIPEI  # noqa: E402
@@ -68,6 +68,8 @@ CHAT = [  # (from demo?, text, minutes ago)
 # 本季新番 picks are indexes into this season's AniList list (most popular first), so the demo works
 # whatever the season. Fake people: (username, name, bio, region, friend of demo?, picks, tiers for DEMO_ANIME)
 DEMO_PICKS = [0, 1, 3, 6]
+# Friends who can log in on a second / third phone (same demo password) for 猜歌對戰 and 猜誰是臥底.
+LOGIN_PEOPLE = {"demo_rain", "demo_zhe"}
 FAKE_PEOPLE = [
     ("demo_rain", "小雨", "每季必追新番，週末補番到天亮", "台北市", True, [0, 1, 2, 4, 7], {"Frieren": "must_watch"}),
     ("demo_zhe", "阿哲", "熱血番和機器人派", "台中市", True, [1, 3, 5], {"Mob Psycho 100": "great"}),
@@ -102,9 +104,12 @@ def _work(session: Session, source: str, external_id: str, **fields) -> Work:
 
 def _person(session: Session, username: str, name: str, bio: str, region: str) -> User:
     user = session.exec(select(User).where(User.username == username)).first()
-    if user is None:  # fake people can't log in: random password nobody knows
-        user = User(username=username, display_name=name, password_hash=hash_password(secrets.token_urlsafe(24)),
-                    birth_date=date(2001, 5, 5), bio=bio, region=region, looking_for="anime")
+    if user is None:  # others can't log in: random password nobody knows
+        password = DEMO_PASSWORD if username in LOGIN_PEOPLE else secrets.token_urlsafe(24)
+        user = User(username=username, display_name=name, password_hash=hash_password(password),
+                    birth_date=date(2001, 5, 5), bio=bio, region=region, looking_for="anime",
+                    email=f"{username}@example.com", email_verified_at=utcnow(), tour_state="skipped",
+                    onboarding_hidden=True)
         session.add(user)
         session.flush()
     return user
@@ -273,6 +278,7 @@ async def _seed(client: httpx.AsyncClient) -> None:
                 email="demo@example.com",  # reserved test domain; marked verified so no e-mail banner
                 email_verified_at=utcnow(),
                 tour_state="skipped",  # the tour can still be restarted from 設定
+                onboarding_hidden=True,  # no 新手教學 card on the profile / feed during a demo
             )
             session.add(user)
             session.flush()
@@ -285,6 +291,8 @@ async def _seed(client: httpx.AsyncClient) -> None:
         if rain:
             await seed_music(session, client, rain, [(a, t, 0, n) for a, t, n in RAIN_SONGS])
             seed_chat(session, user, rain)
+        # reset_demo moves every timestamp forward by (reset time - this), so "1 小時前" stays true
+        catalog.put(session, demo_db.SEEDED_AT_KEY, {"note": "when demo.seed.db was built"})
 
 
 if __name__ == "__main__":
