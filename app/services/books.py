@@ -131,6 +131,45 @@ async def get_book(source: str, external_id: str) -> Book | None:
     return _ol_book(docs[0]) if docs else None
 
 
+async def lookup_isbn(isbn13: str) -> Book | None:
+    """The book with this ISBN-13 (see app.isbn.normalize), or None if no source knows it.
+
+    Google Books covers Traditional Chinese far better, so it is asked first when a key is set. Without a
+    key Open Library goes first, then one keyless Google Books try: a single lookup usually fits the shared
+    quota even when searching would not. A source that errors is skipped; BooksError only if all failed.
+    """
+    attempts = (
+        [_google_isbn, _ol_isbn] if settings.google_books_api_key else [_ol_isbn, _google_isbn]
+    )
+    errors = 0
+    for attempt in attempts:
+        try:
+            book = await attempt(isbn13)
+        except BooksError:
+            errors += 1
+            continue
+        if book:
+            return book
+    if errors == len(attempts):
+        raise BooksError("no book source reachable")
+    return None
+
+
+async def _google_isbn(isbn13: str) -> Book | None:
+    params: dict[str, Any] = {"q": f"isbn:{isbn13}", "maxResults": "1"}
+    if settings.google_books_api_key:
+        params["key"] = settings.google_books_api_key
+    data = await _get(GOOGLE_URL, params)
+    items = (data or {}).get("items") or []
+    return _google_book(items[0]) if items else None
+
+
+async def _ol_isbn(isbn13: str) -> Book | None:
+    data = await _get(f"{OL_URL}/search.json", {"isbn": isbn13, "limit": "1", "fields": _OL_FIELDS})
+    docs = (data or {}).get("docs") or []
+    return _ol_book(docs[0]) if docs else None
+
+
 async def get_details(source: str, external_id: str) -> dict[str, Any] | None:
     """Normalized: description, categories, page_count, publisher, link."""
     if source == GOOGLE:

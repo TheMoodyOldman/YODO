@@ -1689,3 +1689,17 @@ html.tour-enter main.container { animation: tour-in 0.5s cubic-bezier(.2,.8,.2,1
 /* K: 猜猜是誰: one cover shape for every item (music art is cropped to fit), so cards line up */
 .guess-items .cover, .guess-items .cover.square-cover { aspect-ratio: 3 / 4; overflow: hidden; min-height: 0; }
 .guess-items .cover img { width: 100%; height: 100%; object-fit: cover; }
+
+/* 拍照找書 */
+.bookscan-status:empty { display: none; }
+.bookscan-status { margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: var(--grad-soft); color: var(--accent); font-weight: 600; }
+.bookscan .panel + .panel { margin-top: 16px; }
+.bookscan-camera { position: relative; margin: 8px 0; border-radius: 14px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; }
+.bookscan-camera video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bookscan-frame { position: absolute; left: 12%; right: 12%; top: 34%; bottom: 34%; border: 3px solid rgba(255, 255, 255, 0.9); border-radius: 10px; box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.35); }
+.bookscan-file { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+.bookscan-file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.bookscan-file:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bookscan-read { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0 12px; }
+.bookscan-read dt { color: var(--muted); }
+.bookscan-read dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }

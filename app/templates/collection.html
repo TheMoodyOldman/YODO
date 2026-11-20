@@ -152,6 +152,7 @@
         <input name="bq" value="{{ srch.query }}" placeholder="搜尋書名或作者" aria-label="搜尋書籍">
         <button type="submit" class="btn">搜尋</button>
       </form>
+      <div class="actions"><a class="btn secondary small" href="/books/scan">拍照找書</a><span class="muted small">掃條碼、拍版權頁或輸入 ISBN</span></div>
       <p class="muted small">資料來自 {{ "Google Books" if books_source == "googlebooks" else "Open Library（繁簡中文都能搜，但中文書收錄較少，可改用原文書名或作者）" }}。</p>
       {% if srch.error %}<p class="error">{{ srch.error }}</p>{% endif %}
       {% if srch.query and not srch.results and not srch.error %}<p class="muted">找不到「{{ srch.query }}」，試試原文書名或作者。</p>{% endif %}

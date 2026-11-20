@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}拍照找書 · 友多聞 YODO{% endblock %}
+
+{% block content %}
+<a class="back-btn plain" href="/me/collection#book"><span class="arrow" aria-hidden="true">←</span> 返回書籍收藏</a>
+<header class="page-head">
+  <p class="eyebrow gradient-text">拍照找書</p>
+  <h1>這是哪一本書？</h1>
+  <p class="muted small">拍下印著 ISBN 的地方最準：封底條碼，或版權頁的「ISBN 978-…」那一行。{% if ai_ready %}沒有 ISBN 時也可以拍封面。{% else %}拍封面讀書名需要伺服器設定照片辨識。{% endif %}找到後會打開這本書的介紹頁。</p>
+</header>
+
+<div class="bookscan" data-bookscan data-ai="{{ '1' if ai_ready else '0' }}">
+  <p class="bookscan-status" data-status role="status" aria-live="polite"></p>
+
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+  {% if read %}
+    <section class="panel">
+      <h2>照片上讀到的文字</h2>
+      <dl class="bookscan-read">
+        {% if read.title %}<dt>書名</dt><dd>{{ read.title }}</dd>{% endif %}
+        {% if read.author %}<dt>作者</dt><dd>{{ read.author }}</dd>{% endif %}
+        {% if read.publisher %}<dt>出版社</dt><dd>{{ read.publisher }}</dd>{% endif %}
+        {% if read.isbn %}<dt>ISBN</dt><dd>{{ read.isbn }}</dd>{% endif %}
+      </dl>
+      {% if candidates %}
+        <p class="muted small">同一本書常有不同版本或譯本，請選出你手上那一本。</p>
+        <div class="grid compact">
+          {% for b in candidates %}
+            <article class="card">
+              <div class="cover">{% if b.cover_url %}<img src="{{ b.cover_url }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}</div>
+              <div class="card-body"><div class="card-title">{{ b.title }}</div>
+                {% if b.authors %}<div class="card-sub">{{ b.authors }}</div>{% endif %}
+                {% if b.year %}<div class="card-meta"><span>{{ b.year }}</span></div>{% endif %}</div>
+              <div class="card-actions">
+                <form method="post" action="/books/scan/pick" class="inline">
+                  <input type="hidden" name="source" value="{{ b.source }}">
+                  <input type="hidden" name="book_id" value="{{ b.external_id }}">
+                  <button type="submit" class="btn small">就是這本</button>
+                </form>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% if query %}
+        <p class="small">都不是？<a href="/me/collection?bq={{ query | urlencode }}#book">用「{{ query }}」搜尋更多結果</a></p>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  <section class="panel" data-live hidden>
+    <h2>用相機掃條碼</h2>
+    <p class="muted small">把封底的條碼放進框裡，讀到就會自動查詢。</p>
+    <div class="bookscan-camera" data-camera hidden>
+      <video data-video playsinline muted></video>
+      <span class="bookscan-frame" aria-hidden="true"></span>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn" data-start>開啟相機</button>
+      <button type="button" class="btn secondary" data-stop hidden>停止</button>
+    </div>
+  </section>
+
+  <section class="panel" data-photo-panel>
+    <h2>拍照或選一張照片</h2>
+    <form method="post" action="/books/scan/photo" enctype="multipart/form-data" data-photo-form>
+      <label class="btn secondary bookscan-file">
+        拍照／選擇照片
+        <input type="file" name="photo" accept="image/*,.heic,.heif" capture="environment" data-photo-input>
+      </label>
+      <noscript><button type="submit" class="btn small">送出</button></noscript>
+    </form>
+    <p class="muted small" data-photo-hint>
+      把 ISBN 那一行拍清楚、拍正，光線充足。{% if ai_ready %}找不到 ISBN 時會改讀封面的書名與作者。{% endif %}
+      第一次讀數字時，瀏覽器要下載幾 MB 的文字辨識資料，請稍候。照片在你的裝置上辨識{% if ai_ready %}；需要讀書名時才會送到伺服器，用完不保存{% endif %}。
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2>輸入 ISBN</h2>
+    <form method="post" action="/books/scan/isbn" class="search" data-isbn-form>
+      <input name="isbn" inputmode="numeric" autocomplete="off" placeholder="例如 978-986-XXX-XXX-X" aria-label="ISBN">
+      <button type="submit" class="btn">查詢</button>
+    </form>
+    <p class="muted small">ISBN 印在封底條碼上方，或版權頁的「ISBN」後面；10 碼或 13 碼都可以。書目來自 {{ "Google Books" if books_source == "googlebooks" else "Open Library 與 Google Books" }}。</p>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}<script src="{{ asset('js/bookscan.js') }}" defer></script>{% endblock %}

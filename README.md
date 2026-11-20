@@ -29,6 +29,14 @@
 
 動畫評價分為「此生必看／大推／還不錯／普通／雷／已棄坑」，另可加一個 ACG 用語標籤（例如 #神作、#胃痛、#我看了什麼）。影視與書籍用同一組等級，標籤換成各自的用語（例如影視的 #後勁很強、#值得二刷，書籍的 #一口氣讀完、#難啃）；書籍另有「想讀／在讀／讀完」狀態。等級、標籤與狀態定義在 `app/anime.py`。
 
+**拍照找書** `/books/scan`（收藏的書籍分頁有入口）
+- 三種方式找到一本書，找到後直接打開它的作品公開頁（簡介、大家的評價），要不要加入收藏由使用者決定
+- **掃條碼**：用相機對準封底的 ISBN 條碼，讀到就查詢；條碼在瀏覽器裡解讀（BarcodeDetector，Android 的 Chrome、Edge、Samsung Internet 支援），相機需要 HTTPS 或 localhost
+- **拍照**：拍封底、版權頁或封面，依序嘗試：照片裡的條碼 → 照片上印的 ISBN 數字（[Tesseract.js](https://github.com/naptha/tesseract.js) 在瀏覽器裡辨識，免費、所有瀏覽器可用，第一次使用會從 jsDelivr 下載幾 MB 的辨識資料；iPhone 的 HEIC 照片會先用 [heic2any](https://github.com/alexcorvi/heic2any) 在瀏覽器裡轉成 JPEG）→ 有設定金鑰時交給 Claude API 讀出書名、作者與出版社。讀到 ISBN 就直接開那本書；只讀到書名時列出候選書，由使用者選「就是這本」，避免選錯版本或譯本
+- **輸入 ISBN**：10 碼或 13 碼都可以，會檢查最後一碼的檢查碼
+- ISBN 先查 Google Books（有金鑰時）再查 Open Library；沒有金鑰時順序相反，並多試一次不帶金鑰的 Google Books
+- 讀封面書名需要 `ANTHROPIC_API_KEY`；沒設定時仍可掃條碼、拍 ISBN 數字與輸入 ISBN。條碼與數字在使用者的裝置上辨識，照片不會上傳；只有要讀書名時才會把照片縮小、移除 EXIF 後送出，不會保存，每人每小時最多 20 次
+
 **好友與動態** `/me/friends`、`/feed`
 - 雙向好友邀請；興趣頁可加好友、解除好友、封鎖
 - 公開範圍設為「好友」的類別只有好友看得到
@@ -133,6 +141,7 @@ uvicorn app.main:app --reload
 | `LASTFM_SHARED_SECRET` | Last.fm 登入驗證 | 同上，建立應用程式後會一起拿到 |
 | `TMDB_API_KEY` | 搜尋電影與影集、比對 Netflix 紀錄 | [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)，v3 API Key 或 v4 Read Access Token 都可以 |
 | `GOOGLE_BOOKS_API_KEY` | 選填但建議：搜尋書籍（中文書較完整） | [Google Cloud Console](https://console.cloud.google.com/apis/library/books.googleapis.com) 啟用 Books API 後建立 API 金鑰；未設定時改用 Open Library |
+| `ANTHROPIC_API_KEY` | 選填：拍照找書讀封面與版權頁 | [Claude Console](https://console.anthropic.com) 建立 API 金鑰（依用量付費）；未設定時只能掃條碼或輸入 ISBN。模型可用 `VISION_MODEL` 調整，預設 `claude-haiku-5-5` |
 | `SMTP_HOST`／`SMTP_PORT`／`SMTP_USER`／`SMTP_PASSWORD`／`MAIL_FROM` | 寄驗證信與重設密碼信；設定後才會強制驗證電子信箱 | Gmail：開啟兩步驟驗證後到 [應用程式密碼](https://myaccount.google.com/apppasswords) 建立一組，`SMTP_HOST=smtp.gmail.com`、`SMTP_PORT=587`、`SMTP_USER` 與 `MAIL_FROM` 填你的 Gmail |
 | `PUBLIC_URL` | 選填：信件裡連結使用的網址（例如 trycloudflare 或正式網域） | 不填就用使用者當下開的網址 |
 | `ADMIN_USERNAMES` | 選填：可以審核檢舉的帳號，逗號分隔 | 例如 `domino` |

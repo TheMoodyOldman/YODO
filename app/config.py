@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     tmdb_api_key: str = ""
     # Optional: Google Books works without a key at low volume
     google_books_api_key: str = ""
+    # Optional: lets the book scanner read covers and copyright pages (Claude API, https://console.anthropic.com).
+    # Without it the scanner still reads barcodes in supporting browsers and accepts typed ISBNs.
+    anthropic_api_key: str = ""
+    vision_model: str = "claude-haiku-5-5"
     # Optional CJK font files for the monthly card; common system fonts are tried otherwise.
     card_font_regular: str = ""
     card_font_bold: str = ""
