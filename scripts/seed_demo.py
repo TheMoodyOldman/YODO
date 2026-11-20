@@ -26,7 +26,7 @@ from datetime import date, datetime, timedelta  # noqa: E402
 import httpx  # noqa: E402
 from sqlmodel import Session, col, select  # noqa: E402
 
-from app import anime_search, catalog, seasonal  # noqa: E402
+from app import anime_search, catalog, genres, seasonal  # noqa: E402
 from app.auth import hash_password  # noqa: E402
 from app.db import engine, init_db  # noqa: E402
 from app.importers.youtube import TAIPEI  # noqa: E402
@@ -258,9 +258,20 @@ async def main() -> None:
         await _seed(client)
     with Session(engine) as session:
         await seed_previews(session)
+        # Do the background job's work now (genres for 風格偏好, Chinese titles), so the demo
+        # server has nothing to look up while presenting: no network, no competing writes.
+        while await genres.enrich_batch(session):
+            pass
+        while await anime_search.enrich_titles(session):
+            pass
     engine.dispose()  # release the snapshot file before copying it
     demo_db.restore()
     print(f"Seeded /u/{DEMO_USERNAME}: {demo_db.SNAPSHOT.name} built and copied to {demo_db.DEMO_DB.name}")
+    # local copies of every cover and preview, for a demo without the network (LOCAL_ASSETS_DIR)
+    from scripts import cache_covers
+
+    got, had, failed = await cache_covers.download(cache_covers.collect_urls(demo_db.SNAPSHOT), cache_covers.DEFAULT_DIR)
+    print(f"covers/previews in {cache_covers.DEFAULT_DIR.name}/: {got} downloaded, {had} already there, {len(failed)} failed")
 
 
 async def _seed(client: httpx.AsyncClient) -> None:

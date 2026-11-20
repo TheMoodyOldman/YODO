@@ -23,7 +23,7 @@
             <input type="hidden" name="listed_artist" value="{{ artist.key }}">
             <label class="check review-row">
               <input type="checkbox" name="artist" value="{{ artist.key }}" checked>
-              <span class="thumb square">{% if artist.cover_url %}<img src="{{ artist.cover_url }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}</span>
+              <span class="thumb square">{% if artist.cover_url %}<img src="{{ artist.cover_url | local }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}</span>
               <span class="entry-info">
                 <span class="card-title">{{ artist.name }}</span>
                 <span class="card-sub">{% if artist.plays %}{{ artist.plays }} 次播放 · {% endif %}{{ artist.songs }} 首歌</span>

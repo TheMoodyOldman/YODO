@@ -158,11 +158,19 @@ Demo 用一個獨立的資料庫 `demo.db`，裡面只有示範帳號 `demo` 和
 
 `demo` 的密碼寫在 `scripts/seed_demo.py`，只適合本機和 Demo 使用。
 
-**用 demo.db 啟動**：
+**用 demo.db 啟動**（`LOCAL_ASSETS_DIR` 讓作品封面和猜歌試聽都從本機讀取，不用等網路）：
 
 ```powershell
-$env:DATABASE_URL = "sqlite:///demo.db"; .venv\Scripts\uvicorn.exe app.main:app --port 8000
+$env:DATABASE_URL = "sqlite:///demo.db"; $env:LOCAL_ASSETS_DIR = "demo_assets"; .venv\Scripts\uvicorn.exe app.main:app --port 8000
 ```
+
+封面和試聽片段在 `seed_demo` 時會一起下載到 `demo_assets/`（約 13 MB，不進 git）。只想重新下載時：
+
+```powershell
+.venv\Scripts\python.exe -m scripts.cache_covers
+```
+
+本機找不到的檔案會照常連網讀取，所以就算少了幾張也不會壞掉。手機透過 Cloudflare 臨時網址連進來時，通道本身仍需要網路；現場沒有網路的話，改用同一個 Wi-Fi 的區網網址。
 
 **每次 Demo 前重置**（不需要網路，一秒內完成；先按 Ctrl+C 停掉伺服器）：
 
@@ -214,6 +222,7 @@ app/
 ├── onboarding.py      新手教學清單
 ├── seasonal.py        本季新番快速勾選（AniList 當季清單、勾選、季別標籤）
 ├── catalog.py         外部清單的資料庫快取（重開伺服器或 API 失敗時沿用）
+├── local_assets.py    Demo 模式：封面與試聽片段優先從本機資料夾讀取（LOCAL_ASSETS_DIR）
 ├── anime_search.py    中文動畫搜尋與中文片名（Bangumi → AniList）
 ├── zh.py              繁簡轉換（OpenCC）
 ├── music.py           音樂匯入、排行計算
@@ -227,7 +236,7 @@ app/
 ├── routers/           各頁面路由
 ├── templates/         Jinja 模板
 └── static/            CSS 與 JS
-scripts/               Demo 環境：seed_demo（建立 demo.db）、reset_demo（重置）、remove_demo_people
+scripts/               Demo 環境：seed_demo（建立 demo.db）、reset_demo（重置）、cache_covers（下載封面）、remove_demo_people
 tests/                 整合測試（run_all.py 一次跑完）
 ```
 

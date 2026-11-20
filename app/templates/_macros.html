@@ -1,8 +1,8 @@
 {% macro cover_img(work) -%}
   {%- if work.cover_url -%}
     {#- Steam portrait art is missing for some older games: fall back to the header image, then to nothing. -#}
-    <img src="{{ work.cover_url }}" alt="" loading="lazy"
-      {%- if work.source == 'steam' %} data-fallback="{{ work.cover_url | replace('library_600x900.jpg', 'header.jpg') }}"{% endif %}
+    <img src="{{ work.cover_url | local }}" alt="" loading="lazy"
+      {%- if work.source == 'steam' %} data-fallback="{{ work.cover_url | replace('library_600x900.jpg', 'header.jpg') | local }}"{% endif %}
       onerror="if (this.dataset.fallback) { this.src = this.dataset.fallback; delete this.dataset.fallback; } else { this.remove(); }">
   {%- endif -%}
 {%- endmacro %}

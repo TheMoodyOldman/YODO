@@ -28,7 +28,7 @@
       <label class="season-pick">
         <input type="checkbox" name="pick" value="{{ a.id }}"{% if a.id in picked %} checked{% endif %}>
         <span class="season-cover">
-          {% if a.cover_url %}<img src="{{ a.cover_url }}" alt="" loading="lazy">{% else %}<span class="season-initial" aria-hidden="true">{{ a.title[:1] }}</span>{% endif %}
+          {% if a.cover_url %}<img src="{{ a.cover_url | local }}" alt="" loading="lazy">{% else %}<span class="season-initial" aria-hidden="true">{{ a.title[:1] }}</span>{% endif %}
           <span class="season-check" aria-hidden="true">{{ icon("check", 20) }}</span>
         </span>
         <span class="season-title">{{ a.title }}</span>

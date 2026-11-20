@@ -274,7 +274,7 @@
               {% if is_music and entry.play_count %}<span class="row-plays">{{ entry.play_count }} 次</span>{% endif %}
               {% if category in TIERED %}
                 <button type="button" class="btn small" data-rate data-category="{{ category.value }}" data-id="{{ entry.id }}" data-title="{{ work.title }}"
-                        data-cover="{{ work.cover_url or '' }}" data-tier="{{ entry.tier or '' }}" data-tag="{{ entry.tag or '' }}" data-status="{{ entry.status or '' }}">評價</button>
+                        data-cover="{{ (work.cover_url | local) or '' }}" data-tier="{{ entry.tier or '' }}" data-tag="{{ entry.tag or '' }}" data-status="{{ entry.status or '' }}">評價</button>
               {% endif %}
               <details class="entry-more">
                 <summary aria-label="更多動作">⋯</summary>
@@ -305,7 +305,7 @@
 {% if rate_entry %}
   {% set e, w = rate_entry %}
   <button type="button" hidden data-rate data-autoopen data-category="{{ w.category.value }}" data-id="{{ e.id }}" data-title="{{ w.title }}"
-          data-cover="{{ w.cover_url or '' }}" data-tier="{{ e.tier or '' }}" data-tag="{{ e.tag or '' }}" data-status="{{ e.status or '' }}"></button>
+          data-cover="{{ (w.cover_url | local) or '' }}" data-tier="{{ e.tier or '' }}" data-tag="{{ e.tag or '' }}" data-status="{{ e.status or '' }}"></button>
 {% endif %}
 {% for cat in TIERED %}
 <dialog class="rate-dialog" id="rate-dialog-{{ cat.value }}" aria-labelledby="rate-title-{{ cat.value }}">

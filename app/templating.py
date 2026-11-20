@@ -23,6 +23,7 @@ from app.db import engine
 from app.models import CATEGORY_LABELS, VISIBILITY_LABELS, Category, Visibility
 from app.social import Relation, incoming_request_count
 from app.messages import unread_count
+from app.local_assets import url_for as local_url
 from app.seasonal import label as season_label
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
@@ -100,6 +101,7 @@ templates.env.globals.update(
     challenge_label=challenge_label,
     season_label=season_label,
 )
+templates.env.filters["local"] = local_url  # {{ url | local }}: the demo-mode local copy when there is one
 
 
 def flash(request: Request, message: str) -> None:

@@ -11,6 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.auth import BirthDateRequired, EmailRequired, LoginRequired
 from app.config import settings
 from app.db import init_db
+from app.local_assets import MOUNT
 from app.routers import account, auth, card, community, feed, film, messages, nearby, photos, friends, games, lastfm, match, me, music, pages, profile, rooms, season, steam, work, youtube
 
 BASE_DIR = Path(__file__).parent
@@ -35,6 +36,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="友多聞 YODO", lifespan=lifespan)
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, same_site="lax")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+if settings.local_assets_dir:  # demo mode: downloaded covers and previews (app.local_assets)
+    app.mount(MOUNT, StaticFiles(directory=settings.local_assets_dir, check_dir=False), name="local-assets")
 app.include_router(pages.router)
 app.include_router(auth.router)
 app.include_router(account.router)

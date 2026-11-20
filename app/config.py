@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     mail_from: str = ""
     # Address used in emailed links, e.g. https://yodo.example.com (defaults to the request's own address)
     public_url: str = ""
+    # Demo without the network: folder of downloaded covers / song previews (scripts.cache_covers),
+    # e.g. "demo_assets". Pages use a local copy when there is one. Empty = off.
+    local_assets_dir: str = ""
 
 
 settings = Settings()
